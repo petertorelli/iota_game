@@ -10,34 +10,43 @@ function* prng(seed: number = 1): Generator<number, any, number> {
   }
 }
 
-const prngGen = prng();
-
-function shuffle (array: number[]) {
-  let currentIndex = array.length;
-  let randomIndex;
-  while (currentIndex !== 0) {
-    randomIndex = Math.floor(prngGen.next().value * currentIndex);
-    currentIndex--;
-    [array[currentIndex], array[randomIndex]] = [
-      array[randomIndex], array[currentIndex]];
-  }
-  return array;
-}
-
 export default class DeckObject {
-  public deck: number[];
+  public deck: number[] = []
+  public seed: number = 0;
+  private rand = prng(this.seed);
   constructor () {
+    this.init();
+  }
+
+  public init() {
+    this.seed = Math.floor(Math.random() * 1024);
+    this.rand = prng(this.seed);
     // See note about MSB in CardObject.ts
     this.deck = _.range(0x80, 0xc0); // TODO: Actually 66 due to wildcards
     this.shuffleDeck();
   }
   
   public shuffleDeck() {
-    this.deck = shuffle(this.deck);
+    const array = this.deck;
+    let currentIndex = array.length;
+    let randomIndex;
+    while (currentIndex !== 0) {
+      randomIndex = Math.floor(this.rand.next().value * currentIndex);
+      currentIndex--;
+      [array[currentIndex], array[randomIndex]] = [
+        array[randomIndex], array[currentIndex]];
+    }
   }
 
   public drawOne(): number|null {
     const c = this.deck.shift();
     return c || null;
+  }
+
+  // TODO: We never really check deck consistency. Maybe we should.
+  public returnCards(hand: number[]) {
+    hand.forEach(card => {
+      this.deck.push(card);
+    });
   }
 }

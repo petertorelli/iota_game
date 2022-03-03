@@ -28,7 +28,10 @@ export function isCard(card: number|null) {
   return (card & 0x7f) <= 0x3f;
 }
 
-export function color(card: number) {
+export function color(card: number|null) {
+  if (card === null) {
+    return 'white';
+  }
   switch ((card >> 4) & 0x3) {
     case 0: return 'blue';
     case 1: return 'red';
@@ -38,7 +41,10 @@ export function color(card: number) {
   }
 }
 
-export function htmlColor(card: number) {
+export function htmlColor(card: number|null) {
+  if (card === null) {
+    return 'white';
+  }
   switch ((card >> 4) & 0x3) {
     case 0: return 'dodgerblue';
     case 1: return 'red';
@@ -48,7 +54,10 @@ export function htmlColor(card: number) {
   }
 }
 
-export function shape(card: number) {
+export function shape(card: number|null) {
+  if (card === null) {
+    return '';
+  }
   switch ((card >> 2) & 0x3) {
     case 0: return 'square';
     case 1: return 'circle';
@@ -58,7 +67,10 @@ export function shape(card: number) {
   }
 }
 
-export function htmlShape(card: number) {
+export function htmlShape(card: number|null) {
+  if (card === null) {
+    return '';
+  }
   switch ((card >> 2) & 0x3) {
     case 0: return '&#x25a0;';
     case 1: return '&#x25cf;';

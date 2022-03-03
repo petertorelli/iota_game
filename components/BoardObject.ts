@@ -1,8 +1,6 @@
 import _ from 'lodash';
-import UNWRAP from './Utilities';
 
 /*
-
 The largest possible board is derived from the most number of plays in any
 one direction:
 
@@ -18,16 +16,34 @@ If we went backwards it would be 48 squares the other way. So the total
 max width is 48 + 49 or 97 squares.
 
 To be safe, assume the board is 97 x 97, or 9409 squares.
-
 */
+
+type Point = {
+  x: number,
+  y: number,
+}
+
+type BoundingBox = {
+  ulc: Point,
+  lrc: Point,
+  w: number,
+  h: number,
+}
+
 const BOARD_DIM = 97;
 const BOARD_HALF = (BOARD_DIM - 1) / 2;
 export default class BoardObject {
-  public board: number[];
-  public taken: Array<{x: number, y: number}>;
-  public bbox = {ulc: {x: 0, y: 0}, lrc: {x: 0, y: 0}, w:0, h:0};
+  public board: Array<number|null> = [];
+  public taken: Array<{x: number, y: number}> = [];
+  public bbox: BoundingBox = {ulc: {x: 0, y: 0}, lrc: {x: 0, y: 0}, w:0, h:0};
   constructor () {
     this.board = Array(BOARD_DIM * BOARD_DIM).fill(null);
+    this.init();
+  }
+
+  public init() {
+    this.bbox = {ulc: {x: 0, y: 0}, lrc: {x: 0, y: 0}, w:0, h:0};
+    this.board.fill(null);
     this.taken = [];
   }
 
@@ -47,7 +63,6 @@ export default class BoardObject {
       return false;
     }
     this.board[x + y * BOARD_DIM] = card;
-    console.log('taken', UNWRAP(card), { x, y});
     this.taken.push({x: _x, y: _y});
     this.bbox.ulc.x = Math.min(this.bbox.ulc.x, _x);
     this.bbox.ulc.y = Math.min(this.bbox.ulc.y, _y);
@@ -59,18 +74,12 @@ export default class BoardObject {
   }
 
   public getXRange() {
-    /*
-    return _.range(-3, 4);
-    */
-    if (this.bbox.w === 0) return _.range(-3, 4);
+    if (this.bbox.w === 0) return _.range(-2, 3);
     return _.range(this.bbox.ulc.x - 2, this.bbox.lrc.x + 3);
   }
 
   public getYRange() {
-    /*
-    return _.range(-3, 4);
-    */
-    if (this.bbox.h === 0) return _.range(-3, 4);
+    if (this.bbox.h === 0) return _.range(-2, 3);
     return _.range(this.bbox.ulc.y - 2, this.bbox.lrc.y + 3);
   }
 }

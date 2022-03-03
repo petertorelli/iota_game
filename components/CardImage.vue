@@ -26,16 +26,3 @@ export default Vue.component( "CardImage", {
   }
 });
 </script>
-
-<style lang='scss' scoped>
-.card {
-  display: flex; 
-  align-items: center;
-  justify-content: space-around;
-  font-size: 1rem;
-  width: 40px;
-  height: 40px;
-  border: 1px solid #ccc;
-  margin: 3px;
-}
-</style>

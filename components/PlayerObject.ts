@@ -15,20 +15,21 @@ type ScoredHandPlays = ScoredHandPlay[];
 
 function PCARDS(hdr: string, c: number[]) {
   let text = "";
-  console.log(hdr);
+  // console.log(hdr, "-->");
   c.forEach(cc => {
     text += card.name(cc) + '\n';
   });
-  console.log(text);
+  // console.log(text);
+  // console.log(hdr, "<--");
 }
 
-function scoreLine (existing: number[], hand: number[]) {
+function scoreLine (existing: number[], hand: number[], max: number) {
   const ratedPlays: ScoredHandPlays = [];
   const ncards = hand.length;
   const npermutes = 2 ** ncards;
   
-  console.log('existing', UNWRAP(existing));
-  console.log('hand', UNWRAP(hand));
+  // console.log('existing', UNWRAP(existing));
+  // console.log('hand', UNWRAP(hand));
   // construct a hand, score, add to Map<number, string>, sort Map<key>
   for (let i=0; i<npermutes; ++i) {
     const colors = new Set<string>();
@@ -57,6 +58,10 @@ function scoreLine (existing: number[], hand: number[]) {
     }
     // TODO: lots of wasted work here.
     if (count < 2 || count > 4) {
+      continue;
+    }
+    if (toPlay.length > max) {
+      // console.log('abort max');
       continue;
     }
     if (
@@ -90,11 +95,29 @@ function scoreLine (existing: number[], hand: number[]) {
 }
 
 export default class PlayerObject {
-  public hand: number[];
-  public name: string;
+  public hand: number[] = [];
+  public name: string = 'Player Name';
+  public score = 0;
   constructor (name: string) {
+    this.init(name);
+  }
+
+  public init(name: string) {
     this.hand = [];
     this.name = name;
+    this.score = 0;
+  }
+
+  // TODO: When to do this strategically?
+  public swapHand (deck: DeckObject) {
+    if (this.hand.length > deck.deck.length) {
+      return false;
+    }
+    const n = this.hand.length;
+    deck.returnCards(this.hand);
+    this.hand = [];
+    this.draw(n, deck);
+    return true;
   }
 
   public draw (count: number, deck: DeckObject) {
@@ -104,7 +127,7 @@ export default class PlayerObject {
       if (card) {
         this.hand.push(card);
       } else {
-        throw new Error('Out of cards');
+        // console.log('Out of cards, cannot draw');
       }
     }
   }
@@ -112,11 +135,11 @@ export default class PlayerObject {
   public findBoardPlays (board: BoardObject) {
     const plays: Array<number[]> = [];
     const geometry: Geometry[] = [];
-    console.log(' ... find board plays');
+    // console.log(' ... find board plays');
     board.taken.forEach(coord => {
       const cc = board.at(coord.x, coord.y);
       if (cc) {
-        console.log('look', card.name(cc));
+        // console.log('Look at', card.name(cc));
         const x = coord.x;
         const y = coord.y;
 
@@ -159,6 +182,7 @@ export default class PlayerObject {
             plays.push(scan);
             d = Math.min(4 - scan.length, d);
             geometry.push({ direction: 'up', distance: d, x, y: y-1});
+            // console.log(UNWRAP(geometry[geometry.length-1]));
           }
         }
         // ------------------ DOWN
@@ -195,6 +219,7 @@ export default class PlayerObject {
             plays.push(scan);
             d = Math.min(4 - scan.length, d);
             geometry.push({ direction: 'down', distance: d, x, y: y+1});
+            // console.log(UNWRAP(geometry[geometry.length-1]));
           }
         }        
         // ------------------ LEFT
@@ -231,6 +256,7 @@ export default class PlayerObject {
             plays.push(scan);
             d = Math.min(4 - scan.length, d);
             geometry.push({ direction: 'left', distance: d, x: x-1, y});
+            // console.log(UNWRAP(geometry[geometry.length-1]));
           }
         }        
         // ------------------ RIGHT
@@ -267,53 +293,56 @@ export default class PlayerObject {
             plays.push(scan);
             d = Math.min(4 - scan.length, d);
             geometry.push({ direction: 'right', distance: d, x: x+1, y});
+            // console.log(UNWRAP(geometry[geometry.length-1]));
           }
         }   
       } else {
-        console.log('no card');
+        // console.log('no card');
       }
     });
     // There are no cards to play, hence the board is open
     if (plays.length === 0) {
-      console.log('---startmove---');
       plays.push([]);
       // default to play RIGHT at 0,0
       geometry.push({direction: 'right', distance: 4, x: 0, y: 0});
     }
-    console.log('plays', UNWRAP(plays));
-    console.log('geometry', UNWRAP(geometry));
-    console.log(' ... done looking at board');
+    for (let i=0; i<plays.length;++i) {
+      // console.log(`:: Option ${i} ::`, UNWRAP(plays[i].map(x => card.name(x))), UNWRAP(geometry[i]));
+    }
+    // console.log(' ... done looking at board');
     return {plays, geometry};
   }
 
   public play (deck: DeckObject, board: BoardObject) {
-    console.log('--- player "', this.name, '" start ---');
+    // console.log('--- player "', this.name, '" start ---');
     PCARDS('hand', this.hand);
-    console.log('--- player thinking ---');
+    // console.log('--- player thinking ---');
     const survey = this.findBoardPlays(board);
     const summary: Array<any> = [];
     survey.plays.forEach((anchorLine, ii) => {
-      console.log('>> construct new analysis line');
+      // console.log('>> construct new analysis line');
       PCARDS('anchorLine', anchorLine);
-      const proposal = scoreLine(anchorLine, this.hand);
+      const proposal = scoreLine(anchorLine, this.hand, survey.geometry[ii].distance);
       proposal.forEach(scoredPlay => {
         if (scoredPlay[1].length > 0) {
           summary.push({ sp: scoredPlay, geo: survey.geometry[ii], index: ii});
+          // console.log(UNWRAP(summary[summary.length-1]));;
         }
       })
     });
-    console.log('summary:');
-    console.log(UNWRAP(summary));
-    console.log('--- player choosing ---');
-
     const sortedSummary = summary.sort((a, b) => {
+      // TODO: choose smallest hand in tie, or largest?
       return b.sp[0] - a.sp[0];
     });
-    console.log('sortedSummary:');
-    console.log(UNWRAP(sortedSummary));
+    // console.log('sortedSummary:');
+    // console.log(UNWRAP(sortedSummary));
+    // console.log('--- player choosing ---');
 
     if (sortedSummary.length > 0) {
       const chosenPlay = sortedSummary[0];
+      const score = chosenPlay.sp[0];
+      // TODO: Double check final move and all card plays!
+      this.score += score;
       const play: number[] = [];
       const mhand: Array<number|null> = [...this.hand];
       // TODO: Wow, this is overly complicated.
@@ -324,14 +353,12 @@ export default class PlayerObject {
           mhand[i] = null;
         }
       }
-      console.log('play', UNWRAP(play));
+      // console.log('play', UNWRAP(play));
       this.hand = mhand.filter(card => card !== null) as number[];
       // TODO: As is or shuffled?
-      console.log(survey.geometry.length);
-      console.log(chosenPlay.index);
       const geo = survey.geometry[chosenPlay.index];
-      console.log(geo);
-      console.log('playGeo', UNWRAP(geo));
+      // console.log(geo);
+      // console.log('playGeo', UNWRAP(geo));
       const startx = geo.x;
       const starty = geo.y;
       switch (geo.direction) {
@@ -358,7 +385,9 @@ export default class PlayerObject {
         default: break;
       }
       this.draw(play.length, deck);
+    } else {
+      this.swapHand(deck);
     }
-    console.log('--- player "', this.name, '" done ---');
+    // console.log('--- player "', this.name, '" done ---');
   }
 }
