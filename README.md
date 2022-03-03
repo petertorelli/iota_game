@@ -37,4 +37,8 @@ And then open a browser at `localhost:3000`.
 # Weirdness
 
 1. The first player to start has a +10% win advantage????
-2. 
+
+# Screenshot
+
+![image](https://user-images.githubusercontent.com/8249735/156663269-00577912-a5d6-4149-9e74-f57a92b20a65.png)
+
