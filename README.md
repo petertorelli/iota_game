@@ -1,5 +1,6 @@
-# iota_game
-Plays the game "Iota" by GameWrite in a SPA.
+# About
+
+This program auto-plays the game "Iota" by GameWrite in a SPA using some really simple DFS single-ply lookahead.
 
 GUI options:
 
@@ -9,6 +10,18 @@ GUI options:
 4. Autoplay 10,000x - Autoplay a bunch of times
 
 Each time a game finishes, the scores, board side, and # of turns are reported on the left-hand side.
+
+
+# Running
+
+It's a NuxtJS app, so:
+
+```Bash
+% yarn
+% yarn dev
+```
+
+And then open a browser at `localhost:3000`.
 
 # Problems
 
