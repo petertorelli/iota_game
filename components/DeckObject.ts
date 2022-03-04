@@ -19,7 +19,7 @@ export default class DeckObject {
   }
 
   public init() {
-    this.seed = Math.floor(Math.random() * 1024);
+    this.seed = Math.floor(Math.random() * (1024*1024));
     this.rand = prng(this.seed);
     // See note about MSB in CardObject.ts
     this.deck = _.range(0x80, 0xc0); // TODO: Actually 66 due to wildcards
