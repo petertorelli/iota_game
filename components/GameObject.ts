@@ -3,8 +3,8 @@ import BoardObject from './BoardObject';
 import PlayerObject from './PlayerObject';
 
 export default class GameObject {
-  private deck = new DeckObject();
-  private board = new BoardObject();
+  public deck = new DeckObject();
+  public board = new BoardObject();
   public player1 = new PlayerObject("Player 1");
   public player2 = new PlayerObject("Player 2");
   public ply = 0;
@@ -12,9 +12,7 @@ export default class GameObject {
   public cannotProceed: boolean = false;
   public wins = [0, 0, 0];
   public nGames = 0;
-  public timer: number = 0;
   public speedMs: number = 0;
-  public isAutoPlay: boolean = false;
   constructor () {
     this.init();
   }
@@ -28,13 +26,12 @@ export default class GameObject {
     }
   }
 
-  private init(name1: string = 'Player One', name2: string = 'Player Two') {
+  public init(name1: string = 'Player One', name2: string = 'Player Two') {
     this.board.init();
     this.deck.init();
     this.player1.init(name1);
     this.player2.init(name2);
     this.ply = 0;
-    this.isAutoPlay = false;
     this.cannotProceed = false;
     this.deal();
   }
@@ -86,7 +83,7 @@ export default class GameObject {
     }
   }
 
-  private playOne() {
+  public playOneGame() {
     if (this.cannotProceed) {
       this.init();
     }
@@ -96,40 +93,5 @@ export default class GameObject {
     }
     const t1 = window.performance.now();
     this.speedMs = t1 - t0;
-  }
-
-  public stopAutoPlay() {
-    if (this.timer) {
-      clearInterval(this.timer);
-      this.timer = 0;
-    }
-    if (this.isAutoPlay) {
-      this.isAutoPlay = false;
-    }
-  }
-
-  public autoPlay(count: number = 1) {
-    if (this.timer > 0) {
-      return; // don't re-enter!
-    }
-    if (this.isAutoPlay) {
-      return;
-    }
-    if (count === 1) {
-      this.playOne();
-    } else {
-      let x = 0;
-      this.isAutoPlay = true;
-      console.log('set interval');
-      this.timer = window.setInterval(() => {
-        this.playOne();
-        x++;
-        if (x >= count) {
-          clearInterval(this.timer);
-          this.isAutoPlay = false;
-          this.timer = 0;
-        }
-      }, 100);
-    }
   }
 }
