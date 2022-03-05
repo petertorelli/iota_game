@@ -19,6 +19,7 @@ export default class DeckObject {
   }
 
   public init() {
+    // Interesting seed: 939263 -> player 1 start bingo
     this.seed = Math.floor(Math.random() * (1024*1024));
     this.rand = prng(this.seed);
     // See note about MSB in CardObject.ts

@@ -13,9 +13,9 @@ type Geometry = {
 type ScoredHandPlay = [number, number[]];
 type ScoredHandPlays = ScoredHandPlay[];
 
-function PCARDS(hdr: string, c: number[]) {
+function PCARDS(_hdr: string, c: number[]) {
   let text = "";
-  // console.log(hdr, "-->");
+  // console.log(_hdr, "-->");
   c.forEach(cc => {
     text += card.name(cc) + '\n';
   });

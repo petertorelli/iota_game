@@ -82,4 +82,14 @@ export default class BoardObject {
     if (this.bbox.h === 0) return _.range(-2, 3);
     return _.range(this.bbox.ulc.y - 2, this.bbox.lrc.y + 3);
   }
+
+  public getXRangeA() {
+    if (this.bbox.w === 0) return _.range(-2 + BOARD_HALF, 3 + BOARD_HALF);
+    return _.range(this.bbox.ulc.x - 2 + BOARD_HALF, this.bbox.lrc.x + 3 + BOARD_HALF);
+  }
+
+  public getYRangeA() {
+    if (this.bbox.h === 0) return _.range(-2 + BOARD_HALF, 3 + BOARD_HALF);
+    return _.range(this.bbox.ulc.y - 2 + BOARD_HALF, this.bbox.lrc.y + 3 + BOARD_HALF);
+  }
 }
