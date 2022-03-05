@@ -6,33 +6,42 @@
       b Results
     .mb-4.w-48.text-xs Game log
     .mb-4.h-48.overflow-y-scroll.border
-      p.text-xs(v-for='res in game.results') {{ res }}
+      p.text-xs(v-for='res in results') {{ res }}
     .mb-4.w-48.text-xs
       b Settings
     .mb-4.w-48.text-xs
-      p Deck seed: {{ game.deck.seed }}
+      table(style='width: 100%;')
+        tr
+          td Deck seed:
+          td.text-right {{ game.deck.seed }}
     .mb-4.w-48.text-xs
       b Score outcomes
     .mb-4.w-48.text-xs
       table(style='width: 100%;')
         tr
-          td Games Played: &nbsp;
-          td.text-right {{ game.nGames }}
+          td Games Played:
+          td.text-right {{ nGames }}
         tr
           td Player 1:
-          td.text-right {{ game.pct(1) }}
+          td.text-right {{ pct(player1, nGames) }}
         tr
           td Player 2:
-          td.text-right {{ game.pct(2) }}
+          td.text-right {{ pct(player2, nGames) }}
         tr
           td Tie:
-          td.text-right {{ game.pct(0) }}
+          td.text-right {{ pct(ties, nGames) }}
         tr
           td Speed (ms):
           td.text-right {{ game.speedMs }}
         tr
+          td Player 1 Bingos:
+          td.text-right {{ p1bingos }}
+        tr
           td Average score:
           td.text-right {{ meanScore.toFixed(1) }}
+        tr
+          td Average spread:
+          td.text-right {{ meanSpread.toFixed(1) }}
         tr
           td Average area:
           td.text-right {{ meanArea.toFixed(1) }}
@@ -69,6 +78,16 @@
       button.btn.btn-blue.mr-4(@click='stopAutoPlay()'
         ) Stop
     .mb-4
+      //-table
+        -let rows=97
+        while rows-- > 0
+          tr
+            -let cols=97
+            while cols-- > 0
+              -let idx = (cols + (rows * 97))
+              -let iidx = `i${idx}`
+              td(id= idx)
+                card-image(:card='cacheBoard[' + idx + ']')
       table(style='border: 1px solid #ddd')
         //-tr
           th
@@ -119,10 +138,18 @@ export default Vue.extend({
       scores: [] as number[],
       areas: [] as number[],
       aspects: [] as number[],
+      spreads: [] as number[],
       meanScore: 0,
       meanAspect: 0,
       meanArea: 0,
+      meanSpread: 0,
       autoPlayTimer: 0,
+      nGames: 0,
+      ties: 0,
+      player1: 0,
+      player2: 0,
+      p1bingos: 0,
+      results: [] as string[],
     }
   },
   mounted() {
@@ -144,12 +171,32 @@ export default Vue.extend({
       this.game.init();
       this.update();
     },
+    pct(n: number, d: number, prec: number = 1) {
+      let pct = 0;
+      if (d > 0) {
+        pct = (n / d) * 100;
+      }
+      return pct.toFixed(prec);
+    },
     async autoPlay(games: number) {
       await new Promise<void>((resolve) => {
         let count = 0;
         this.autoPlayTimer = window.setInterval(() => {
           this.game.playOneGame();
-          
+          this.nGames++;
+          if (this.game.player1.score === this.game.player2.score) {
+            this.ties++;
+          } else if (this.game.player1.score > this.game.player2.score) {
+            this.player1++;
+          } else {
+            this.player2++;
+          }
+          const res
+            = `${this.game.player1.score}-${this.game.player2.score} `
+            + `${this.game.ply}`;
+          this.results.unshift(res);
+          this.p1bingos += this.game.p1bingo;
+          this.spreads.push(Math.abs(this.game.player1.score - this.game.player2.score));
           this.scores.push(this.game.player1.score);
           this.scores.push(this.game.player2.score);
           this.areas.push(this.game.board.bbox.w * this.game.board.bbox.h);
@@ -157,9 +204,8 @@ export default Vue.extend({
           this.meanScore = _.mean(this.scores);
           this.meanAspect = _.mean(this.aspects);
           this.meanArea = _.mean(this.areas);
-
+          this.meanSpread = _.mean(this.spreads);
           // this.update();
-          
           ++count;
           if (count >= games) {
             clearInterval(this.autoPlayTimer);
@@ -215,4 +261,7 @@ export default Vue.extend({
   border: 1px solid white;
 }
 
+td {
+  padding: 0;
+}
 </style>
