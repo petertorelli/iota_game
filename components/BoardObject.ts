@@ -18,7 +18,7 @@ max width is 48 + 49 or 97 squares.
 To be safe, assume the board is 97 x 97, or 9409 squares.
 */
 
-type Point = {
+export type Point = {
   x: number,
   y: number,
 }
@@ -34,17 +34,32 @@ const BOARD_DIM = 97;
 const BOARD_HALF = (BOARD_DIM - 1) / 2;
 export default class BoardObject {
   public board: Array<number|null> = [];
-  public taken: Array<{x: number, y: number}> = [];
+  public taken: Point[] = [];
   public bbox: BoundingBox = {ulc: {x: 0, y: 0}, lrc: {x: 0, y: 0}, w:0, h:0};
-  constructor () {
+  constructor (initBoard: BoardObject|undefined = undefined) {
     this.board = Array(BOARD_DIM * BOARD_DIM).fill(null);
-    this.init();
+    this.init(initBoard);
   }
 
-  public init() {
-    this.bbox = {ulc: {x: 0, y: 0}, lrc: {x: 0, y: 0}, w:0, h:0};
-    this.board.fill(null);
-    this.taken = [];
+  public init(initBoard: BoardObject|undefined = undefined) {
+    if (initBoard !== undefined) {
+      this.bbox = JSON.parse(JSON.stringify(initBoard.bbox));
+      this.board = [...initBoard.board];
+      this.taken = [...initBoard.taken]
+    } else {
+      this.bbox = {ulc: {x: 0, y: 0}, lrc: {x: 0, y: 0}, w:0, h:0};
+      this.board.fill(null);
+      this.taken = [];
+    }
+  }
+
+  public atP(p: Point): number|null {
+    const x = p.x + BOARD_HALF;
+    const y = p.y + BOARD_HALF;
+    if (x > BOARD_DIM || x < 0 || y > BOARD_DIM || y < 0) {
+      return null;
+    }
+    return this.board[x + y * BOARD_DIM]
   }
 
   public at(_x: number, _y: number): number|null {
@@ -64,13 +79,28 @@ export default class BoardObject {
     }
     this.board[x + y * BOARD_DIM] = card;
     this.taken.push({x: _x, y: _y});
-    this.bbox.ulc.x = Math.min(this.bbox.ulc.x, _x);
-    this.bbox.ulc.y = Math.min(this.bbox.ulc.y, _y);
-    this.bbox.lrc.x = Math.max(this.bbox.lrc.x, _x);
-    this.bbox.lrc.y = Math.max(this.bbox.lrc.y, _y);
-    this.bbox.w = this.bbox.lrc.x - this.bbox.ulc.x + 1;
-    this.bbox.h = this.bbox.lrc.y - this.bbox.ulc.y + 1;
+    this.setBbox();
     return true;
+  }
+
+  private setBbox() {
+    if (this.taken.length === 0) {
+      this.bbox = {ulc: {x: 0, y: 0}, lrc: {x: 0, y: 0}, w:0, h:0};
+    } else {
+      const P = this.taken[this.taken.length - 1];
+      this.bbox.ulc.x = Math.min(this.bbox.ulc.x, P.x);
+      this.bbox.ulc.y = Math.min(this.bbox.ulc.y, P.y);
+      this.bbox.lrc.x = Math.max(this.bbox.lrc.x, P.x);
+      this.bbox.lrc.y = Math.max(this.bbox.lrc.y, P.y);
+      this.bbox.w = this.bbox.lrc.x - this.bbox.ulc.x + 1;
+      this.bbox.h = this.bbox.lrc.y - this.bbox.ulc.y + 1;
+    }
+  }
+
+  public undo() {
+    this.board.pop();
+    this.taken.pop();
+    this.setBbox();
   }
 
   public getXRange() {

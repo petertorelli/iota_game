@@ -1,7 +1,9 @@
 import BoardObject from './BoardObject';
 import DeckObject from './DeckObject';
+import { name as cardName } from './CardObject';
 import UNWRAP from './Utilities';
 import * as card from './CardObject';
+import type { Point } from './BoardObject';
 
 type Geometry = {
   direction: 'up'|'down'|'left'|'right',
@@ -12,15 +14,54 @@ type Geometry = {
 
 type ScoredHandPlay = [number, number[]];
 type ScoredHandPlays = ScoredHandPlay[];
+type ConstrainFunc = (p: Point) => boolean;
 
-function PCARDS(_hdr: string, c: number[]) {
+function PCARDS(_hdr: string, _c: number[]) {
+  /*
   let text = "";
-  // console.log(_hdr, "-->");
+  console.log(_hdr, "-->");
   c.forEach(cc => {
     text += card.name(cc) + '\n';
   });
-  // console.log(text);
-  // console.log(hdr, "<--");
+  console.log(text);
+  console.log(hdr, "<--");
+  */
+}
+
+function baseScore(cards: number[]): number {
+  const A = new Set<number>(); // These are the scores
+  const B = new Set<number>();
+  const C = new Set<number>();
+  const N = cards.length;
+  let score = 0;
+
+  cards.forEach(card => {
+    A.add((card >> 0) & 0x3);
+    B.add((card >> 2) & 0x3);
+    C.add((card >> 4) & 0x3);
+  });
+  
+  if (
+    (A.size === 1 && B.size === 1 && C.size === 1) ||
+    (A.size === 1 && B.size === 1 && C.size === N) ||
+    (A.size === 1 && B.size === N && C.size === 1) ||
+    (A.size === 1 && B.size === N && C.size === N) ||
+    (A.size === N && B.size === 1 && C.size === 1) ||
+    (A.size === N && B.size === 1 && C.size === N) ||
+    (A.size === N && B.size === N && C.size === 1) ||
+    (A.size === N && B.size === N && C.size === N)
+  ) {
+    if (A.size === 1) {
+      // If all the scores are the same, it is count * the value
+      score = N * A.values().next().value;
+    } else {
+      // Otherwise the scores are different, so sum them
+      for (const cardScore of A) {
+        score += cardScore;
+      }
+    }
+  }
+  return score;
 }
 
 function scoreLine (existing: number[], hand: number[], max: number) {
@@ -313,7 +354,311 @@ export default class PlayerObject {
     return {plays, geometry};
   }
 
-  public play (deck: DeckObject, board: BoardObject) {
+  /**
+   * Takes a point on the board (where a card is present!) and evaluates if
+   * that position's score. If the position is not legal, the score is zero.
+   * It looks in both horizontal and vertical directions for valid lines.
+   * 
+   * @param board A BoardObject to analyze.
+   * @param p A point on the board.
+   */
+  private getScoresAt(board: BoardObject, p: Point) {
+    console.log('Score board at', p.x, p.y);
+    let line: number[];
+    let card;
+    let horizontalScore = 0;
+    let verticalScore = 0;
+    
+    line = [];
+    // Construct horizontal line
+    for (let i=0; ; ++i) {
+      card = board.at(p.x + i, p.y);
+      if (card !== null) {
+        line.push(card);
+      } else {
+        break;
+      }
+    }
+    for (let i=1; ; ++i) {
+      card = board.at(p.x - i, p.y);
+      if (card !== null) {
+        line.push(card);
+      } else {
+        break;
+      }
+    }
+    if (line.length > 0 && line.length <= 4) {
+      horizontalScore = baseScore(line);
+      console.log('hline', line, '=', horizontalScore);
+    }
+    line = [];
+    // Construct vertical line
+    for (let i=0; ; ++i) {
+      card = board.at(p.x, p.y + i);
+      if (card !== null) {
+        line.push(card);
+      } else {
+        break;
+      }
+    }
+    for (let i=1; ; ++i) {
+      card = board.at(p.x, p.y - i);
+      if (card !== null) {
+        line.push(card);
+      } else {
+        break;
+      }
+    }
+    if (line.length > 0 && line.length <= 4) {
+      verticalScore = baseScore(line);
+      console.log('vline', line, '=', verticalScore);
+    }
+    return [horizontalScore, verticalScore];
+  }
+
+  public playHorizontal(board: BoardObject, p: Point, hand: number[]) {
+    const card = hand.pop();
+    if (card) {
+      board.put(p.x, p.y, card);
+      const [hs, vs] = this.getScoresAt(board, p);
+      return [hs, vs];
+    }
+    return []
+  }
+
+  /**
+   * Evaluates a board object to see where there are places where a single card
+   * may be placed adjacent to the current play shape. It does not evaluate
+   * the legality or score of the square.
+   * 
+   * @param board A BoardObject to evaluate
+   * @param constrain A function that checks if the proposed new point is OK.
+   * @returns A list of Points.
+   */
+  private findContour(board: BoardObject, constrain = 3, P: Point|undefined = undefined) {
+    const hSearch: Point[] = [{x: -1, y: 0}, {x: 1, y:  0}];
+    const vSearch: Point[] = [{x:  0, y: 1}, {x: 0, y: -1}];
+    const contour: Point[] = [];
+
+    function check(p: Point, set: Point[]) {
+      set.forEach(search => {
+        const newp = {x: p.x + search.x, y: p.y + search.y};
+        if (board.atP(newp) === null) {
+          contour.push(newp);
+        }
+      })
+    }
+
+    if (board.taken.length === 0) {
+      contour.push({x: 0, y: 0});
+    } else {
+      let todo: Point[];
+      if (P !== undefined) {
+        todo = [P];
+      } else {
+        todo = board.taken;
+      }
+      todo.forEach(anchor => {
+        if (constrain & 1) {
+          check(anchor, hSearch);
+        }
+        if (constrain & 2) {
+          check(anchor, vSearch);
+        }
+      })
+    }
+
+    // TODO: This needs to be UNIQUIFIED to reduce redundant work
+    return contour;
+  }
+  
+  public playThisSpot(_board: BoardObject, _p: Point, _hand: number[], depth: number) {
+    const board: BoardObject = new BoardObject(_board);
+    const hand = [..._hand];
+
+
+    let n;
+    n = 0;
+    const rline: Array<number|null> = [];
+    for (let x = 1; ; ++x) {
+      const cc = board.at(_p.x + x, _p.y);
+      if (cc === null) {
+        ++n;
+      }
+      if (n >= 4 || rline.length > 4) {
+        break;
+      }
+      // we'll check terminator later
+      rline.push(cc);
+    }
+    n = 0;
+    const lline: Array<number|null> = [];
+    for (let x = 1; ; ++x) {
+      const cc = board.at(_p.x - x, _p.y);
+      if (cc === null) {
+        ++n;
+      }
+      if (n >= 4 || lline.length > 4) {
+        break;
+      }
+      // we'll check terminator later
+      lline.unshift(cc);
+    }
+
+    function makeMask(set: Array<number|null>, fill: number=1): number[] {
+      const mask = Array(set.length).fill(0);
+      for (let i=0; i<set.length; ++i) {
+        mask[i] = set[i] === null ? 0 : fill;
+      }
+      return mask;
+    }
+    const center = lline.length;
+    const full = [...lline, null, ...rline];
+    const mask = makeMask(full, 1);
+    console.log('at', _p.x, _p.y);
+    console.log('right', rline);
+    console.log('left', lline);
+    console.log('permute-vector', full);
+
+    function findHole(a: number[], b: number[]) {
+      // 0 = no card
+      // 1 = starting mask
+      // 2 = mask after play
+      // 3 = user played a card here
+      const sum = Array(a.length).fill(0);
+      for (let i=0; i<a.length; ++i) {
+        sum[i] = a[i] + b[i];
+      }
+      let inside = 0;
+      let n = 0;
+      // Look for a hole in between two user plays
+      for (let i=0; i<sum.length; ++i) {
+        switch (inside) {
+          case 0: // haven't seen a user card
+            if (sum[i] === 2) {
+              inside = 1;
+            }
+            break;
+          case 1: // in a user line
+            if (sum[i] === 0) {
+              inside = 2;
+            }
+            break;
+          case 2: // existed a user line
+            if (sum[i] === 2) {
+              return true;
+            }
+            break;
+          default:
+            break;
+        }
+        n = sum[i] === 0 ? 0 : n + 1;
+        // Too many cards in a series, not a hole but a fail
+        if (n > 4) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    const seen = new Set<string>();
+
+    function permute3(_hand: Array<number>, _base: Array<number|null>, center: number, mask: number[]) {
+      const test = [..._base];
+      const hand = [..._hand];
+
+      for (let k=0; k<hand.length; ++k) {
+        const removed = hand.splice(k, 1);
+        for (let i=0; i<test.length; ++i) {
+          let y=0;
+          if (test[i] === null) {
+            y=1;
+            test[i] = removed[0];
+          }
+          if (test[center] === null) {
+            // BAD: This permutation didn't play a card in the center spot
+          } else if (findHole(mask, makeMask(test, 2))) {
+            // BAD: Card wasn't played on the current line
+          } else  {
+            const str = test.join(',');
+            // TODO: Hack because this algorithm has redundancies
+            seen.add(str);
+          }
+          permute3(hand, test, center, mask);
+          if (y) {
+            test[i] = null;
+          }
+        }
+        hand.splice(k, 0, removed[0]);
+      }
+    }
+
+    console.log(hand);
+    console.log(full);
+    console.log(mask);
+    console.log(center);
+    
+    permute3(hand, full, center, mask);
+    seen.forEach(x => {
+      const xh = x.split(',').map(y => parseInt(y) || null);
+      // console.log(xh);
+      let r=center;
+      for (; r<xh.length; ++r) {
+        if (xh[r] ===  null) {
+          --r;
+          break;
+        }
+      }
+      let l=center;
+      for (; l>=0; --l) {
+        if (xh[l] ===  null) {
+          ++l;
+          break;
+        }
+      }
+      const scoreHand = xh.slice(l, r + 1);
+      console.log(scoreHand);
+
+    })
+  }
+
+  /*
+
+  public play (_deck: DeckObject, board: BoardObject) {
+    // Find contours. A list of [x,y] tuples of places to examine
+    // Start with list of board.taken spots, check NSEW; push.
+    const virtualBoard = new BoardObject(board);
+    const virtualHand = [...this.hand];
+    const contour: Point[] = this.findContour(virtualBoard);
+    console.log('Evalute first contour');
+    contour.forEach(spot => {
+      console.log("Checking plays at location", spot.x, spot.y);
+      this.playThisSpot(virtualBoard, spot, virtualHand, 0);
+    })
+  }
+  */
+  public play (_deck: DeckObject, board: BoardObject) {
+    // Find contours. A list of [x,y] tuples of places to examine
+    // Start with list of board.taken spots, check NSEW; push.
+    const virtualBoard = new BoardObject(board);
+    const virtualHand = [...this.hand];
+    virtualBoard.put(0, 0, 175);
+    virtualBoard.put(2, 0, 176);
+    const contour: Point[] = this.findContour(virtualBoard, 3 /* H & V */);
+    let spot = contour[0];
+    if (spot) {
+      this.playThisSpot(virtualBoard, spot, virtualHand, 0);
+
+    }
+    /*
+    contour.forEach(spot => {
+      this.playThisSpot(virtualBoard, spot, virtualHand, 0);
+    })
+    */
+  }
+  
+
+  public play_1 (deck: DeckObject, board: BoardObject) {
     // console.log('--- player "', this.name, '" start ---');
     PCARDS('hand', this.hand);
     // console.log('--- player thinking ---');
