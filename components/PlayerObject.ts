@@ -12,33 +12,41 @@ type Geometry = {
   y: number
 }
 
-type ScoredHandPlay = [number, number[]];
-type ScoredHandPlays = ScoredHandPlay[];
-type ConstrainFunc = (p: Point) => boolean;
-
-function PCARDS(_hdr: string, _c: number[]) {
-  /*
-  let text = "";
-  console.log(_hdr, "-->");
-  c.forEach(cc => {
-    text += card.name(cc) + '\n';
-  });
-  console.log(text);
-  console.log(hdr, "<--");
-  */
+type Outcome = {
+  score: number,
+  line: number[],
+  x: number,
+  y: number,
+  dir: 'u'|'d'|'l'|'r',
 }
 
-function baseScore(cards: number[]): number {
+type ScoredHandPlay = [number, number[]];
+type ScoredHandPlays = ScoredHandPlay[];
+
+function PCARDS(_hdr: string, _c: Array<number|null>) {
+  let text = "";
+  console.log(_hdr, "-->");
+  _c.forEach(cc => {
+    if (cc === null) {
+      text += "null\n";
+    } else {
+      text += card.name(cc) + '\n';
+    }
+  });
+  console.log(text);
+  console.log(_hdr, "<--");
+}
+
+function baseScore(line: number[]): number {
   const A = new Set<number>(); // These are the scores
   const B = new Set<number>();
   const C = new Set<number>();
-  const N = cards.length;
+  const N = line.length;
   let score = 0;
-
-  cards.forEach(card => {
-    A.add((card >> 0) & 0x3);
-    B.add((card >> 2) & 0x3);
-    C.add((card >> 4) & 0x3);
+  line.forEach(c => {
+    A.add(((c >> 0) & 0x3) + 1);
+    B.add((c >> 2) & 0x3);
+    C.add((c >> 4) & 0x3);
   });
   
   if (
@@ -426,15 +434,6 @@ export default class PlayerObject {
     return []
   }
 
-  /**
-   * Evaluates a board object to see where there are places where a single card
-   * may be placed adjacent to the current play shape. It does not evaluate
-   * the legality or score of the square.
-   * 
-   * @param board A BoardObject to evaluate
-   * @param constrain A function that checks if the proposed new point is OK.
-   * @returns A list of Points.
-   */
   private findContour(board: BoardObject, constrain = 3, P: Point|undefined = undefined) {
     const hSearch: Point[] = [{x: -1, y: 0}, {x: 1, y:  0}];
     const vSearch: Point[] = [{x:  0, y: 1}, {x: 0, y: -1}];
@@ -472,16 +471,15 @@ export default class PlayerObject {
     return contour;
   }
   
-  public playThisSpot(_board: BoardObject, _p: Point, _hand: number[], depth: number) {
-    const board: BoardObject = new BoardObject(_board);
-    const hand = [..._hand];
-
-
-    let n;
-    n = 0;
+  public playThisSpot(board: BoardObject, p: Point, hand: number[]) {
     const rline: Array<number|null> = [];
+    const lline: Array<number|null> = [];
+    let n;
+    const seen = new Set<string>();
+
+    n = 0;
     for (let x = 1; ; ++x) {
-      const cc = board.at(_p.x + x, _p.y);
+      const cc = board.at(p.x + x, p.y);
       if (cc === null) {
         ++n;
       }
@@ -491,10 +489,10 @@ export default class PlayerObject {
       // we'll check terminator later
       rline.push(cc);
     }
+
     n = 0;
-    const lline: Array<number|null> = [];
     for (let x = 1; ; ++x) {
-      const cc = board.at(_p.x - x, _p.y);
+      const cc = board.at(p.x - x, p.y);
       if (cc === null) {
         ++n;
       }
@@ -515,10 +513,6 @@ export default class PlayerObject {
     const center = lline.length;
     const full = [...lline, null, ...rline];
     const mask = makeMask(full, 1);
-    console.log('at', _p.x, _p.y);
-    console.log('right', rline);
-    console.log('left', lline);
-    console.log('permute-vector', full);
 
     function findHole(a: number[], b: number[]) {
       // 0 = no card
@@ -544,7 +538,7 @@ export default class PlayerObject {
               inside = 2;
             }
             break;
-          case 2: // existed a user line
+          case 2: // exited a user line
             if (sum[i] === 2) {
               return true;
             }
@@ -561,7 +555,6 @@ export default class PlayerObject {
       return false;
     }
 
-    const seen = new Set<string>();
 
     function permute3(_hand: Array<number>, _base: Array<number|null>, center: number, mask: number[]) {
       const test = [..._base];
@@ -581,8 +574,12 @@ export default class PlayerObject {
             // BAD: Card wasn't played on the current line
           } else  {
             const str = test.join(',');
-            // TODO: Hack because this algorithm has redundancies
-            seen.add(str);
+            if (seen.has(str)) {
+              // 
+            } else {
+              // TODO: Hack because this algorithm has redundancies
+              seen.add(str);
+            }
           }
           permute3(hand, test, center, mask);
           if (y) {
@@ -593,15 +590,15 @@ export default class PlayerObject {
       }
     }
 
-    console.log(hand);
-    console.log(full);
-    console.log(mask);
-    console.log(center);
+    // console.log(hand);
+    // console.log(full);
+    // console.log(mask);
+    // console.log(center);
     
+    const results: any[] = [];
     permute3(hand, full, center, mask);
     seen.forEach(x => {
       const xh = x.split(',').map(y => parseInt(y) || null);
-      // console.log(xh);
       let r=center;
       for (; r<xh.length; ++r) {
         if (xh[r] ===  null) {
@@ -616,10 +613,87 @@ export default class PlayerObject {
           break;
         }
       }
-      const scoreHand = xh.slice(l, r + 1);
-      console.log(scoreHand);
-
+      // WE already know this will NOT contain nulls.
+      const scoreHand = xh.slice(l, r + 1) as number[];
+      // Where does it start?
+      // center - left.
+      // Remember we are horizontal here.
+      const x2 = (p.x - (center - l));
+      const y2 = p.y;
+      const outcome: Outcome|null = computeScore(scoreHand, x2, y2);
+      if (outcome !== null) {
+        results.push(outcome);
+      }
+    });
+    const scoredResults = results.sort((a, b) => {
+      return b.score - a.score;
     })
+    const bestPlay = scoredResults[0];
+    return bestPlay;
+
+    function buildVerticalLine(x: number, y: number) {
+      // Order does NOT matter
+      const vline: number[] = [];
+      for (let i=0; i<5; ++i) {
+        const c = board.at(x, y - i);
+        if (c != null) {
+          vline.push(c);
+        }
+      }
+      for (let i=1; i<6; ++i) {
+        const c = board.at(x, y + i);
+        if (c != null) {
+          vline.push(c);
+        }
+      }
+      return vline;
+    }
+    // horizontal compute, look up/down
+    function computeScore(line: number[], x: number, y: number, _debug: number=0): Outcome|null {
+      // check LHS null terminator
+      if (board.at(x - 1, y) != null) {
+        return null;
+      }
+      // check RHS null terminator
+      if (board.at(x + line.length + 1, y) != null) {
+        return null;
+      }
+      // Sanity check that we aren't over four cards
+      if (line.length > 4) {
+        return null;
+      }
+      let score = baseScore(line);
+      if (score === 0) {
+        return null;
+      }
+      // PCARDS("horizontal line", line);
+      // console.log("---got this far: score =", score);
+      // Now walk the verticals
+      for (let i=0; i<line.length; ++i) {
+        const vline = buildVerticalLine(x + i, y);
+        vline.push(line[i]); // don't forget the card that should be there!
+        // PCARDS("vline", vline);
+        const vscore = baseScore(vline);
+        // console.log('vline base score is', vscore);
+        if (vscore === card.score(line[i])) {
+          // console.log('... no vscore, card same');
+        } else if (vscore === 0) {
+          // console.log('... bad line!');
+          return null;
+        } else {
+          // console.log('... adding vscore');
+          score += vscore;
+        }
+      }
+      // console.log("------got this far: score =", score);
+      return {
+        score,
+        line,
+        x,
+        y,
+        dir: 'r'
+      }
+    }
   }
 
   /*
@@ -642,19 +716,45 @@ export default class PlayerObject {
     // Start with list of board.taken spots, check NSEW; push.
     const virtualBoard = new BoardObject(board);
     const virtualHand = [...this.hand];
-    virtualBoard.put(0, 0, 175);
-    virtualBoard.put(2, 0, 176);
+//    virtualBoard.put(0, 0, 175);
+//    virtualBoard.put(2, 0, 176);
     const contour: Point[] = this.findContour(virtualBoard, 3 /* H & V */);
-    let spot = contour[0];
+/*
+    const spot = contour[0];
     if (spot) {
-      this.playThisSpot(virtualBoard, spot, virtualHand, 0);
+      this.playThisSpot(virtualBoard, spot, virtualHand);
 
     }
-    /*
+*/
+    const results: Outcome[] = [];
     contour.forEach(spot => {
-      this.playThisSpot(virtualBoard, spot, virtualHand, 0);
+      const r = this.playThisSpot(virtualBoard, spot, virtualHand);
+      // TODO return a type
+      if (r !== undefined) {
+        results.push(r);
+      }
+    });
+
+    const scoredResults = results.sort((a, b) => {
+      return b.score - a.score;
     })
-    */
+    const bestPlay = scoredResults[0];
+    // Can't have more than one of any card so we can do this
+    let i=0;
+    if (bestPlay === undefined) {
+      this.swapHand(_deck);
+    } else {
+      bestPlay.line.forEach(c => {
+        const idx = this.hand.indexOf(c);
+        this.hand.splice(idx, 1);
+        const _x = bestPlay.x + i;
+        const _y = bestPlay.y;
+        board.put(_x, _y, c);
+        ++i;
+      })
+      this.draw(i, _deck);
+      this.score += bestPlay.score;
+    }
   }
   
 

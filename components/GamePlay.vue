@@ -89,11 +89,11 @@
               td(id= idx)
                 card-image(:card='cacheBoard[' + idx + ']')
       table(style='border: 1px solid #ddd')
-        //-tr
+        tr
           th
           th(v-for='xx in game.board.getXRange()') {{ xx }}
         tr(v-for='yy in cacheRangeY')
-          //- th {{ yy }}
+          th {{ yy - 48 }}
           td(v-for='xx in cacheRangeX')
             card-image(v-if='cacheBoard[xx + yy * 97] !== null'
               :card='cacheBoard[xx + yy * 97]'
