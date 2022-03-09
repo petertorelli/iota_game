@@ -4,6 +4,20 @@ import DeckObject from './DeckObject';
 import BoardObject from './BoardObject';
 import PlayerObject from './PlayerObject';
 
+export enum DoneReason {
+  None = 0,
+  Player1NoCards, // Player One ran out of cards
+  Player2NoCards, // Player Two ran out of cards
+  NoPlays,        // Players still have cards, but no progress, and deck empty
+  Deadlock,       // Players still have cards, no progress, and deck not empty
+}
+
+export type GameResults = {
+  playTime: number,
+  done: boolean,
+  reason: DoneReason,
+};
+
 export default class GameObject {
   public deck = new DeckObject();
   public board = new BoardObject();
@@ -11,7 +25,7 @@ export default class GameObject {
   public player2 = new PlayerObject("Player 2");
   public ply = 0;
   public cannotProceed: boolean = false;
-  public speedMs: number = 0;
+  public reasonCannotProceed: DoneReason = DoneReason.None;
   public p1bingo: number = 0;
   public defers: number = 0;
   constructor () {
@@ -56,12 +70,18 @@ export default class GameObject {
     }
     // --- Cases where even after 10 random hand swaps no progress? -----------|
     if ((p2b4 === p2af) && (p1b4 === p1af)) {
-      this.defers ++;
+      if (this.deck.deck.length === 0) {
+        this.cannotProceed = true;
+        this.reasonCannotProceed = DoneReason.NoPlays;
+      } else {
+        this.defers++;
+        if (this.defers > 50) {
+          this.reasonCannotProceed = DoneReason.Deadlock;
+          this.cannotProceed = true;
+        }
+      }
     } else {
       this.defers = 0;
-    }
-    if (this.defers > 50) {
-      this.cannotProceed = true;
     }
     // ------------------------------------------------------------------------|
     if (this.ply === 0) {
@@ -72,15 +92,17 @@ export default class GameObject {
     ++this.ply;
     if (this.deck.deck.length === 0) {
       if (this.player1.hand.length === 0) {
+        this.reasonCannotProceed = DoneReason.Player1NoCards;
         this.cannotProceed = true;
       }
       if (this.player2.hand.length === 0) {
+        this.reasonCannotProceed = DoneReason.Player2NoCards;
         this.cannotProceed = true;
       }
     }
   }
 
-  public playOneGame() {
+  public playOneGame(): GameResults {
     if (this.cannotProceed) {
       this.init();
     }
@@ -89,12 +111,16 @@ export default class GameObject {
       this.turn();
     }
     const t1 = window.performance.now();
-    this.speedMs = t1 - t0;
+    return {
+      playTime: t1 - t0,
+      done: this.cannotProceed,
+      reason: this.reasonCannotProceed,
+    }
   }
 
   public exportGame(): string {
-   const cmp = zlib.deflateSync(JSON.stringify(this));
-   return cmp.toString('hex');
+    const cmp = zlib.deflateSync(JSON.stringify(this));
+    return cmp.toString('hex');
   }
 
   public importGame(game: string) {
@@ -102,7 +128,7 @@ export default class GameObject {
     const obj = zlib.inflateSync(buf);
     const txt = obj.toString('ascii');
     const json = JSON.parse(txt);
-    // State assign
+    // These are the only states we care about.
     this.deck.deck = json.deck.deck;
     this.board.bbox = json.board.bbox;
     this.board.board = json.board.board;
@@ -113,8 +139,6 @@ export default class GameObject {
     this.player2.hand = json.player2.hand;
     this.player2.name = json.player2.name;
     this.player2.score = json.player2.score;
-    this.cannotProceed = json.cannotProceed;
     this.ply = json.ply;
-    this.p1bingo = json.p1bingo;
   }
 }

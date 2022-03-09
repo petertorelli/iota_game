@@ -1,7 +1,5 @@
 import BoardObject from './BoardObject';
 import DeckObject from './DeckObject';
-import { name as cardName } from './CardObject';
-import UNWRAP from './Utilities';
 import * as card from './CardObject';
 import type { Point } from './BoardObject';
 
@@ -28,30 +26,47 @@ function perm(xs: number[]) {
   return ret;
 }
 
+/**
+ * Scan the board to find all the bounding contour of all playable coordinates.
+ * A playable coordinate is a blank square that is up, down, left, or right of
+ * a card on the board. No verification is performed, it only returns a list
+ * of Points that might be played, but still need to be analyzed.
+ * 
+ * @param board A BoardObject to examine.
+ * @returns An array of Points (board coordinates) that may be played.
+ */
 function findContour(board: BoardObject): Point[] {
   const hSearch: Point[] = [{x: -1, y: 0}, {x: 1, y:  0}];
   const vSearch: Point[] = [{x:  0, y: 1}, {x: 0, y: -1}];
-  const contour: Point[] = [];
+  // Since this is only called once per turn, use a Set to uniquify.
+  const seen = new Set<Point>();
 
+  // Helper function to reduce redundant code.
   function check(p: Point, set: Point[]) {
     set.forEach(search => {
       const newp = {x: p.x + search.x, y: p.y + search.y};
       if (board.atP(newp) === null) {
-        contour.push(newp);
+        if (!seen.has(newp)) {
+          seen.add(newp);
+        }
+        // contour.push(newp);
       }
     })
   }
 
+  // Default case when it is the first move.
   if (board.taken.length === 0) {
-    contour.push({x: 0, y: 0});
-  } else {
-    board.taken.forEach(anchor => {
-        check(anchor, hSearch);
-        check(anchor, vSearch);
-    })
+    return [{x: 0, y: 0}];
   }
+  board.taken.forEach(anchor => {
+    check(anchor, hSearch);
+    check(anchor, vSearch);
+  })
 
-  // TODO: This needs to be UNIQUIFIED to reduce redundant work
+  const contour: Point[] = [];
+  seen.forEach(p => {
+    contour.push(p);
+  });
   return contour;
 }
 
@@ -66,6 +81,8 @@ function findContour(board: BoardObject): Point[] {
  * @returns 0 = invalid line or score (sum of card values without bonuses)
  */
 function baseScore(line: number[]) {
+  // Putting the length check up here is ~5% faster for some reason! (Compared
+  // to having a `default` case for non {2,3,4} values.)
   if (line.length > 4 || line.length < 2) {
     return 0;
   }
@@ -175,7 +192,7 @@ export default class PlayerObject {
   }
 
   public draw (count: number, deck: DeckObject) {
-    // TODO: set draw rules
+    // TODO: set draw rules?
     while (count-- > 0) {
       const card = deck.drawOne();
       if (card) {
@@ -186,8 +203,6 @@ export default class PlayerObject {
     }
   }
 
-
-  
   public playThisSpot(board: BoardObject, p: Point, hand: number[]) {
     const results: Outcome[] = [];
     const seen = new Set<string>();
@@ -282,7 +297,6 @@ export default class PlayerObject {
     }
     const bestPlay = sortedResults[0];
     return bestPlay;
-
 
     function buildVerticalLine(x: number, y: number) {
       // Order does NOT matter
@@ -421,17 +435,18 @@ export default class PlayerObject {
       return b.score - a.score;
     })
     const bestPlay = sortedResults[0];
-    // Can't have more than one of any card so we can do this
-    let i=0;
     if (bestPlay === undefined) {
       // TODO: strategic pass? swap fewer?
       const r: number = deck.rand.next().value;
       const n: number = this.hand.length;
-      this.swapHand(deck, Math.max(1, Math.floor(r * n)));
+      const swap = Math.max(1, Math.floor(r * n));
+      this.swapHand(deck, swap);
     } else {
+      let i=0;
       bestPlay.line.forEach(c => {
         const idx = this.hand.indexOf(c);
         this.hand.splice(idx, 1);
+        // TODO: Bugbug: if the play tries to span a gap, this overwrites it.
         const _x = bestPlay.x + i;
         const _y = bestPlay.y;
         board.put(_x, _y, c);
@@ -446,21 +461,16 @@ export default class PlayerObject {
 
 /** current game i'm debugging
 
-this game cannot win due to no playable cards if we deterministically 
-swap hands of n=4 in a deck of 16 and neither play has a play.
+Deadlock game (deck empty)
 
-789ceddc4b4fe3561880e1bf52b9db532927be26cbeeabcea23bc422092e8cc8242880e808f1df7b0c09c22145c35c3449fa2ce679f3c5c609e3637359709f9db5b3cb6c7cbfee496c46213665884513e2303daed2e3bc4a73116299a739fd6b6288759aabe23464d76d7b968de3202f46b108d96ab248e3fdc343c8a6cbc9aa7bbc7970b2b89dcf030000000000000000000000000000000000000000000000000000000000c07f12cb2ac4aada8377821f758aeb26c4c6293e40625da7ab73f8c60ef920ed14f7e0ade2bde736effef86c3abff5ee4b33d6c374ee477bf04ef1ee539beeb845b91962fa57bede279dfa66b007ef16ef38b3653a99d5abfb6d1ca5db709e6fce6cf7d7a6dfb869630f8945ba1ecb5797e9cb539feed7751ee2b0d983b78bf79edfaa3bbf6f7c398d4dba6997ceedb1138b740dd76f5ce8380ae2287da92e7d8375ecc4a6fb19ca793e626295bebd2e7c477dc4c422ddad0bbfa40400000000000000000000000000000000000000000000000000000000e0b0380dd9593bbd3dff7d32bb3c5f2d6f1767d9f824bbbbf878d366415555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555bfb0bfb6ed8bfcec77a3fa1356ff173eadbacffdba7bb96b400fbf5fb78aad7d3dfc7ed7456eedeb01f59b16b74b400fb73f628d5bfa7a00fdaedfed5bfb7a80f513af6a6ff9facda7eab75d43ae06555783aaab40d555a0babdecad7efddff734643793cb76918d4feeb37fb2f120649f930fe1718abde9695bec6deb4fbf6dc6e1ce71b81ef39d63be1e8bfe58eedc5af4b76e8d9b23573bc7cdbbaa778d9b4fb6e94da3de54f73ef5a6378dfa078d83fefcb4f3b0b7737fcafb1fb9353e7f2e316ecd4fdb8bfee6a2bfb5ec6f2dfb5babfed66aeb95f3ad57de9e9f5f6bb87b7e7eb57c6b5e6fafb6b6570f69714ea7cbf4d47d763b9f75795e85ddded97cb57972fd31dd9377694a8be4a27bf221cd57f3c9e77615bb1d2f268bb3b4d0633108b11c86583521d6a3f42a8bc9a7361b671f1e77fde5cf45777d5ccf96abf4642c8be7830c5f1e244f07688a108b516afeea207fdd2d5f1ca4681e0fd2ad933cad9ed964b158de7c582d676d9b0ef6f7647edda69dafd2f4c7755a1065fa2fbd8ad38f8bf365b7eafe05ff1bc16b
+789cedda4f4fe3461880f1af52b95723311e3b76726c3f40f7d01be21012975d41935500d115e2bb77c226b41350cbaea00dceef90e7c99bf99399bc33199b7057ccfbd94531b9dbf8e4b42caefa7e5e4cc271acc7a12e8bd57491c2bbfbfbb2385b4e57ebe7db27278b9bcbcb1200000000000000000000000000000000000000000000000000000000000000006038085d5786382ac3a8de83d1c05b643865b71ba747dc83d1c05ba5b94e698e523c3884b64adfceeb47bb07a381d74d6eb33e7edb945c3b77c0086d4af3286c8218d2616c330f04a14ab96db6b9ad8f536ed3a37639fdfe11da94c9d83d79b9a95382ab3d1820bc4696639352da6c539e72db3a8c878450a70337a63be098aea2e3f11e8c08de2ad56d4a7523c58343e85262dbb487c7923b3884980edd513a85eb27d75af0de11ea9876ee2879bc07a38157cbeb28dd1cb569d38ed6bf1ec9ed30119a74cd5caf6f90647848086d9baea5d67f884cf9edfcb16a980875ca7265e70200000000000000000000000000000000000000000000000000000000000000000000000000000000bc279c96c5bc3fbb39ff693abb385f2d6f16f3627252dc7efc74dd17253333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333330fd83ff6fd53fddf8362fe0f17ff7716330fc17601f33f5f01d9043c603b02f870fdb2d5ef169987ef6fbbfeb1197840febe556e13f000fcb2c5ef20e0e1db55101fbc5fb8acad7e3e00fb7d800fd6ee80f9706df5f3e1f965bf7759fc3c40bbf7657604f0c1da11c0fc2fcbdceae703b4ff0565666666666666666666666666666666de5f9f96c5f5f4a25f149393bbe28f62725c165f12efcb8728645195455f6b86ac661e1d85ace163189f0dab4d583f1bc64dd8e4e1a6b4ce4beb6c885536a86d749487316f7994cfe76b47312f8c79d3269fec4e38cac3366fbb1376f9ecbabc749c978ef3513dcea0ca66d0e4a31ae5e1a6ab709cd70e79e6773fe610f2dec2ce9b856aa7bcda298f3be53bf1f6336bf3303e3fb89dcedbbcaf36efabcddb8ef3ca5d5e79271d8fd3d87cc4310f1f1310b3d27a678e613ba9b403cfce96e995bbe2e672b6d65f8d1faa1797abedcbedf61d8adbd443eae26352779fe2cf97d32ffd2aaceb7d9c2ee6693b87269661d495a169d35b2ca6bff7c5a4f8f050ed875f16eb6f80abd972955e8c75f5d8419575302a43d73c69fcebedf2ef8dc343e334ac6e5c16b3e962b1bcfeb05acefa3ef571bdbae9cb62d54faf968b9ff3a234c1cfe1ecd3e27cf9b0bde6fd6ffdea2a652fdcff09977bb5cd
 
+Deadlock game (deck not empty?!?!)
 
-player 1 can play YC2 on 0, -1 or 0, 2 but doesn't?
+789ceddcbb6ee3461480e1570926ed141ef126a9dc3cc06e91ce70a10b632fac500bdac26621e8dd73c689133b69b64976617c85fe8f1c720e69586e7d4efb71779fd6e73fbd2e4397cb7288cf2a97bee4d2b4b90c71de5fe5b258e6d22d622d3e6d1f9f6a139fd8d3c7791f7bbab86f88b52ece97f538f634753dd69ab86f156b6dcceceadcd8bfa8cf0997f1acae3eb73e3ff60c71bd8fe326e634b17788eb7d9d15f7b47546bda7ceafcfa9ef52afc79e65cceae39eae3eb3dce4f4308efbb4eefab61f5639cd9b29cece974b4edbe366aec7cf07d7d3e970c8222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222f255294dfd1fe1cd77f026f25ffd8adb219761f51dbc8988888888888888888888888888888888888888888888888888888888888888888888888888888888888888c81bc84d4efb717bba7db7d9dddfcec7d3b44febebf4f9eee3e3983249922449922449922449922449922449922449922449922449922449922449922449922449922449922449922449922449922449926fd21fc7f105dffa6dc86ff0edffca65f22deaaf80fcc7d7deb79f24499224499224499224499224499224499224f9bf7b93d3e3e67e9cd2fafa9c7e4bebab9cbe442ff9e9acbc3afbe35a7975ad5c62c2767b8c85733a1d76959763d2617e5e7bde108f4eeb454e77d14b9c7d3a6cbe8c73a977dd6da67dbc49e996b92c9b5cda552eab124f9836bf8e699d3e3cddfac3fba9fe000fbbe31c8bcbbf462c5e8e58b6b93431a6b9caa5ebfe35e2e7cfc7bf472cdaa719f1765d93d36e334dc7c70ff371378e31ea713e8d39cde3e6e138fdf4fa521bbbcaf6e3747b7cfa89f7e32fe3fc1043cae5779f724673
 
-789ceddc4d4fe34618c0f1af52b95757caf83d1c7bafba87de1087105c76459aa000a22bc477ef389b206cb22fa28b36ebfc0ef9fff38c9f4c063f33b613ac3c2417edfc2a3979d8fa3494591aea260d659d86a6384b939bb6bd484ec2242fa6a14893f56c19c387c7c734395fcdd6ddf3dd93d3e5dd629102000000000000000000000000000000000000000000000000000000000000c02b10ea2c0dd5e40046026f51dd223eaa3494f9018c06be6f71ab58dca6da064df7d31d210d4579004383ef51dfe9240df9f34373c863816b05fef9118aee57765e543294b1c07976000384d7d7b62a63119d70478c308debb4aa0f6024f006d5cde385555e1dc048e00daadbd4b1bad3031809bc4175ab78646e54779c0875f791c879779c08455cbb657300238137a86e153ff2e6aa3b6284a2bbb4f2fdd43811aa3c56d89753a34328bb7f24c4e2668ecee3442862759b78ed5cf85663ec0875f7e3fd4ec26347c8a6f1c86d3d8f1da18e75ae5c768d18a1ea6ed1711316000000000000000000000000000000000000000000000000000000000000000000000000000000c04f85b334b968cfef2e7f9fcdaf2ed7abbbe54572729adcbfff70db2629333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333f317fd6bdb3ed38f1e0df30f98fddfd8cc3c267f659a3b35f078fdba43bfc5c023f2971781ab231eafbf6d765b033c3effaf8b1f739f476047763e5e9bfd7cbc36fbf9786df6f3f1daece7e3b5d9cfc76bb39fd92ae0e3b39b1af868edb63666ab807930dd5d10317f65da5b0d7c84b61a98ad02e6c1b4dfe82c4d6e6757ed3239397d48fe4d4e2669f231f231dd44a11765bde85366e865865e663ffa6d17e67bc36c1b16fd70bb35ef6f1d84c5362cf786e536acf686d536acf786f5366cf686cd369cee0da7bb5d33e9c7dbcd6132d8feb2e169e78641c3a73ddadf47d930f9a9211b36ec32f26146deebb1bf97fb517f1f17bd6d656f5b397c935d72c8870dc5e732ca61c68b86a73fa51c36549fcbc88619d930230c33c2635c2fe7e7abd8f690dc2de69d9e96c26654c962bd6bddbeaa6bbc8f519c51ef6395c2638caf17b38fed3a7489ef67cb8bb8f842d3a4a10969a8f3341493f836cbd93f6d7292bcdba4fef2e7b25bb237f3d5baed7aae9e3ac99e77524de38be3a3ec5cbce8e4affbd5b34e9a6cd3491c6215e7f37cb65cae6edfad57f3b68d7dfd3d5bdcb431f73a467fdc6cfec4eb70fe6179b9ea8e00ff017b52d057
+same
 
-player 2 can play G+2 on -1, -1 but doesn't?
-
-789cedda4d4fe3561480e1bf52b95b57caf577b2ecbeea2cba432c42709911698202888e10ffbd378c83b08199aa2552709e05ef9b737db8b9f1b9c73121f7c979bbb84c66f79d4f4251a4a1989ca6c975db9e27b330c98b6928d264335fc5f0fee1214dced6f3cdf6f1eec1c9ea76b94c010000000000000000000000000000000000000000000000000000000000e0fd11caec0056017bad719da5a19a1cc04a601fd52de24f153b393f80d5c0fb16b78ac56daa2e68621fd7210d4579004b83f7a8ef749286fcf9a539e4b1c0b5027f7c84a28917e517950c652c70eeaeeb432354652ca237dc11234c639f56f501ac04f650dd3cde58e5d501ac04f650dda68ed59d1ec04a600fd5ade295b951dd7122d4db3f89bcef8e13a188bd5b3607b012d84375abf8276faeba234628b6b7563e9f1a134213ba07551e0becb3a9d12194dbff23c4e2662ecee3442862759b78eb5cf85063ec08757c0f6ebc078f1d219bc62bb77e1e3b421deb5cb9ed1a3142b5fd868eef60010000000000000000000000000000000000000000000000000000000000000000000000000000007c289ca6c9797b767bf1eb7c7179b159dfaece93d94972f7f9cb4d9ba4ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccfc1dffdcb687b00ce603d8feba818fd06f6c7bddc047e01f6cf3eeb066e011fabf5dfa35038fc8df6f0277473c5effbbddad07787cfe5f373ff63e8fc0aeec7cbcb6fbf9786df7f3f1daeee7e3b5ddcfc76bbb9f8fd7763f1f9ffd4b8b8fd6363f1fbd7dab8d5917300fb6bb1b22e61f6c7bddc04768ddc0ac0b9807dbfe51a7697233bf6c57c9ece43ef93b994dd2e46be443fa18855e94f5a26f99a197197a99fde8975d98bf1a665d58f4c3ee68de3f3a088b2e2c5f0dcb2eac5e0dab2eac5f0deb2e6c5e0d9b2e9cbe1a4e77a766d28fbbc3613238fe72e0e9e486c1c0b733da3f47d930f969201b0eec32f26146de9bb17f96fb51ff1c17bd6365ef58397c925d72c88703c55b19e530e3c5c0d34b298703d55b19d930231b668461c66e6057a0e13aab87d84f6767eb38769fdc2e175b3d4b8f9b2b596e76a3ddacf1a52477318a3bee73ac62f610e3abe5fc6bbb09dbc4cff3d5796cced03469a8f33414d33434457c9ad5fcaf3699259f1e537ffa7db56de9ebc57ad36ee76a9e26c99e4f52c55faee344651d7fa62f26f9e36efd6c92267b9c242e313e6fb298af56eb9b4f9bf5a26de35c7fce97d76dccbd8ad16fd78f2ff12a9c7d595dacb757887f004459d2ec
-
-
-789ceddc4d4f1b471cc0e1af524daf83c4ec9b5f8ebd57cda137c4c1982d44b83632201a21be7bff4b4dc4125451a80421cfc1cfcf33b3ac37ccb2e1c44d3aee9767697eb3eb4169db5c66fbb94ca39349bcaa5cea1837c35c974b35cba58bf793a1b1d6c6fb2ee6db1837f135d3989b9618d7714c135f3b8ca7f18af7ed70be98efe2d836e627c367c45a5b0e73bae8fbe3342ffb75332b4d4edbc53a8637b7b7391d6d16dbe1fdfd9b83f5d56a95010000000000000000000000000000000000000000000000000000000000f06129f52c5edd3bb812bc68ffba492ecdf4e9b5a6c47a79075789976ff0a4cb653a7b38338d2defa6f163fbf4b6e37ba2d4c35f12deff66ba89e9ba7d071788576e703bfca80e4fe26637d1d5b1bdd53bb834fccf3bddc4c33936b7f260fe98942676773afc0979bf31030000000000000000000000000000000000000000000000000000000000000000bc96c39c8efba3ab935f16cbb393ede66a7d9ce607e9faf4f3659fb2aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaafe80fdb9ef1fe4adaf46f50deefe674eab7e0ffdf767fab356dffa9fa0fa8a5bffbfddf3ee7dfd407dde93ddf35f3f6e5ff6a477f3eb07acdf7e549f779bfb29d01fa8e3ff1aee7298d3e5e2ac5fa7f9c14dfa2bcdf773fa12dee6bb51198daad1e89f23cbe8c8323ab28c8edc1b2f7e1dd64f0eabddb0190f77abf578f57eb857c6e7daab9e1e578f8e7ff461cd6ed88e87d5f8c376abed6ed88d877bd5d397563f5a6f1ead37b7b12347479b98ba4957abe5900787c7e9d36a7b3fdbdd7f9bd3759acf723a4df3c96d8cce578b2ffdb60c479d2ed6c7b1b7a5ed7299955c26f16a66f119ebc59f7d9aa74f7787fef4db7ab8232e969b6d4c9669f5f524d5c393344d2ef5f0aa73e9da6f4ef2fbf5e6c149aafdbb930c1718dfaae562bdde5c7eda6e967d1fe7fa63b1bae8e3d8f318fd7a71778b9c97a3cfeb93cd7083fd0d124ec3c2
+789ceddccf6e1a4700c0e157a9a6d789c4b07f5838b60fd01c7ab37cc0b0b523bb4b846d3991c5bb67d681d69bd226aa8c8cf077e0f76518d88c98c1363ef8312cdbc575983d6e3d4bd534a6c938a6ba8aa999c4344d795ce65b1d5395ef2ff2adece746799ce7ebfcf83a3f66dc9bc74d93cdb72adf8a7e3e3fafee9f9f9f33e9ef1f9dc770dbb6cb306b52538c520ceb7997478f9b4d0c17abf9bafff7ee1f67ddfdcd4d14111111111111111111111111111111111111111111111111111111111111111111111111397c5251c734991cc14ae410bb5be4dd4d3195e511ac465e76739bbcb945ff17f28a23588dbcece656f9eb72333d8295c8cb6e6c398e69dcffdd4a9b7bc24993697eff8e8f60257280ddadf2cf54b5dd3dcda4a6ffd3c3e908562207d8dda2ccdf84eb235889bcf0c6f66fdbfed7193e0f9d6652d17fdbcd9f7a4bbfb03acda4b2dfddfe4767bfb03ae1a4727404ab101111111111111111111111111111111111111111111111111111111111111111111111111111111111913ee7312cdb8bfbcb5fe68bebcbf5eabe5b86d95978b8fa70d7864892244992244992244992244992244992244992244992244992244992244992244992244992244992244992e1e7b67dc66baf867c85d3ff837793a7e4778eb977014f58a79f6fcffffe79dfa7019eaebee293df39eede057c033afd7cbb3afd7c7bfed067dfd75e2479c0c3ff3fa7c953d0bb80f42e20ffe5b83bfd7cc33afe2449922449922449922449922449922449f2a83c8fe16e7edd766176f6183e85d92886cfb99bf8344a83d1d7b934981b8edeed86e3bdc3f17658ec1d16db61b977586e87d570b89dad86b3df0cebedb0de3b9c6c8793e1b0d93bdb0c6777c3e9ded9e970763a781dc783576e377ab7ef252f862f54357cec374f4d9bbca71717ab7ccf63b8bf59f4fc3ddb2f22dcac77f74e77d70f0ff999f92157996293c71f6fe69fdb75ea1f7735ef96f97ca4aa8aa91ec534cdb7aaccff4b37ffb30db3f0fee9a13ffdd6f5c7ea76b15ae73bd3b8f9eb22e3e71729534c6513d3245fa468fe7191df1f56cf2e527cbd485e629d57ba9877ddeaeefd7ab568db7cadbbf57d1bc3ba9ddfaeba5f8753f9547c4c171fbacbd5d34bb86cff68d7b7f938a4cd17fb026f71
 
 */

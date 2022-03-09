@@ -12,7 +12,8 @@ function* prng(seed: number = 1): Generator<number, any, number> {
 
 export default class DeckObject {
   public deck: number[] = []
-  public seed: number = 1034914;
+  public seed: number = Math.floor(Math.random() * (1024*1024));
+  // public seed: number = 1034914;
   public rand = prng(this.seed);
   constructor () {
     this.init();
