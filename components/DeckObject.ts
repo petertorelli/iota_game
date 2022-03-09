@@ -12,16 +12,16 @@ function* prng(seed: number = 1): Generator<number, any, number> {
 
 export default class DeckObject {
   public deck: number[] = []
-  public seed: number = 0;
-  private rand = prng(this.seed);
+  public seed: number = 1034914;
+  public rand = prng(this.seed);
   constructor () {
     this.init();
   }
 
   public init() {
     // Interesting seed: 939263 -> player 1 start bingo
-    this.seed = 1;// Math.floor(Math.random() * (1024*1024));
-    this.rand = prng(this.seed);
+    // this.seed = 1034914; // Math.floor(Math.random() * (1024*1024));
+    // this.rand = prng(this.seed);
     // See note about MSB in CardObject.ts
     this.deck = _.range(0x80, 0xc0); // TODO: Actually 66 due to wildcards
     this.shuffleDeck();
@@ -45,9 +45,12 @@ export default class DeckObject {
   }
 
   // TODO: We never really check deck consistency. Maybe we should.
-  public returnCards(hand: number[]) {
-    hand.forEach(card => {
-      this.deck.push(card);
-    });
+  public returnCards(hand: number[], n: number) {
+    while (n-- > 0) {
+      const c = hand.pop();
+      if (c !== undefined) {
+        this.deck.push(c);
+      }
+    }
   }
 }

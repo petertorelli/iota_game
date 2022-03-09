@@ -34,6 +34,7 @@ const BOARD_DIM = 97;
 const BOARD_HALF = (BOARD_DIM - 1) / 2;
 export default class BoardObject {
   public board: Array<number|null> = [];
+  public debugBackground: Array<string> = [];
   public taken: Point[] = [];
   public bbox: BoundingBox = {ulc: {x: 0, y: 0}, lrc: {x: 0, y: 0}, w:0, h:0};
   constructor (initBoard: BoardObject|undefined = undefined) {
@@ -45,10 +46,12 @@ export default class BoardObject {
     if (initBoard !== undefined) {
       this.bbox = JSON.parse(JSON.stringify(initBoard.bbox));
       this.board = [...initBoard.board];
+      this.debugBackground = [...initBoard.debugBackground];
       this.taken = [...initBoard.taken]
     } else {
       this.bbox = {ulc: {x: 0, y: 0}, lrc: {x: 0, y: 0}, w:0, h:0};
       this.board.fill(null);
+      this.debugBackground.fill('white');
       this.taken = [];
     }
   }

@@ -14,6 +14,12 @@
         tr
           td Deck seed:
           td.text-right {{ game.deck.seed }}
+        tr
+          td Current turn:
+          td.text-right {{ game.ply }}
+      button(@click='exportGame()').px-2.py-1.rounded.font-bold.bg-gray-500.text-white Export
+      button(@click='importGame()').px-2.py-1.rounded.font-bold.bg-gray-500.text-white Import
+      textarea.border(v-model='compressedGame')
     .mb-4.w-48.text-xs
       b Score outcomes
     .mb-4.w-48.text-xs
@@ -97,9 +103,11 @@
           td(v-for='xx in cacheRangeX')
             card-image(v-if='cacheBoard[xx + yy * 97] !== null'
               :card='cacheBoard[xx + yy * 97]'
+              :style='{ background: cacheBackground[xx + yy * 97] }'
               :key='0xf000000 + [xx + yy * 97]'
               )
-            .dummy-card(v-else)
+            .dummy-card(v-else
+              :style='{ background: cacheBackground[xx + yy * 97] }') &nbsp;
       //-table(style='border: 1px solid #ddd')
         //-tr
           th
@@ -135,6 +143,7 @@ export default Vue.extend({
       cacheBoard: [] as Array<number|null>,
       cacheRangeX: [] as number[],
       cacheRangeY: [] as number[],
+      cacheBackground: [] as string[],
       scores: [] as number[],
       areas: [] as number[],
       aspects: [] as number[],
@@ -150,17 +159,27 @@ export default Vue.extend({
       player2: 0,
       p1bingos: 0,
       results: [] as string[],
+      compressedGame: '789ceddc4d4fe3460080e1bf524daf8394f1579c1c7bafba87de10877cb8b0224d5000d15594ffde310d5bcca2162dad36ca3e873caf673c71acd8b1567b601796dde23a4c77879ea7718aa99ac454d7314d4631b5b9e3717e153195795cf5734d4c455ed3e4ed71dfbcafcedb4d9eaff3b8caef69f35c9b8f5597794d95dfdb8fdbfccadb757fbc3cdff49f93e7c7fd67e47d75ba88e1b6eb96619a46653549550cdbd93a0f77fb7d0cf3cd6cdb6f3f6d9cafef57ab0800000000000000000000000000000000000000000000000000000000008093259593fc6a8ee04cf03f5cdd2ac5d4a42338137cfd451c3731b593e733ed385fd636ff70db23383fbcf3fa96fddf121e7d315de5e9b23e8213c43b2f70ddff54fb2771759868ca7c798b233835fcc757baca0fe77c710b0fe6d32455f9eab6fd1f91f76f66000000000000000000000000000000000000000000000000000000000000000080f77211c3b29bdf5ffe345b5c5f6e37f7eb65989e8787ab8f775d88aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaafa1df6c7ae7b966f7d36aadfe0ee7fe3b4ea29f49f9ff96e7e3d81be7e93ffcbcdedded713e8db9eec9eff7abafdba27bd9b5f4fb06ffb5f1e37bf7e07f52b507d71bb3fcf450c77b3eb6e1da6e7bbf047988e62f894ddc7c7511a8c8ac1e8af9569b0320d56a6c1cab3e1cecfc3f2d561711856c3e1616f39dcfb343c4bc3639d15af8f8b17eb5f7c587518d6c36131fcb0c3defa306c86c3b3e2f5532bf7f91b9fcf37796a17ee578b3ecf96e7b787d5f669b679fa1ac343984e62b80ad3f13e8f6e56b34fdd36f5abae66eb65be76a96e62aada982629a6669c3f633dfbbd0bd3f0e171e90fbfacfb2b7ebbd86cf3645b7c3e46f1fc18551553d9bfca7c8cfa8b63fcfab0f9fb18a9183d1ea43fbffcb52d66ebf5e6eec376b3e8ba7cacdf66abdb2eafbdc9a39f6f1fef809b34ffb8bedcf4f7cf9f2d34c103' as string,
     }
   },
   mounted() {
     this.cacheBoard = Array(100 * 100);
+    this.cacheBackground = Array(100 * 100).fill('white');
   },
   methods: {
+    exportGame() {
+      this.compressedGame = this.game.exportGame();
+    },
+    importGame() {
+      this.game.importGame(this.compressedGame);
+      this.update();
+    },
     update() {
       this.cacheRangeX = this.game.board.getXRangeA();
       this.cacheRangeY = this.game.board.getYRangeA();
       for (let i=0; i<(97*97); ++i) {
         this.cacheBoard[i] = this.game.board.board[i];
+        this.cacheBackground[i] = this.game.board.debugBackground[i];
       }
     },
     turn() {

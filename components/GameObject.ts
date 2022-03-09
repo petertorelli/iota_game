@@ -1,3 +1,5 @@
+import zlib from 'zlib';
+
 import DeckObject from './DeckObject';
 import BoardObject from './BoardObject';
 import PlayerObject from './PlayerObject';
@@ -11,6 +13,7 @@ export default class GameObject {
   public cannotProceed: boolean = false;
   public speedMs: number = 0;
   public p1bingo: number = 0;
+  public defers: number = 0;
   constructor () {
     this.init();
   }
@@ -22,6 +25,7 @@ export default class GameObject {
     this.player2.init(name2);
     this.ply = 0;
     this.p1bingo = 0;
+    this.defers = 0;
     this.cannotProceed = false;
     this.deal();
   }
@@ -32,16 +36,34 @@ export default class GameObject {
       this.player2.draw(1, this.deck);
     }
   }
-
+  
   public turn() {
+    let p2b4;
+    let p2af;
+    let p1b4;
+    let p1af;
     if (this.cannotProceed) {
       return;
     }
     if (this.ply & 1) {
+      p2b4 = this.player2.score;
       this.player2.play(this.deck, this.board);
+      p2af = this.player2.score;
     } else {
+      p1b4 = this.player1.score;
       this.player1.play(this.deck, this.board);
+      p1af = this.player1.score;
     }
+    // --- Cases where even after 10 random hand swaps no progress? -----------|
+    if ((p2b4 === p2af) && (p1b4 === p1af)) {
+      this.defers ++;
+    } else {
+      this.defers = 0;
+    }
+    if (this.defers > 50) {
+      this.cannotProceed = true;
+    }
+    // ------------------------------------------------------------------------|
     if (this.ply === 0) {
       if (this.player1.score === 20) {
         this.p1bingo = 1;
@@ -68,5 +90,31 @@ export default class GameObject {
     }
     const t1 = window.performance.now();
     this.speedMs = t1 - t0;
+  }
+
+  public exportGame(): string {
+   const cmp = zlib.deflateSync(JSON.stringify(this));
+   return cmp.toString('hex');
+  }
+
+  public importGame(game: string) {
+    const buf = Buffer.from(game, 'hex');
+    const obj = zlib.inflateSync(buf);
+    const txt = obj.toString('ascii');
+    const json = JSON.parse(txt);
+    // State assign
+    this.deck.deck = json.deck.deck;
+    this.board.bbox = json.board.bbox;
+    this.board.board = json.board.board;
+    this.board.taken = json.board.taken;
+    this.player1.hand = json.player1.hand;
+    this.player1.name = json.player1.name;
+    this.player1.score = json.player1.score;
+    this.player2.hand = json.player2.hand;
+    this.player2.name = json.player2.name;
+    this.player2.score = json.player2.score;
+    this.cannotProceed = json.cannotProceed;
+    this.ply = json.ply;
+    this.p1bingo = json.p1bingo;
   }
 }
