@@ -55,41 +55,98 @@ function findContour(board: BoardObject): Point[] {
   return contour;
 }
 
-function baseScore(line: number[]): number {
+/**
+ * An loop-unrolled comparison that checks to see if all properties are the
+ * same, or if all properties are different. Can be used for validation as
+ * well as basic scoring. "Basic" means no bonuses are computed.
+ *
+ * This is a 20x performance improvement over using Set()s and dynamic arrays.
+ *
+ * @param line An array of cards (64 values from 0x00-0x3f)
+ * @returns 0 = invalid line or score (sum of card values without bonuses)
+ */
+function baseScore(line: number[]) {
   if (line.length > 4 || line.length < 2) {
     return 0;
   }
-  const A = new Set<number>(); // These are the scores
-  const B = new Set<number>();
-  const C = new Set<number>();
-  const N = line.length;
+  let aSame = false;
+  let aDiff = false;
+  let bSame = false;
+  let bDiff = false;
+  let cSame = false;
+  let cDiff = false;
   let score = 0;
-  line.forEach(c => {
-    A.add(((c >> 0) & 0x3) + 1);
-    B.add((c >> 2) & 0x3);
-    C.add((c >> 4) & 0x3);
-  });
-  if (
-    (A.size === 1 && B.size === 1 && C.size === 1) ||
-    (A.size === 1 && B.size === 1 && C.size === N) ||
-    (A.size === 1 && B.size === N && C.size === 1) ||
-    (A.size === 1 && B.size === N && C.size === N) ||
-    (A.size === N && B.size === 1 && C.size === 1) ||
-    (A.size === N && B.size === 1 && C.size === N) ||
-    (A.size === N && B.size === N && C.size === 1) ||
-    (A.size === N && B.size === N && C.size === N)
-  ) {
-    if (A.size === 1) {
-      // If all the scores are the same, it is count * the value
-      score = N * A.values().next().value;
-    } else {
-      // Otherwise the scores are different, so sum them
-      for (const cardScore of A) {
-        score += cardScore;
-      }
-    }
+
+  switch (line.length) {
+    case 2:
+      aSame = (line[0]&0x03)===(line[1]&0x03);
+      aDiff = (line[0]&0x03)!==(line[1]&0x03);
+      bSame = (line[0]&0x0c)===(line[1]&0x0c);
+      bDiff = (line[0]&0x0c)!==(line[1]&0x0c);
+      cSame = (line[0]&0x30)===(line[1]&0x30);
+      cDiff = (line[0]&0x30)!==(line[1]&0x30);
+      score = (line[0]&0x3)
+            + (line[1]&0x3)
+            + 2;
+      break;
+    case 3:
+      aSame = ((line[0]&0x03)===(line[1]&0x03)) &&
+              ((line[1]&0x03)===(line[2]&0x03));
+      aDiff = ((line[0]&0x03)!==(line[1]&0x03)) &&
+              ((line[1]&0x03)!==(line[2]&0x03)) &&
+              ((line[0]&0x03)!==(line[2]&0x03));
+      bSame = ((line[0]&0x0c)===(line[1]&0x0c)) &&
+              ((line[1]&0x0c)===(line[2]&0x0c));
+      bDiff = ((line[0]&0x0c)!==(line[1]&0x0c)) &&
+              ((line[1]&0x0c)!==(line[2]&0x0c)) &&
+              ((line[0]&0x0c)!==(line[2]&0x0c));
+      cSame = ((line[0]&0x30)===(line[1]&0x30)) &&
+              ((line[1]&0x30)===(line[2]&0x30));
+      cDiff = ((line[0]&0x30)!==(line[1]&0x30)) &&
+              ((line[1]&0x30)!==(line[2]&0x30)) &&
+              ((line[0]&0x30)!==(line[2]&0x30));
+      score = (line[0]&0x3)
+            + (line[1]&0x3)
+            + (line[2]&0x3)
+            + 3;
+      break;
+    case 4:
+      aSame = ((line[0]&0x03)===(line[1]&0x03)) &&
+              ((line[1]&0x03)===(line[2]&0x03)) &&
+              ((line[2]&0x03)===(line[3]&0x03));
+      aDiff = ((line[0]&0x03)!==(line[1]&0x03)) &&
+              ((line[0]&0x03)!==(line[2]&0x03)) &&
+              ((line[0]&0x03)!==(line[3]&0x03)) &&
+              ((line[1]&0x03)!==(line[2]&0x03)) &&
+              ((line[1]&0x03)!==(line[3]&0x03)) &&
+              ((line[2]&0x03)!==(line[3]&0x03));
+      bSame = ((line[0]&0x0c)===(line[1]&0x0c)) &&
+              ((line[1]&0x0c)===(line[2]&0x0c)) &&
+              ((line[2]&0x0c)===(line[3]&0x0c));
+      bDiff = ((line[0]&0x0c)!==(line[1]&0x0c)) &&
+              ((line[0]&0x0c)!==(line[2]&0x0c)) &&
+              ((line[0]&0x0c)!==(line[3]&0x0c)) &&
+              ((line[1]&0x0c)!==(line[2]&0x0c)) &&
+              ((line[1]&0x0c)!==(line[3]&0x0c)) &&
+              ((line[2]&0x0c)!==(line[3]&0x0c));
+      cSame = ((line[0]&0x30)===(line[1]&0x30)) &&
+              ((line[1]&0x30)===(line[2]&0x30)) &&
+              ((line[2]&0x30)===(line[3]&0x30));
+      cDiff = ((line[0]&0x30)!==(line[1]&0x30)) &&
+              ((line[0]&0x30)!==(line[2]&0x30)) &&
+              ((line[0]&0x30)!==(line[3]&0x30)) &&
+              ((line[1]&0x30)!==(line[2]&0x30)) &&
+              ((line[1]&0x30)!==(line[3]&0x30)) &&
+              ((line[2]&0x30)!==(line[3]&0x30));
+      score = (line[0]&0x3)
+            + (line[1]&0x3)
+            + (line[2]&0x3)
+            + (line[3]&0x3)
+            + 4;
+      break;
   }
-  return score;
+  const pass = (aSame || aDiff) && (bSame || bDiff) && (cSame || cDiff);
+  return pass ? score : 0;
 }
 
 export default class PlayerObject {
