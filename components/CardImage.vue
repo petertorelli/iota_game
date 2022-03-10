@@ -1,17 +1,17 @@
-<template lang='pug'>
+<template lang="pug">
 .card(v-show='isCard' :style='{ color }' v-html='shape + " " + score')
 </template>
 
-<script lang='ts'>
+<script lang="ts">
 import Vue from 'vue';
 import * as card from './CardObject';
 
-export default Vue.component( "CardImage", {
+export default Vue.component('CardImage', {
   props: {
     card: {
       type: Number,
       default: 0xff,
-    }
+    },
   },
   computed: {
     isCard() {
@@ -25,7 +25,7 @@ export default Vue.component( "CardImage", {
     },
     score() {
       return card.score(this.card);
-    }
-  }
+    },
+  },
 });
 </script>

@@ -8,27 +8,27 @@ export enum DoneReason {
   None = 0,
   Player1NoCards, // Player One ran out of cards
   Player2NoCards, // Player Two ran out of cards
-  NoPlays,        // Players still have cards, but no progress, and deck empty
-  Deadlock,       // Players still have cards, no progress, and deck not empty
+  NoPlays, // Players still have cards, but no progress, and deck empty
+  Deadlock, // Players still have cards, no progress, and deck not empty
 }
 
 export type GameResults = {
-  playTime: number,
-  done: boolean,
-  reason: DoneReason,
+  playTime: number;
+  done: boolean;
+  reason: DoneReason;
 };
 
 export default class GameObject {
   public deck = new DeckObject();
   public board = new BoardObject();
-  public player1 = new PlayerObject("Player 1");
-  public player2 = new PlayerObject("Player 2");
+  public player1 = new PlayerObject('Player 1');
+  public player2 = new PlayerObject('Player 2');
   public ply = 0;
   public cannotProceed: boolean = false;
   public reasonCannotProceed: DoneReason = DoneReason.None;
   public p1bingo: number = 0;
   public defers: number = 0;
-  constructor () {
+  constructor() {
     this.init();
   }
 
@@ -45,12 +45,12 @@ export default class GameObject {
   }
 
   public deal() {
-    for (let i=0; i<4; ++i) {
+    for (let i = 0; i < 4; ++i) {
       this.player1.draw(1, this.deck);
       this.player2.draw(1, this.deck);
     }
   }
-  
+
   public turn() {
     let p2b4;
     let p2af;
@@ -70,7 +70,7 @@ export default class GameObject {
     }
     // --- Cases where even after 10 random hand swaps no progress? -----------|
     // TODO I think this logic is wrong. Does it prematurely quit?
-    if ((p2b4 === p2af) && (p1b4 === p1af)) {
+    if (p2b4 === p2af && p1b4 === p1af) {
       if (this.deck.deck.length === 0) {
         this.cannotProceed = true;
         this.reasonCannotProceed = DoneReason.NoPlays;
@@ -116,7 +116,7 @@ export default class GameObject {
       playTime: t1 - t0,
       done: this.cannotProceed,
       reason: this.reasonCannotProceed,
-    }
+    };
   }
 
   public exportGame(): string {

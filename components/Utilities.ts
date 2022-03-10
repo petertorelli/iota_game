@@ -1,5 +1,4 @@
-
-export default function UNWRAP (object: any) {
+export default function UNWRAP(object: any) {
   const x = JSON.stringify(object);
-  return x;// JSON.parse(x);
+  return x; // JSON.parse(x);
 }

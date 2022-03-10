@@ -1,5 +1,5 @@
 <!-- Please remove this file from your project -->
-<template lang='pug'>
+<template lang="pug">
 .flex.flex-row
   .m-4.p-4
     .mb-4.w-48
@@ -130,9 +130,9 @@
         card-image(v-for='card of game.deck.deck' :card='card' :key='card')
 </template>
 
-<script lang='ts'>
+<script lang="ts">
 import _ from 'lodash';
-import Vue from 'vue'
+import Vue from 'vue';
 import GameObject from './GameObject';
 import { DoneReason } from './GameObject';
 
@@ -147,7 +147,7 @@ export default Vue.extend({
        * I stop trying to update the DOM after EVERY turn during autoplay, it
        * might ... do something? I dunno. Just a thought.
        */
-      cacheBoard: [] as Array<number|null>,
+      cacheBoard: [] as Array<number | null>,
       cacheRangeX: [] as number[],
       cacheRangeY: [] as number[],
       cacheBackground: [] as string[],
@@ -170,8 +170,9 @@ export default Vue.extend({
       results: [] as string[],
       ms: [] as number[],
       error: '',
-      compressedGame: '789ceddadd4ee3461880e15ba9dc53478ae3dfe4b0bd80ee41cf1007817861054d56014457887bef38248109741ba088049e83bc6f3ecf8f07cf7c633be22699b4c767c9e866e983c334b968db49321a94cd7098a5c97c3c0dd1cded6d9a1ccdc6f3eefbeacbc1f4eafc3c0500000000000000000000000000000000000000000000000000000000000000000000000000000080dd4756156956163b301278ab29cebb29aec2540fd3ac1eeec088e0ada6ba2ac3a7099f7c0746036f3ad74d98eb22a475d1df81d1c01bcc70d965723fcc741d367119bdafc806e1c65b65e1e65b2f0fe4dd840e9641114a4b39bcd7c88a4148d3ead1e13a0f331f8aaa7a070609af9ce46197c3d93268c2b40efbab20ecd2e5ba243c6f17cd0e0c189e3bc38370c72d43ced68fde88b33c6cd34598d92a3c7235dea2f61559d9dd7b9fceceac08654597e46ec71f0e591d72bb289741decd7278812ac3a7f168fd31919561cf6ec24ce78f9ecc60df91e5ddef1f52f76322abc3e375ee360c000000000000000000000000000000000000000000000000000000000000000000000000002b1ca6c9a43dba3af96d7c7c76329f5d4d27c9e820b93efd76d92629333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333efb07f6ddb077aefd130bfc3ea9714fc79bde532970dfc09bcdddeef0ec19fc7cfca89f71e2cf3db2d7a0f4bfcf1fdf3f7e2d71d66de076ff5dbd0f31e89bc35f0fef92d6f065281f7c82fdaee5fd929f32efa7fdde89ff554c5bc4bfef9aa7ddd938f54e00fe417fda82a07f803db3f21f1a7b5df85983796fd42876972393e6ba7c9e8e026f93b19f5d3e447e06dba88b228ba2bcba2b22c2aebc585ebb0b7116f553bdbe2b4bdc1221cc42dd761b108f35598c7e1e0a9b0b7d1d73aeec7617ca68d61dc9da8887b2ea2baabd3c6638a07bc7dcdf289b2222a2ba25e8a2d6aae2ec8cb26b188ae48195f9ff2a9698aeb96cba88aa24114e551d4abe2a551c66115ade565693f1e426f63a9f4361747be51bfd8a8bf11f7e3e6fde86faa96511d454d142d8779dfef7f9cf767d7ae8ea2ed6b364fb4aba376abe86e704d54b389affffdc89ff997adda971bedd7711d5ff17f99eeb0df1d1dcdc2919be4eafcb8d37ddbaeafe47cbe3adaacc69f5c876514fa3b0d2a6e43fcfd7cfca39d675dbdd3f17412f6ceac6942cfd3f15f6d324abe2c8a7ff963daedb217c7b37938980f86eb8683870dcb419ad5d5a3c67f5ecf1e341e968bc65d8a87cb743c9e4e67975fe6b3e3b60d7d7c1d9f5fb469326fc717b3e9ef7159b888dfb3a36fd393d9225f27edd7767ed15d877f00ede323fd' as string,
-    }
+      compressedGame:
+        '789ceddadd4ee3461880e15ba9dc53478ae3dfe4b0bd80ee41cf1007817861054d56014457887bef38248109741ba088049e83bc6f3ecf8f07cf7c633be22699b4c767c9e866e983c334b968db49321a94cd7098a5c97c3c0dd1cded6d9a1ccdc6f3eefbeacbc1f4eafc3c0500000000000000000000000000000000000000000000000000000000000000000000000000000080dd4756156956163b301278ab29cebb29aec2540fd3ac1eeec088e0ada6ba2ac3a7099f7c0746036f3ad74d98eb22a475d1df81d1c01bcc70d965723fcc741d367119bdafc806e1c65b65e1e65b2f0fe4dd840e9641114a4b39bcd7c88a4148d3ead1e13a0f331f8aaa7a070609af9ce46197c3d93268c2b40efbab20ecd2e5ba243c6f17cd0e0c189e3bc38370c72d43ced68fde88b33c6cd34598d92a3c7235dea2f61559d9dd7b9fceceac08654597e46ec71f0e591d72bb289741decd7278812ac3a7f168fd31919561cf6ec24ce78f9ecc60df91e5ddef1f52f76322abc3e375ee360c000000000000000000000000000000000000000000000000000000000000000000000000002b1ca6c9a43dba3af96d7c7c76329f5d4d27c9e820b93efd76d92629333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333efb07f6ddb077aefd130bfc3ea9714fc79bde532970dfc09bcdddeef0ec19fc7cfca89f71e2cf3db2d7a0f4bfcf1fdf3f7e2d71d66de076ff5dbd0f31e89bc35f0fef92d6f065281f7c82fdaee5fd929f32efa7fdde89ff554c5bc4bfef9aa7ddd938f54e00fe417fda82a07f803db3f21f1a7b5df85983796fd42876972393e6ba7c9e8e026f93b19f5d3e447e06dba88b228ba2bcba2b22c2aebc585ebb0b7116f553bdbe2b4bdc1221cc42dd761b108f35598c7e1e0a9b0b7d1d73aeec7617ca68d61dc9da8887b2ea2baabd3c6638a07bc7dcdf289b2222a2ba25e8a2d6aae2ec8cb26b188ae48195f9ff2a9698aeb96cba88aa24114e551d4abe2a551c66115ade565693f1e426f63a9f4361747be51bfd8a8bf11f7e3e6fde86faa96511d454d142d8779dfef7f9cf767d7ae8ea2ed6b364fb4aba376abe86e704d54b389affffdc89ff997adda971bedd7711d5ff17f99eeb0df1d1dcdc2919be4eafcb8d37ddbaeafe47cbe3adaacc69f5c876514fa3b0d2a6e43fcfd7cfca39d675dbdd3f17412f6ceac6942cfd3f15f6d324abe2c8a7ff963daedb217c7b37938980f86eb8683870dcb419ad5d5a3c67f5ecf1e341e968bc65d8a87cb743c9e4e67975fe6b3e3b60d7d7c1d9f5fb469326fc717b3e9ef7159b888dfb3a36fd393d9225f27edd7767ed15d877f00ede323fd' as string,
+    };
   },
   mounted() {
     this.cacheBoard = Array(100 * 100);
@@ -188,7 +189,7 @@ export default Vue.extend({
     update() {
       this.cacheRangeX = this.game.board.getXRangeA();
       this.cacheRangeY = this.game.board.getYRangeA();
-      for (let i=0; i<(97*97); ++i) {
+      for (let i = 0; i < 97 * 97; ++i) {
         this.cacheBoard[i] = this.game.board.board[i];
         this.cacheBackground[i] = this.game.board.debugBackground[i];
       }
@@ -212,7 +213,7 @@ export default Vue.extend({
       }
       return pct.toFixed(prec);
     },
-    async autoPlay(n: number|undefined) {
+    async autoPlay(n: number | undefined) {
       await new Promise<void>((resolve) => {
         let count = 0;
         this.autoPlayTimer = window.setInterval(() => {
@@ -231,12 +232,14 @@ export default Vue.extend({
           } else {
             this.player2++;
           }
-          const res
-            = `${this.game.player1.score}-${this.game.player2.score} `
-            + `${this.game.ply}`;
+          const res =
+            `${this.game.player1.score}-${this.game.player2.score} ` +
+            `${this.game.ply}`;
           this.results.unshift(res);
           this.p1bingos += this.game.p1bingo;
-          this.spreads.push(Math.abs(this.game.player1.score - this.game.player2.score));
+          this.spreads.push(
+            Math.abs(this.game.player1.score - this.game.player2.score)
+          );
           this.scores.push(this.game.player1.score);
           this.scores.push(this.game.player2.score);
           this.areas.push(this.game.board.bbox.w * this.game.board.bbox.h);
@@ -261,7 +264,7 @@ export default Vue.extend({
             this.deadlocks++;
             // this.stopAutoPlay();
           }
-        }, 250)
+        }, 125);
         resolve();
       });
     },
@@ -270,11 +273,10 @@ export default Vue.extend({
       this.update();
     },
   },
-})
+});
 </script>
 
-<style lang='scss' scoped>
-
+<style lang="scss" scoped>
 .btn {
   @apply font-bold py-2 px-4 rounded;
 }
@@ -288,14 +290,14 @@ export default Vue.extend({
 }
 
 .btn-blue:disabled {
-  @apply bg-blue-100 text-white cursor-not-allowed
+  @apply bg-blue-100 text-white cursor-not-allowed;
 }
 
 .base-card {
-  display: flex; 
+  display: flex;
   align-items: center;
   justify-content: space-around;
-  font-size: .75rem;
+  font-size: 0.75rem;
   width: 30px;
   height: 30px;
   margin: 3px;

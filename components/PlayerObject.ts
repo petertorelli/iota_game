@@ -4,23 +4,23 @@ import * as card from './CardObject';
 import type { Point } from './BoardObject';
 
 type Outcome = {
-  score: number,
-  line: number[],
-  x: number,
-  y: number,
-  dir: 'u'|'d'|'l'|'r',
-}
+  score: number;
+  line: number[];
+  x: number;
+  y: number;
+  dir: 'u' | 'd' | 'l' | 'r';
+};
 
 // taken from the internets...
 function permuteArray(input: any[]) {
   const output: any[] = [];
-  for (let i=0; i < input.length; ++i) {
+  for (let i = 0; i < input.length; ++i) {
     const rest = permuteArray(input.slice(0, i).concat(input.slice(i + 1)));
     if (rest.length === 0) {
-      output.push([input[i]])
+      output.push([input[i]]);
     } else {
-      for(let j=0; j < rest.length; ++j) {
-        output.push([input[i]].concat(rest[j]))
+      for (let j = 0; j < rest.length; ++j) {
+        output.push([input[i]].concat(rest[j]));
       }
     }
   }
@@ -31,9 +31,9 @@ function permuteArray(input: any[]) {
  * Create all possible ways to play a hand (array) of cards. This is different
  * than a permutation of K elements from set of length N, which is always length
  * N. Instead, we have to generate all permutations with length 1 ... N.
- * 
+ *
  * TODO: There must be an algorithm for this, since it seems so ancient.
- * 
+ *
  * @param input a set of cards to permute
  * @returns a set of permutations including holes
  */
@@ -41,10 +41,10 @@ function getAllPermutations(input: any[]) {
   const hackSeen = new Set<string>();
   const permutations = permuteArray(input);
   const output: any[] = [];
-  permutations.forEach(permutation => {
-    for (let j=0; j<permutation.length; ++j) {
+  permutations.forEach((permutation) => {
+    for (let j = 0; j < permutation.length; ++j) {
       const partialPermutation = [];
-      for (let k=0; k<=j; ++k) {
+      for (let k = 0; k <= j; ++k) {
         partialPermutation.push(permutation[k]);
       }
       // TODO: Hack b/c this algorithm generates duplicates, plz fix!
@@ -65,7 +65,8 @@ function getAllPermutations(input: any[]) {
 function buildVertical(board: BoardObject, x: number, y: number) {
   // Order does NOT matter
   const vline: number[] = [];
-  for (let i=1; i<10; ++i) { // TODO stop at null
+  for (let i = 1; i < 10; ++i) {
+    // TODO stop at null
     const c = board.at(x, y - i);
     if (c != null) {
       vline.push(c);
@@ -73,7 +74,8 @@ function buildVertical(board: BoardObject, x: number, y: number) {
       break;
     }
   }
-  for (let i=1; i<10; ++i) { // TODO stop at null
+  for (let i = 1; i < 10; ++i) {
+    // TODO stop at null
     const c = board.at(x, y + i);
     if (c != null) {
       vline.push(c);
@@ -89,20 +91,26 @@ function buildVertical(board: BoardObject, x: number, y: number) {
  * A playable coordinate is a blank square that is up, down, left, or right of
  * a card on the board. No verification is performed, it only returns a list
  * of Points that might be played, but still need to be analyzed.
- * 
+ *
  * @param board A BoardObject to examine.
  * @returns An array of Points (board coordinates) that may be played.
  */
 function findContour(board: BoardObject): Point[] {
-  const hSearch: Point[] = [{x: -1, y: 0}, {x: 1, y:  0}];
-  const vSearch: Point[] = [{x:  0, y: 1}, {x: 0, y: -1}];
+  const hSearch: Point[] = [
+    { x: -1, y: 0 },
+    { x: 1, y: 0 },
+  ];
+  const vSearch: Point[] = [
+    { x: 0, y: 1 },
+    { x: 0, y: -1 },
+  ];
   // Since this is only called once per turn, use a Set to uniquify.
   const seen = new Map<string, Point>();
 
   // Helper function to reduce redundant code.
   function check(p: Point, set: Point[]) {
-    set.forEach(search => {
-      const newp = {x: p.x + search.x, y: p.y + search.y};
+    set.forEach((search) => {
+      const newp = { x: p.x + search.x, y: p.y + search.y };
       if (board.atP(newp) === null) {
         const key = JSON.stringify(newp);
         if (!seen.has(key)) {
@@ -110,17 +118,17 @@ function findContour(board: BoardObject): Point[] {
         }
         // contour.push(newp);
       }
-    })
+    });
   }
 
   // Default case when it is the first move.
   if (board.taken.length === 0) {
-    return [{x: 0, y: 0}];
+    return [{ x: 0, y: 0 }];
   }
-  board.taken.forEach(anchor => {
+  board.taken.forEach((anchor) => {
     check(anchor, hSearch);
     check(anchor, vSearch);
-  })
+  });
 
   const contour: Point[] = [];
   seen.forEach((v, _k) => {
@@ -150,13 +158,18 @@ function findContour(board: BoardObject): Point[] {
  * @param cards Cards to play.
  * @returns A line of cards (array of numbers)
  */
-function buildRight(board: BoardObject, x: number, y: number, cards: number[]): [number[], number] {
+function buildRight(
+  board: BoardObject,
+  x: number,
+  y: number,
+  cards: number[]
+): [number[], number] {
   const line: number[] = [];
   let slide = 0;
-  let c: number|null = null;
-  
+  let c: number | null = null;
+
   // First, built to the right.
-  for (let i=0; i<cards.length; /* increment on play! */) {
+  for (let i = 0; i < cards.length /* increment on play! */; ) {
     c = board.at(x + slide, y);
     if (c === null) {
       // If the spot is empty, add the next card.
@@ -168,7 +181,7 @@ function buildRight(board: BoardObject, x: number, y: number, cards: number[]): 
     }
     ++slide;
   }
-  
+
   // We've played all cards, but the next spot to the right might have a card.
   // `slide` is already at the next square after exiting the for-loop.
   do {
@@ -179,7 +192,7 @@ function buildRight(board: BoardObject, x: number, y: number, cards: number[]): 
     }
     ++slide;
   } while (c !== null);
-  
+
   // Now we have to prepend any cards we are touching to the left
   slide = 0;
   do {
@@ -224,70 +237,78 @@ function baseScore(line: number[]) {
 
   switch (line.length) {
     case 2:
-      aSame = (line[0]&0x03)===(line[1]&0x03);
-      aDiff = (line[0]&0x03)!==(line[1]&0x03);
-      bSame = (line[0]&0x0c)===(line[1]&0x0c);
-      bDiff = (line[0]&0x0c)!==(line[1]&0x0c);
-      cSame = (line[0]&0x30)===(line[1]&0x30);
-      cDiff = (line[0]&0x30)!==(line[1]&0x30);
-      score = (line[0]&0x3)
-            + (line[1]&0x3)
-            + 2;
+      aSame = (line[0] & 0x03) === (line[1] & 0x03);
+      aDiff = (line[0] & 0x03) !== (line[1] & 0x03);
+      bSame = (line[0] & 0x0c) === (line[1] & 0x0c);
+      bDiff = (line[0] & 0x0c) !== (line[1] & 0x0c);
+      cSame = (line[0] & 0x30) === (line[1] & 0x30);
+      cDiff = (line[0] & 0x30) !== (line[1] & 0x30);
+      score = (line[0] & 0x3) + (line[1] & 0x3) + 2;
       break;
     case 3:
-      aSame = ((line[0]&0x03)===(line[1]&0x03)) &&
-              ((line[1]&0x03)===(line[2]&0x03));
-      aDiff = ((line[0]&0x03)!==(line[1]&0x03)) &&
-              ((line[1]&0x03)!==(line[2]&0x03)) &&
-              ((line[0]&0x03)!==(line[2]&0x03));
-      bSame = ((line[0]&0x0c)===(line[1]&0x0c)) &&
-              ((line[1]&0x0c)===(line[2]&0x0c));
-      bDiff = ((line[0]&0x0c)!==(line[1]&0x0c)) &&
-              ((line[1]&0x0c)!==(line[2]&0x0c)) &&
-              ((line[0]&0x0c)!==(line[2]&0x0c));
-      cSame = ((line[0]&0x30)===(line[1]&0x30)) &&
-              ((line[1]&0x30)===(line[2]&0x30));
-      cDiff = ((line[0]&0x30)!==(line[1]&0x30)) &&
-              ((line[1]&0x30)!==(line[2]&0x30)) &&
-              ((line[0]&0x30)!==(line[2]&0x30));
-      score = (line[0]&0x3)
-            + (line[1]&0x3)
-            + (line[2]&0x3)
-            + 3;
+      aSame =
+        (line[0] & 0x03) === (line[1] & 0x03) &&
+        (line[1] & 0x03) === (line[2] & 0x03);
+      aDiff =
+        (line[0] & 0x03) !== (line[1] & 0x03) &&
+        (line[1] & 0x03) !== (line[2] & 0x03) &&
+        (line[0] & 0x03) !== (line[2] & 0x03);
+      bSame =
+        (line[0] & 0x0c) === (line[1] & 0x0c) &&
+        (line[1] & 0x0c) === (line[2] & 0x0c);
+      bDiff =
+        (line[0] & 0x0c) !== (line[1] & 0x0c) &&
+        (line[1] & 0x0c) !== (line[2] & 0x0c) &&
+        (line[0] & 0x0c) !== (line[2] & 0x0c);
+      cSame =
+        (line[0] & 0x30) === (line[1] & 0x30) &&
+        (line[1] & 0x30) === (line[2] & 0x30);
+      cDiff =
+        (line[0] & 0x30) !== (line[1] & 0x30) &&
+        (line[1] & 0x30) !== (line[2] & 0x30) &&
+        (line[0] & 0x30) !== (line[2] & 0x30);
+      score = (line[0] & 0x3) + (line[1] & 0x3) + (line[2] & 0x3) + 3;
       break;
     case 4:
-      aSame = ((line[0]&0x03)===(line[1]&0x03)) &&
-              ((line[1]&0x03)===(line[2]&0x03)) &&
-              ((line[2]&0x03)===(line[3]&0x03));
-      aDiff = ((line[0]&0x03)!==(line[1]&0x03)) &&
-              ((line[0]&0x03)!==(line[2]&0x03)) &&
-              ((line[0]&0x03)!==(line[3]&0x03)) &&
-              ((line[1]&0x03)!==(line[2]&0x03)) &&
-              ((line[1]&0x03)!==(line[3]&0x03)) &&
-              ((line[2]&0x03)!==(line[3]&0x03));
-      bSame = ((line[0]&0x0c)===(line[1]&0x0c)) &&
-              ((line[1]&0x0c)===(line[2]&0x0c)) &&
-              ((line[2]&0x0c)===(line[3]&0x0c));
-      bDiff = ((line[0]&0x0c)!==(line[1]&0x0c)) &&
-              ((line[0]&0x0c)!==(line[2]&0x0c)) &&
-              ((line[0]&0x0c)!==(line[3]&0x0c)) &&
-              ((line[1]&0x0c)!==(line[2]&0x0c)) &&
-              ((line[1]&0x0c)!==(line[3]&0x0c)) &&
-              ((line[2]&0x0c)!==(line[3]&0x0c));
-      cSame = ((line[0]&0x30)===(line[1]&0x30)) &&
-              ((line[1]&0x30)===(line[2]&0x30)) &&
-              ((line[2]&0x30)===(line[3]&0x30));
-      cDiff = ((line[0]&0x30)!==(line[1]&0x30)) &&
-              ((line[0]&0x30)!==(line[2]&0x30)) &&
-              ((line[0]&0x30)!==(line[3]&0x30)) &&
-              ((line[1]&0x30)!==(line[2]&0x30)) &&
-              ((line[1]&0x30)!==(line[3]&0x30)) &&
-              ((line[2]&0x30)!==(line[3]&0x30));
-      score = (line[0]&0x3)
-            + (line[1]&0x3)
-            + (line[2]&0x3)
-            + (line[3]&0x3)
-            + 4;
+      aSame =
+        (line[0] & 0x03) === (line[1] & 0x03) &&
+        (line[1] & 0x03) === (line[2] & 0x03) &&
+        (line[2] & 0x03) === (line[3] & 0x03);
+      aDiff =
+        (line[0] & 0x03) !== (line[1] & 0x03) &&
+        (line[0] & 0x03) !== (line[2] & 0x03) &&
+        (line[0] & 0x03) !== (line[3] & 0x03) &&
+        (line[1] & 0x03) !== (line[2] & 0x03) &&
+        (line[1] & 0x03) !== (line[3] & 0x03) &&
+        (line[2] & 0x03) !== (line[3] & 0x03);
+      bSame =
+        (line[0] & 0x0c) === (line[1] & 0x0c) &&
+        (line[1] & 0x0c) === (line[2] & 0x0c) &&
+        (line[2] & 0x0c) === (line[3] & 0x0c);
+      bDiff =
+        (line[0] & 0x0c) !== (line[1] & 0x0c) &&
+        (line[0] & 0x0c) !== (line[2] & 0x0c) &&
+        (line[0] & 0x0c) !== (line[3] & 0x0c) &&
+        (line[1] & 0x0c) !== (line[2] & 0x0c) &&
+        (line[1] & 0x0c) !== (line[3] & 0x0c) &&
+        (line[2] & 0x0c) !== (line[3] & 0x0c);
+      cSame =
+        (line[0] & 0x30) === (line[1] & 0x30) &&
+        (line[1] & 0x30) === (line[2] & 0x30) &&
+        (line[2] & 0x30) === (line[3] & 0x30);
+      cDiff =
+        (line[0] & 0x30) !== (line[1] & 0x30) &&
+        (line[0] & 0x30) !== (line[2] & 0x30) &&
+        (line[0] & 0x30) !== (line[3] & 0x30) &&
+        (line[1] & 0x30) !== (line[2] & 0x30) &&
+        (line[1] & 0x30) !== (line[3] & 0x30) &&
+        (line[2] & 0x30) !== (line[3] & 0x30);
+      score =
+        (line[0] & 0x3) +
+        (line[1] & 0x3) +
+        (line[2] & 0x3) +
+        (line[3] & 0x3) +
+        4;
       break;
   }
   const pass = (aSame || aDiff) && (bSame || bDiff) && (cSame || cDiff);
@@ -298,7 +319,7 @@ export default class PlayerObject {
   public hand: number[] = [];
   public name: string = 'Player Name';
   public score = 0;
-  constructor (name: string) {
+  constructor(name: string) {
     this.init(name);
   }
 
@@ -309,7 +330,7 @@ export default class PlayerObject {
   }
 
   // TODO: When to do this strategically?
-  public swapHand (deck: DeckObject, n: number) {
+  public swapHand(deck: DeckObject, n: number) {
     if (n > deck.deck.length) {
       n = deck.deck.length;
     }
@@ -319,7 +340,7 @@ export default class PlayerObject {
     return true;
   }
 
-  public draw (count: number, deck: DeckObject) {
+  public draw(count: number, deck: DeckObject) {
     // TODO: set draw rules?
     while (count-- > 0) {
       const card = deck.drawOne();
@@ -332,12 +353,12 @@ export default class PlayerObject {
   }
 
   public playThisSpot(board: BoardObject, spot: Point, hand: number[]) {
-    const debug = 0;// (spot.x === -7) && (spot.y === -1);
+    const debug = 0; // (spot.x === -7) && (spot.y === -1);
     // The end result is the best outcome from this list
     const results: Outcome[] = [];
     debug && console.log('playThisSpot', spot.x, spot.y);
 
-    getAllPermutations(hand).forEach(permutation => {
+    getAllPermutations(hand).forEach((permutation) => {
       // We've got a permutation to lay out at point 'spot'
       // 1. We're going to lay it out at that spot first, and go to the right,
       //    building a line to examine.
@@ -353,7 +374,7 @@ export default class PlayerObject {
       //    too must be prepended.
 
       // We're going to creep to the left and build to the right.
-      for (let i=0; i<permutation.length; ++i) {
+      for (let i = 0; i < permutation.length; ++i) {
         const x = spot.x - i;
         const c = board.at(x, spot.y);
         if (c === null) {
@@ -390,11 +411,21 @@ export default class PlayerObject {
     return bestPlay;
 
     // horizontal compute, look up/down
-    function computeScoreHoriz(line: number[], x: number, y: number): Outcome|null {
-      debug && console.log('Enter computeScoreH', x, y, line.map(x => card.name(x)));
+    function computeScoreHoriz(
+      line: number[],
+      x: number,
+      y: number
+    ): Outcome | null {
+      debug &&
+        console.log(
+          'Enter computeScoreH',
+          x,
+          y,
+          line.map((x) => card.name(x))
+        );
       let scoreMultiplier = 1;
       if (line.length > 4) {
-        debug && console.log("line greater than four");
+        debug && console.log('line greater than four');
         return null;
       }
       let score = baseScore(line);
@@ -408,7 +439,7 @@ export default class PlayerObject {
       }
       // Now walk the verticals
       // debug && console.log('walking verticals');
-      for (let i=0; i<line.length; ++i) {
+      for (let i = 0; i < line.length; ++i) {
         const vline = buildVertical(board, x + i, y);
         if (vline.length === 0) {
           continue;
@@ -425,8 +456,8 @@ export default class PlayerObject {
           if (vline.length === 4) {
             // Did we play a card that completed a vertical lot?
             // or was there already a completed veritcal lot?
-            if (board.at(x+i,y) === null) {
-              debug && console.log('Vertical x2 mult @', x+i, y);
+            if (board.at(x + i, y) === null) {
+              debug && console.log('Vertical x2 mult @', x + i, y);
               scoreMultiplier *= 2;
             }
           }
@@ -444,21 +475,21 @@ export default class PlayerObject {
         line,
         x,
         y,
-        dir: 'r'
-      }
+        dir: 'r',
+      };
     }
   }
 
-  public play (deck: DeckObject, board: BoardObject) {
+  public play(deck: DeckObject, board: BoardObject) {
     const virtualBoard = new BoardObject(board);
     const virtualHand = [...this.hand];
     const contour: Point[] = findContour(virtualBoard);
     const results: Outcome[] = [];
     board.debugBackground.fill('white');
-    contour.forEach(spot => {
+    contour.forEach((spot) => {
       const r = this.playThisSpot(virtualBoard, spot, virtualHand);
       // TODO define a type to return so that don't use 'any'
-      board.debugBackground[(spot.x + 48) + ((spot.y + 48) * 97)] = '#eee';
+      board.debugBackground[spot.x + 48 + (spot.y + 48) * 97] = '#eee';
       if (r !== undefined) {
         results.push(r);
       }
@@ -466,7 +497,7 @@ export default class PlayerObject {
 
     const sortedResults = results.sort((a, b) => {
       return b.score - a.score;
-    })
+    });
     const bestPlay = sortedResults[0];
     if (bestPlay === undefined) {
       // TODO: strategic pass? swap fewer?
@@ -475,9 +506,9 @@ export default class PlayerObject {
       const swap = Math.max(1, Math.floor(r * n));
       this.swapHand(deck, swap);
     } else {
-      let i=0;
-      let ndraw=0;
-      bestPlay.line.forEach(c => {
+      let i = 0;
+      let ndraw = 0;
+      bestPlay.line.forEach((c) => {
         // The best play contains cards that are ON the board too.
         const idx = this.hand.indexOf(c);
         if (idx >= 0) {
@@ -486,20 +517,20 @@ export default class PlayerObject {
         }
         const _x = bestPlay.x + i;
         const _y = bestPlay.y;
-        const at = board.at(_x, _y)
+        const at = board.at(_x, _y);
         // Sanity check, doesn't cost a lot.
         if (at !== c && at !== null) {
           throw new Error(`Cannot play a card on a card! [${_x}, ${_y}]`);
         }
         board.put(_x, _y, c);
         ++i;
-      })
+      });
       this.draw(ndraw, deck);
+      console.log('Last score was', bestPlay.score);
       this.score += bestPlay.score;
     }
   }
 }
-
 
 /** current game i'm debugging
 
