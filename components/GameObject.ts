@@ -69,6 +69,7 @@ export default class GameObject {
       p1af = this.player1.score;
     }
     // --- Cases where even after 10 random hand swaps no progress? -----------|
+    // TODO I think this logic is wrong. Does it prematurely quit?
     if ((p2b4 === p2af) && (p1b4 === p1af)) {
       if (this.deck.deck.length === 0) {
         this.cannotProceed = true;

@@ -210,6 +210,7 @@ export default class PlayerObject {
     // if (p.x === -2 && p.y === 0 ) debug = 1;
     // debug = (p.x === -2 || p.x === -1) && p.y === -4;
     // debug = (p.x === -3 && p.y === -4);
+    // debug = (p.x === -2 && p.y === -5);
     if (debug) {
       console.log(`playThisSpot(${p.x},${p.y})`);
     }
@@ -321,29 +322,11 @@ export default class PlayerObject {
     }
 
     // horizontal compute, look up/down
-    function computeScoreH(_line: number[], x: number, y: number): Outcome|null {
-      debug && console.log('Enter computeScoreH', x, y, _line.map(x => card.name(x)));
+    function computeScoreH(line: number[], x: number, y: number): Outcome|null {
+      debug && console.log('Enter computeScoreH', x, y, line.map(x => card.name(x)));
       // check LHS null terminator
-      const line = [..._line];
-      let cc;
-      let sr = 1;
       let scoreMultiplier = 1;
       // We need to fill a hole for each card AND have two null terminators
-      let nHolesNeeded = _line.length;
-      // The algorithms currently only play to the right, so no left search
-      while (sr < 10 && nHolesNeeded > 0) {
-        cc = board.at(x + sr, y);
-        // debug && console.log('>>>RHS check', x+sr, y, card.name(cc));
-        if (cc === null) {
-          --nHolesNeeded;
-          if (nHolesNeeded === 0) {
-            break;
-          }
-        } else {
-          line.push(cc)
-        }
-        ++sr;
-      }
       if (line.length > 4) {
         // debug && console.log("line greater than four");
         return null;
@@ -353,12 +336,9 @@ export default class PlayerObject {
         // debug && console.log("missing LHS terminator");
         return null;
       }
-      if (board.at(x + (sr + 1), y) !== null) {
+      if (board.at(x + line.length, y) !== null) {
         //  debug && console.log("missing RHS terminator");
         return null;
-      }
-      if (_line.length !== line.length) {
-        // debug && console.log("line changed to", line.map(x => card.name(x)));
       }
       let score = baseScore(line);
       if (score === 0 && line.length > 1) {
@@ -366,6 +346,7 @@ export default class PlayerObject {
       }
       // Completed a horizontal lot
       if (line.length === 4) {
+        debug && console.log('multiplier(horz lot)', scoreMultiplier);
         scoreMultiplier *= 2;
       }
       // Now walk the verticals
@@ -387,14 +368,12 @@ export default class PlayerObject {
           if (vline.length === 4) {
             // Did we play a card that completed a vertical lot?
             // or was there already a completed veritcal lot?
-            if (_line.includes(line[i])) {
+            if (board.at(x+i,y) === null) {
               debug && console.log('Vertical x2 mult @', x+i, y);
               scoreMultiplier *= 2;
             }
           }
-//          debug && console.log('Does _line', _line.map(x => card.name(x)), 'contain',
-  //        card.name(line[i]), '?', _line.includes(line[i]));
-          if (_line.includes(line[i]) === false) {
+          if (vline.includes(line[i]) === false) {
             debug && console.log('did not play this line, ignore score');
             vscore = 0;
           }
@@ -403,12 +382,12 @@ export default class PlayerObject {
         }
       }
       debug && console.log('base score', score);
+      debug && console.log('multiplier', scoreMultiplier);
       score *= scoreMultiplier;
       debug && console.log('final score', score);
       return {
         score,
-        // we mutate `line` above!
-        line: _line,
+        line,
         x,
         y,
         dir: 'r'
@@ -443,16 +422,25 @@ export default class PlayerObject {
       this.swapHand(deck, swap);
     } else {
       let i=0;
+      let ndraw=0;
       bestPlay.line.forEach(c => {
+        // The best play contains cards that are ON the board too.
         const idx = this.hand.indexOf(c);
-        this.hand.splice(idx, 1);
-        // TODO: Bugbug: if the play tries to span a gap, this overwrites it.
+        if (idx >= 0) {
+          this.hand.splice(idx, 1);
+          ++ndraw;
+        }
         const _x = bestPlay.x + i;
         const _y = bestPlay.y;
+        const at = board.at(_x, _y)
+        // Sanity check, doesn't cost a lot.
+        if (at !== c && at !== null) {
+          throw new Error(`Cannot play a card on a card! [${_x}, ${_y}]`);
+        }
         board.put(_x, _y, c);
         ++i;
       })
-      this.draw(i, deck);
+      this.draw(ndraw, deck);
       this.score += bestPlay.score;
     }
   }
@@ -473,4 +461,8 @@ same
 
 789ceddccf6e1a4700c0e157a9a6d789c4b07f5838b60fd01c7ab37cc0b0b523bb4b846d3991c5bb67d681d69bd226aa8c8cf077e0f76518d88c98c1363ef8312cdbc575983d6e3d4bd534a6c938a6ba8aa999c4344d795ce65b1d5395ef2ff2adece746799ce7ebfcf83a3f66dc9bc74d93cdb72adf8a7e3e3fafee9f9f9f33e9ef1f9dc770dbb6cb306b52538c520ceb7997478f9b4d0c17abf9bafff7ee1f67ddfdcd4d14111111111111111111111111111111111111111111111111111111111111111111111111397c5251c734991cc14ae410bb5be4dd4d3195e511ac465e76739bbcb945ff17f28a23588dbcece656f9eb72333d8295c8cb6e6c398e69dcffdd4a9b7bc24993697eff8e8f60257280ddadf2cf54b5dd3dcda4a6ffd3c3e908562207d8dda2ccdf84eb235889bcf0c6f66fdbfed7193e0f9d6652d17fdbcd9f7a4bbfb03acda4b2dfddfe4767bfb03ae1a4727404ab101111111111111111111111111111111111111111111111111111111111111111111111111111111111913ee7312cdb8bfbcb5fe68bebcbf5eabe5b86d95978b8fa70d7864892244992244992244992244992244992244992244992244992244992244992244992244992244992244992e1e7b67dc66baf867c85d3ff837793a7e4778eb977014f58a79f6fcffffe79dfa7019eaebee293df39eede057c033afd7cbb3afd7c7bfed067dfd75e2479c0c3ff3fa7c953d0bb80f42e20ffe5b83bfd7cc33afe2449922449922449922449922449922449f2a83c8fe16e7edd766176f6183e85d92886cfb99bf8344a83d1d7b934981b8edeed86e3bdc3f17658ec1d16db61b977586e87d570b89dad86b3df0cebedb0de3b9c6c8793e1b0d93bdb0c6777c3e9ded9e970763a781dc783576e377ab7ef252f862f54357cec374f4d9bbca71717ab7ccf63b8bf59f4fc3ddb2f22dcac77f74e77d70f0ff999f92157996293c71f6fe69fdb75ea1f7735ef96f97ca4aa8aa91ec534cdb7aaccff4b37ffb30db3f0fee9a13ffdd6f5c7ea76b15ae73bd3b8f9eb22e3e71729534c6513d3245fa468fe7191df1f56cf2e527cbd485e629d57ba9877ddeaeefd7ab568db7cadbbf57d1bc3ba9ddfaeba5f8753f9547c4c171fbacbd5d34bb86cff68d7b7f938a4cd17fb026f71
 
+
+overplay bug!
+
+789ceddd4f6fda3018c7f1b73279d720c571fec1717b01eb6137d44300b79dca922a147515e2bdef092508a7296cdd5049f81ef8244f6c8cc9af0ea18776a566767aaf46abed76ac93c0d349eae930b8f6d4c2da991a85be093d5566b9ecafd66b4f4d8aacacf6eb9d71be9ccf3d00000000000000000000000000000000000000000000000000000000000000000000000000807f439ba13cd23398099c20ddc4783a8acf6026708274c32a5dd66e07d1c9f0588fa1965e2cddaea24d200b54b7b745926ddade06e78f4e23599bbee418bd6a1aca6163ce6092f0fe7c8354b24d24e7eaaf05eb3a74b9538e8233981efc6d9e69b52825cf58f28cf63f79751c4aaba46df8a4ed343a968fd458828c6359b2fb97651d49c4917f067384ff96769a6c774259d5a68a9e8fdc3ea18ddc61a5db6bb28e5fdd66412fd09191257cecab30741d9d5639f39baa1ea38ddc6625f208b993ee313a906fc149720633010000000000000000000000000000000000000000000000000000000000000000000000000000805372eda9999d2c6fbf64d3fbdbb258e633351a7ff8ac000000000000000000000000000000000000000000000000000000000000000000000000e002509fadb5aade7cfc7ce064191f38005d878c3bce1fe545ca1d673faf03d991731f389e2239f781f6d00e2e7572ee16eed724aedcfde578b6c7973b748977244ed89de6edab396bbbd71c5cc8a4dc3bb8705f12a47d4990f68540d0978473537eeda9c7ecdee66a345ea95f6ae47bea595c7b9b4a3bd54b9b76dab4d336701b77e5e08d3aa8eba0bd36756d1aed61a3368dfe61e3f5b6ed6163fc5d1d396f74fb74df7db6ef766e0ebe2be34673d8fa5e1a6fb5f94e22e7bc363a1bf734eecaa4f52c87ce506e153979b9d5eeec36c2797966ecf48ddd976c9c0bdf1da89eaf692deb0986ad653dc5a8b5aca711b796c9b64c5acb745ba66e39a84f8dac94c9a490232bb59c4fabcdde2997de6a5ed647d3fa9ca8273917f2ea77b289d6523fccb3675beaaadf5db6f9a7683af63d1d469e36d5d69757c9b39f568dd4d5a6eba76f79b55617d3a2948341a2778304fb83a4a13c591e71228fe1ab41be3f157b83c854aa41aa9f1c99e934cbf3e2f1aa2ca6d6ca5837d97c613d55da6c51e45fdd3649fe414f7ee4b7c5667f666f6cb9a8e2fd0d0859f0c6
 */

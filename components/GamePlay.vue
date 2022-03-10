@@ -57,6 +57,7 @@
           td Average aspect ratio:
           td.text-right {{ meanAspect.toFixed(3) }}
   .flex.flex-col
+    .mt-8.mb-4(v-if='error' class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative') {{ error }}
     .mt-8.mb-4
       .flex.flex-row.items-center.h-12
         .w-24(:style='{ color: game.ply & 1 ? "black" : "dodgerblue" }') {{ game.player1.name }}
@@ -97,11 +98,11 @@
               td(id= idx)
                 card-image(:card='cacheBoard[' + idx + ']')
       table(style='border: 1px solid #ddd')
-        //-tr
+        tr
           th
           th(v-for='xx in game.board.getXRange()') {{ xx }}
         tr(v-for='yy in cacheRangeY')
-          //- th {{ yy - 48 }}
+          th {{ yy - 48 }}
           td(v-for='xx in cacheRangeX')
             card-image(v-if='cacheBoard[xx + yy * 97] !== null'
               :card='cacheBoard[xx + yy * 97]'
@@ -164,7 +165,8 @@ export default Vue.extend({
       p1bingos: 0,
       results: [] as string[],
       ms: [] as number[],
-      compressedGame: '789ceddcbb6ee3461480e1570926ed141ef126a9dc3cc06e91ce70a10b632fac500bdac26621e8dd73c689133b69b64976617c85fe8f1c720e69586e7d4efb71779fd6e73fbd2e4397cb7288cf2a97bee4d2b4b90c71de5fe5b258e6d22d622d3e6d1f9f6a139fd8d3c7791f7bbab86f88b52ece97f538f634753dd69ab86f156b6dcceceadcd8bfa8cf0997f1acae3eb73e3ff60c71bd8fe326e634b17788eb7d9d15f7b47546bda7ceafcfa9ef52afc79e65cceae39eae3eb3dce4f4308efbb4eefab61f5639cd9b29cece974b4edbe366aec7cf07d7d3e970c8222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222f255294dfd1fe1cd77f026f25ffd8adb219761f51dbc8988888888888888888888888888888888888888888888888888888888888888888888888888888888888888c81bc84d4efb717bba7db7d9dddfcec7d3b44febebf4f9eee3e3983249922449922449922449922449922449922449922449922449922449922449922449922449922449922449922449922449922449926fd21fc7f105dffa6dc86ff0edffca65f22deaaf80fcc7d7deb79f24499224499224499224499224499224499224f9bf7b93d3e3e67e9cd2fafa9c7e4bebab9cbe442ff9e9acbc3afbe35a7975ad5c62c2767b8c85733a1d76959763d2617e5e7bde108f4eeb454e77d14b9c7d3a6cbe8c73a977dd6da67dbc49e996b92c9b5cda552eab124f9836bf8e699d3e3cddfac3fba9fe000fbbe31c8bcbbf462c5e8e58b6b93431a6b9caa5ebfe35e2e7cfc7bf472cdaa719f1765d93d36e334dc7c70ff371378e31ea713e8d39cde3e6e138fdf4fa521bbbcaf6e3747b7cfa89f7e32fe3fc1043cae5779f724673' as string,
+      error: '',
+      compressedGame: '789ceddd4f6fda3018c7f1b73279d720c571fec1717b01eb6137d44300b79dca922a147515e2bdef092508a7296cdd5049f81ef8244f6c8cc9af0ea18776a566767aaf46abed76ac93c0d349eae930b8f6d4c2da991a85be093d5566b9ecafd66b4f4d8aacacf6eb9d71be9ccf3d00000000000000000000000000000000000000000000000000000000000000000000000000807f439ba13cd23398099c20ddc4783a8acf6026708274c32a5dd66e07d1c9f0588fa1965e2cddaea24d200b54b7b745926ddade06e78f4e23599bbee418bd6a1aca6163ce6092f0fe7c8354b24d24e7eaaf05eb3a74b9538e8233981efc6d9e69b52825cf58f28cf63f79751c4aaba46df8a4ed343a968fd458828c6359b2fb97651d49c4917f067384ff96769a6c774259d5a68a9e8fdc3ea18ddc61a5db6bb28e5fdd66412fd09191257cecab30741d9d5639f39baa1ea38ddc6625f208b993ee313a906fc149720633010000000000000000000000000000000000000000000000000000000000000000000000000000805372eda9999d2c6fbf64d3fbdbb258e633351a7ff8ac000000000000000000000000000000000000000000000000000000000000000000000000e002509fadb5aade7cfc7ce064191f38005d878c3bce1fe545ca1d673faf03d991731f389e2239f781f6d00e2e7572ee16eed724aedcfde578b6c7973b748977244ed89de6edab396bbbd71c5cc8a4dc3bb8705f12a47d4990f68540d0978473537eeda9c7ecdee66a345ea95f6ae47bea595c7b9b4a3bd54b9b76dab4d336701b77e5e08d3aa8eba0bd36756d1aed61a3368dfe61e3f5b6ed6163fc5d1d396f74fb74df7db6ef766e0ebe2be34673d8fa5e1a6fb5f94e22e7bc363a1bf734eecaa4f52c87ce506e153979b9d5eeec36c2797966ecf48ddd976c9c0bdf1da89eaf692deb0986ad653dc5a8b5aca711b796c9b64c5acb745ba66e39a84f8dac94c9a490232bb59c4fabcdde2997de6a5ed647d3fa9ca8273917f2ea77b289d6523fccb3675beaaadf5db6f9a7683af63d1d469e36d5d69757c9b39f568dd4d5a6eba76f79b55617d3a2948341a2778304fb83a4a13c591e71228fe1ab41be3f157b83c854aa41aa9f1c99e934cbf3e2f1aa2ca6d6ca5837d97c613d55da6c51e45fdd3649fe414f7ee4b7c5667f666f6cb9a8e2fd0d0859f0c6' as string,
     }
   },
   mounted() {
@@ -188,8 +190,12 @@ export default Vue.extend({
       }
     },
     turn() {
-      this.game.turn();
-      this.update();
+      try {
+        this.game.turn();
+        this.update();
+      } catch (error) {
+        this.error = error as string;
+      }
     },
     reset() {
       this.game.init();
@@ -206,7 +212,13 @@ export default Vue.extend({
       await new Promise<void>((resolve) => {
         let count = 0;
         this.autoPlayTimer = window.setInterval(() => {
-          const gameRes = this.game.playOneGame();
+          let gameRes;
+          try {
+            gameRes = this.game.playOneGame();
+          } catch (error) {
+            this.stopAutoPlay();
+            this.error = error as string;
+          }
           this.nGames++;
           if (this.game.player1.score === this.game.player2.score) {
             this.ties++;
@@ -241,7 +253,7 @@ export default Vue.extend({
               this.stopAutoPlay();
             }
           }
-          if (gameRes.reason === DoneReason.Deadlock) {
+          if (gameRes !== undefined && gameRes.reason === DoneReason.Deadlock) {
             this.stopAutoPlay();
           }
         }, 150)
