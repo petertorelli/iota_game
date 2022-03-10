@@ -11,19 +11,77 @@ type Outcome = {
   dir: 'u'|'d'|'l'|'r',
 }
 
-function perm(xs: number[]) {
-  const ret: Array<number[]> = [];
-  for (let i = 0; i < xs.length; i = i + 1) {
-    const rest = perm(xs.slice(0, i).concat(xs.slice(i + 1)));
-    if(!rest.length) {
-      ret.push([xs[i]])
+// taken from the internets...
+function permuteArray(input: any[]) {
+  const output: any[] = [];
+  for (let i=0; i < input.length; ++i) {
+    const rest = permuteArray(input.slice(0, i).concat(input.slice(i + 1)));
+    if (rest.length === 0) {
+      output.push([input[i]])
     } else {
-      for(let j = 0; j < rest.length; j = j + 1) {
-        ret.push([xs[i]].concat(rest[j]))
+      for(let j=0; j < rest.length; ++j) {
+        output.push([input[i]].concat(rest[j]))
       }
     }
   }
-  return ret;
+  return output;
+}
+
+/**
+ * Create all possible ways to play a hand (array) of cards. This is different
+ * than a permutation of K elements from set of length N, which is always length
+ * N. Instead, we have to generate all permutations with length 1 ... N.
+ * 
+ * TODO: There must be an algorithm for this, since it seems so ancient.
+ * 
+ * @param input a set of cards to permute
+ * @returns a set of permutations including holes
+ */
+function getAllPermutations(input: any[]) {
+  const hackSeen = new Set<string>();
+  const permutations = permuteArray(input);
+  const output: any[] = [];
+  permutations.forEach(permutation => {
+    for (let j=0; j<permutation.length; ++j) {
+      const partialPermutation = [];
+      for (let k=0; k<=j; ++k) {
+        partialPermutation.push(permutation[k]);
+      }
+      // TODO: Hack b/c this algorithm generates duplicates, plz fix!
+      // all length 4 are unique
+      // all length 3 are unique
+      // all length 2 appear twice
+      // all length 1 appear 6 times
+      const key = partialPermutation.join(',');
+      if (!hackSeen.has(key)) {
+        hackSeen.add(key);
+        output.push(partialPermutation);
+      }
+    }
+  });
+  return output;
+}
+
+function buildVertical(board: BoardObject, x: number, y: number) {
+  // Order does NOT matter
+  const vline: number[] = [];
+  for (let i=1; i<10; ++i) { // TODO stop at null
+    const c = board.at(x, y - i);
+    if (c != null) {
+      vline.push(c);
+    } else {
+      break;
+    }
+  }
+  for (let i=1; i<10; ++i) { // TODO stop at null
+    const c = board.at(x, y + i);
+    if (c != null) {
+      vline.push(c);
+    } else {
+      break;
+    }
+  }
+  return vline;
 }
 
 /**
@@ -39,15 +97,16 @@ function findContour(board: BoardObject): Point[] {
   const hSearch: Point[] = [{x: -1, y: 0}, {x: 1, y:  0}];
   const vSearch: Point[] = [{x:  0, y: 1}, {x: 0, y: -1}];
   // Since this is only called once per turn, use a Set to uniquify.
-  const seen = new Set<Point>();
+  const seen = new Map<string, Point>();
 
   // Helper function to reduce redundant code.
   function check(p: Point, set: Point[]) {
     set.forEach(search => {
       const newp = {x: p.x + search.x, y: p.y + search.y};
       if (board.atP(newp) === null) {
-        if (!seen.has(newp)) {
-          seen.add(newp);
+        const key = JSON.stringify(newp);
+        if (!seen.has(key)) {
+          seen.set(key, newp);
         }
         // contour.push(newp);
       }
@@ -64,10 +123,79 @@ function findContour(board: BoardObject): Point[] {
   })
 
   const contour: Point[] = [];
-  seen.forEach(p => {
-    contour.push(p);
+  seen.forEach((v, _k) => {
+    contour.push(v);
   });
   return contour;
+}
+
+/**
+ * Lay down all cards to the right, starting from spot x/y, to construct a
+ * contiguous line of cards, including cards that are skipped over to find
+ * the next playable spot to the right, any cards touching to the right, and
+ * any cards touching to the left. For example:
+ *
+ * Four cards to play: [i,j,k,l]
+ * Board row at spot.y, playing spot.x = `?` and blank spaces are `.`:
+ *
+ * .................
+ * ....A?.B..CD.....
+ * .................
+ *
+ * The result is: [A, i, j, B, k, l, C, D]
+ *
+ * @param board A BoardObject (immutable)
+ * @param x Current x location on the board
+ * @param y Current y location on the board
+ * @param cards Cards to play.
+ * @returns A line of cards (array of numbers)
+ */
+function buildRight(board: BoardObject, x: number, y: number, cards: number[]): [number[], number] {
+  const line: number[] = [];
+  let slide = 0;
+  let c: number|null = null;
+  
+  // First, built to the right.
+  for (let i=0; i<cards.length; /* increment on play! */) {
+    c = board.at(x + slide, y);
+    if (c === null) {
+      // If the spot is empty, add the next card.
+      line.push(cards[i]);
+      ++i;
+    } else {
+      // If it is not empty, and there are still cards to add, add one!
+      line.push(c);
+    }
+    ++slide;
+  }
+  
+  // We've played all cards, but the next spot to the right might have a card.
+  // `slide` is already at the next square after exiting the for-loop.
+  do {
+    c = board.at(x + slide, y);
+    if (c !== null) {
+      // Add the cards that are touching to the right until an empty square.
+      line.push(c);
+    }
+    ++slide;
+  } while (c !== null);
+  
+  // Now we have to prepend any cards we are touching to the left
+  slide = 0;
+  do {
+    // We already did the current spot so start one over.
+    c = board.at(x - (slide + 1), y);
+    if (c !== null) {
+      // Add the cards that are touching to the left until an empty square.
+      line.unshift(c);
+    }
+    ++slide;
+  } while (c != null);
+
+  // Now we have a contiguous line of cards. This line could be huge, but it
+  // isn't up to this function to resolve it.
+  // If we've added cards to the LHS, let the caller know that with `slide`.
+  return [line, slide - 1];
 }
 
 /**
@@ -203,141 +331,70 @@ export default class PlayerObject {
     }
   }
 
-  public playThisSpot(board: BoardObject, p: Point, hand: number[]) {
+  public playThisSpot(board: BoardObject, spot: Point, hand: number[]) {
+    const debug = 0;// (spot.x === -7) && (spot.y === -1);
+    // The end result is the best outcome from this list
     const results: Outcome[] = [];
-    const seen = new Set<string>();
-    let debug = 0;
-    // if (p.x === -2 && p.y === 0 ) debug = 1;
-    // debug = (p.x === -2 || p.x === -1) && p.y === -4;
-    // debug = (p.x === -3 && p.y === -4);
-    // debug = (p.x === -2 && p.y === -5);
-    if (debug) {
-      console.log(`playThisSpot(${p.x},${p.y})`);
-    }
-    
-    const px = perm(hand);
-    const finalOrders: Array<number[]> = [];
-    px.forEach(possibleHand => {
-      for (let j=0; j<possibleHand.length; ++j) {
-        const mx = [];
-        for (let k=0; k<=j; ++k) {
-          mx.push(possibleHand[k]);
-        }
-        const key = mx.join(',');
-        // TODO: Hack, my algorithm generates duplicates, fix this!
-        // all length 4 are unique
-        // all length 3 are unique
-        // all length 2 appear twice
-        // all length 1 appear 6 times
-        if (!seen.has(key)) {
-          seen.add(key);
-          finalOrders.push(mx);
-        }
-      }
-    })
+    debug && console.log('playThisSpot', spot.x, spot.y);
 
-    // Cool, now I've got all possible hand mixes (24 * 4 = 96)
-    // So I can shift them through the range of playable holes from
-    // -3, -2, 1, 0, 1, 2, 3
-    //   One cards:             0                   = 1 play
-    //   Two cards:         -1, 0, 1                = 2 plays
-    // Three cards:     -2, -1, 0, 1, 2             = 3 plays
-    //  Four cards: -3, -2, -1, 0, 1, 2, 3          = 4 plays
-    //   ----------------------------------------   = 10 plays
-    // 96 * 10 = 960 plays (with some redundancies)
-    //
-    finalOrders.forEach(attempt => {
-      let outcome: Outcome|null;
-      // Guaranteed to be n=[1,4] cards
-      if (attempt.length === 1) {
-        // If just one card, we don't have to scan L<>R
-        outcome = computeScoreH(attempt, p.x, p.y);
-        if (outcome !== null) {
-          debug && console.log('outcome', outcome);
-          results.push(outcome);
-        }
-      } else {
-        const nshifts = attempt.length - 1;
-        for (let i=0; i<nshifts; ++i) {
-          // now build to the right starting on p.x + i
-          const line: number[] = [];
-          const newx = p.x - i;
-          for (let j=0, k=0; j<attempt.length; ++k) {
-            const c = board.at(newx + k, p.y);
-            if (c === null) {
-              line.push(attempt[j]);
-              j++;
-            } else {
-              line.push(c);
-            }
-          }
-          if (line.length > 4 || line.length < 2) {
-            continue;
-          }
+    getAllPermutations(hand).forEach(permutation => {
+      // We've got a permutation to lay out at point 'spot'
+      // 1. We're going to lay it out at that spot first, and go to the right,
+      //    building a line to examine.
+      // 2. Then we're going to validate/score that line.
+      // 3. Then we're going to slide to the left one spot, and see if we
+      //    can start building there, going to step #2, until we have moved
+      //    so far to the left that we can't play on `spot`.
+      // 4. When playing cards to the right, we have to add existing cards to
+      //    the line and skip over them to find an unplayed square.
+      // 5. If we run out of cards to play as we play to the right, we have to
+      //    append any abutting cards. The line might be very large!
+      // 6. Similarly, as we slide to the left, if we abutt any cards, those
+      //    too must be prepended.
+
+      // We're going to creep to the left and build to the right.
+      for (let i=0; i<permutation.length; ++i) {
+        const x = spot.x - i;
+        const c = board.at(x, spot.y);
+        if (c === null) {
+          // Now we have a completed line that needs scoring.
+          const [line, leftShift] = buildRight(board, x, spot.y, permutation);
           // If the hand we're playing is illegal, don't bother
-          if (baseScore(line) > 0) {
-            outcome = computeScoreH(line, newx, p.y);
-            if (outcome !== null) {
-              // All four cards played, doubles score AGAIN
-              if (attempt.length === 4) {
-                outcome.score *= 2;
-              }
-              debug && console.log('outcome', outcome);
-              results.push(outcome);
+          const outcome = computeScoreHoriz(line, x, spot.y);
+          if (outcome !== null) {
+            // All four cards played, doubles score AGAIN
+            if (permutation.length === 4) {
+              outcome.score *= 2;
             }
+            // The outcome doesn't know that if builder added to the left.
+            outcome.x = x - leftShift;
+            results.push(outcome);
           }
+        } else {
+          // We can't creep right anymore, because we hit a card.
+          // There is no point in stepping OVER this card, because the contour
+          // search algorithm will have found the playable spots to the left
+          // of this 'blockage'.
+          break;
         }
-      }
-    })
+      } // Creep-left loop.
+    }); // Permutation loop
+
     const sortedResults = results.sort((a, b) => {
       return b.score - a.score;
     });
-      if (debug) {
-      console.log('sortedResults:');
-      console.log(sortedResults);
-    }
+
+    // TODO: Our current selection criteria is the highest score, ignore ties
     const bestPlay = sortedResults[0];
+    debug && console.log(bestPlay);
     return bestPlay;
 
-    function buildVerticalLine(x: number, y: number) {
-      // Order does NOT matter
-      const vline: number[] = [];
-      for (let i=1; i<6; ++i) {
-        const c = board.at(x, y - i);
-        if (c != null) {
-          vline.push(c);
-        } else {
-          break;
-        }
-      }
-      for (let i=1; i<6; ++i) {
-        const c = board.at(x, y + i);
-        if (c != null) {
-          vline.push(c);
-        } else {
-          break;
-        }
-      }
-      return vline;
-    }
-
     // horizontal compute, look up/down
-    function computeScoreH(line: number[], x: number, y: number): Outcome|null {
+    function computeScoreHoriz(line: number[], x: number, y: number): Outcome|null {
       debug && console.log('Enter computeScoreH', x, y, line.map(x => card.name(x)));
-      // check LHS null terminator
       let scoreMultiplier = 1;
-      // We need to fill a hole for each card AND have two null terminators
       if (line.length > 4) {
-        // debug && console.log("line greater than four");
-        return null;
-      }
-      // Now check LHS and RHS terminators!
-      if (board.at(x - 1, y) !== null) {
-        // debug && console.log("missing LHS terminator");
-        return null;
-      }
-      if (board.at(x + line.length, y) !== null) {
-        //  debug && console.log("missing RHS terminator");
+        debug && console.log("line greater than four");
         return null;
       }
       let score = baseScore(line);
@@ -352,19 +409,19 @@ export default class PlayerObject {
       // Now walk the verticals
       // debug && console.log('walking verticals');
       for (let i=0; i<line.length; ++i) {
-        const vline = buildVerticalLine(x + i, y);
+        const vline = buildVertical(board, x + i, y);
         if (vline.length === 0) {
           continue;
         }
         vline.push(line[i]); // don't forget the card that should be there!
         let vscore = baseScore(vline);
         if (vscore === card.score(line[i])) {
-          // debug && console.log('... no vscore, card same');
+          debug && console.log('... no vscore, card same');
         } else if (vscore === 0) {
-          // debug && console.log('... bad line!');
+          debug && console.log('... bad line!');
           return null;
         } else {
-          // debug && console.log('... adding vscore');
+          debug && console.log('... adding vscore');
           if (vline.length === 4) {
             // Did we play a card that completed a vertical lot?
             // or was there already a completed veritcal lot?
@@ -381,10 +438,7 @@ export default class PlayerObject {
           score += vscore;
         }
       }
-      debug && console.log('base score', score);
-      debug && console.log('multiplier', scoreMultiplier);
       score *= scoreMultiplier;
-      debug && console.log('final score', score);
       return {
         score,
         line,

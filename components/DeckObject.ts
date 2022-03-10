@@ -20,7 +20,7 @@ export default class DeckObject {
 
   public init() {
     // Interesting seed: 939263 -> player 1 start bingo
-    // this.seed = 1034914; 4034;
+    // this.seed = 1034914; 4034;258991
     // If we re-seed on init, it makes debugging easier
     this.seed = Math.floor(Math.random() * (1024*1024));
     this.rand = prng(this.seed);
