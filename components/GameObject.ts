@@ -19,7 +19,8 @@ export type GameResults = {
   reason: DoneReason;
 };
 
-export default class GameObject {
+
+export class GameObject {
   public deck = new DeckObject();
   public board = new BoardObject();
   public player1 = new PlayerObject('Player 1');
@@ -27,8 +28,6 @@ export default class GameObject {
   public ply = 0;
   public cannotProceed: boolean = false;
   public reasonCannotProceed: DoneReason = DoneReason.None;
-  public p1bingo: number = 0;
-  public defers: number = 0;
   constructor() {
     this.init();
   }
@@ -39,8 +38,8 @@ export default class GameObject {
     this.player1.init(name1);
     this.player2.init(name2);
     this.ply = 0;
-    this.defers = 0;
     this.cannotProceed = false;
+    this.reasonCannotProceed = DoneReason.None;
     this.deal();
   }
 
@@ -60,11 +59,11 @@ export default class GameObject {
     } else {
       this.player1.play(this.deck, this.board);
     }
+    ++this.ply;
     if (this.ply > 150) {
       this.cannotProceed = true;
       this.reasonCannotProceed = DoneReason.LongGame;
     }
-    ++this.ply;
     if (this.deck.deck.length === 0) {
       if (this.player1.hand.length === 0) {
         this.reasonCannotProceed = DoneReason.Player1NoCards;
@@ -88,6 +87,7 @@ export default class GameObject {
     const t1 = window.performance.now();
     return {
       playTime: t1 - t0,
+      // TODO: cannotProceed is redundant with reasonCannotProceed
       done: this.cannotProceed,
       reason: this.reasonCannotProceed,
     };
@@ -116,4 +116,7 @@ export default class GameObject {
     this.player2.score = json.player2.score;
     this.ply = json.ply;
   }
+}
+
+export default {
 }

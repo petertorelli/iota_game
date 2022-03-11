@@ -1,4 +1,5 @@
 import _ from 'lodash';
+import { Card } from './CardObject';
 
 /*
 The largest possible board is derived from the most number of plays in any
@@ -44,7 +45,7 @@ export default class BoardObject {
   };
   
   constructor(initBoard: BoardObject | undefined = undefined) {
-    this.board = Array(BOARD_DIM * BOARD_DIM).fill(null);
+    this.board = Array(BOARD_DIM * BOARD_DIM).fill(Card.None);
     this.init(initBoard);
   }
 
@@ -62,22 +63,24 @@ export default class BoardObject {
     }
   }
 
-  public atP(p: Point): number | null {
+  public atP(p: Point): number {
     const x = p.x + BOARD_HALF;
     const y = p.y + BOARD_HALF;
     if (x > BOARD_DIM || x < 0 || y > BOARD_DIM || y < 0) {
-      return null;
+      return Card.None;
     }
-    return this.board[x + y * BOARD_DIM];
+    const card = this.board[x + y * BOARD_DIM];
+    return card === null ? Card.None : card;
   }
 
-  public at(_x: number, _y: number): number | null {
+  public at(_x: number, _y: number): number {
     const x = _x + BOARD_HALF;
     const y = _y + BOARD_HALF;
     if (x > BOARD_DIM || x < 0 || y > BOARD_DIM || y < 0) {
-      return null;
+      return Card.None;
     }
-    return this.board[x + y * BOARD_DIM];
+    const card = this.board[x + y * BOARD_DIM];
+    return card === null ? Card.None : card;
   }
 
   public put(_x: number, _y: number, card: number): boolean {
