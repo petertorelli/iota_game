@@ -484,12 +484,8 @@ export default class PlayerObject {
     const contour: Point[] = findContour(virtualBoard);
     const results: Outcome[] = [];
 
-    board.debugBackground.fill('white');
-    
     contour.forEach((spot) => {
       const r = this.playThisSpot(virtualBoard, spot, virtualHand);
-      // TODO define a type to return so that don't use 'any'
-      board.debugBackground[spot.x + 48 + (spot.y + 48) * 97] = '#eee';
       if (r !== undefined) {
         results.push(r);
       }

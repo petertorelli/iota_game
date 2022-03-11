@@ -93,11 +93,9 @@
           td(v-for='xx in cacheRangeX')
             card-image(v-if='cacheBoard[xx + yy * 97] !== 0'
               :card='cacheBoard[xx + yy * 97]'
-              :style='{ background: cacheBackground[xx + yy * 97] }'
               :key='0xf000000 + [xx + yy * 97]'
               )
-            .dummy-card(v-else
-              :style='{ background: cacheBackground[xx + yy * 97] }') &nbsp;
+            .dummy-card(v-else) &nbsp;
     .mb-4.max-w-md
       .flex.flex-row.flex-wrap
         card-image(v-for='card of cacheDeck' :card='card' :key='card')
@@ -173,7 +171,6 @@ export default Vue.extend({
       this.cachePlayer2Hand = [...this.game.player2.hand];
       for (let i = 0; i < 97 * 97; ++i) {
         this.cacheBoard[i] = this.game.board.board[i];
-        this.cacheBackground[i] = this.game.board.debugBackground[i];
       }
     },
     turn() {
