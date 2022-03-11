@@ -1,6 +1,6 @@
 import BoardObject from './BoardObject';
 import DeckObject from './DeckObject';
-import * as card from './CardObject';
+import { score as cardScore, Card } from './CardObject';
 import type { Point } from './BoardObject';
 
 type Outcome = {
@@ -81,20 +81,20 @@ function getAllPermutations(input: any[]) {
 function buildVertical(board: BoardObject, x: number, y: number) {
   // Order does NOT matter
   const vline: number[] = [];
-  for (let i = 1; i < 10; ++i) {
+  for (let i = 1; i < 6; ++i) {
     const c = board.at(x, y - i);
-    if (c != null) {
-      vline.push(c);
-    } else {
+    if (c === Card.None) {
       break;
+    } else {
+      vline.push(c);
     }
   }
-  for (let i = 1; i < 10; ++i) {
+  for (let i = 1; i < 6; ++i) {
     const c = board.at(x, y + i);
-    if (c != null) {
-      vline.push(c);
-    } else {
+    if (c === Card.None) {
       break;
+    } else {
+      vline.push(c);
     }
   }
   return vline;
@@ -125,7 +125,7 @@ function findContour(board: BoardObject): Point[] {
   function check(p: Point, set: Point[]) {
     set.forEach((search) => {
       const newp = { x: p.x + search.x, y: p.y + search.y };
-      if (board.atP(newp) === null) {
+      if (board.atP(newp) === 0) {
         const key = JSON.stringify(newp);
         if (!seen.has(key)) {
           seen.set(key, newp);
@@ -179,12 +179,12 @@ function buildRight(
 ): [number[], number] {
   const line: number[] = [];
   let slide = 0;
-  let c: number | null = null;
+  let c: number;
 
   // First, built to the right.
   for (let i = 0; i < cards.length /* increment on play! */; ) {
     c = board.at(x + slide, y);
-    if (c === null) {
+    if (c === Card.None) {
       // If the spot is empty, add the next card.
       line.push(cards[i]);
       ++i;
@@ -199,24 +199,24 @@ function buildRight(
   // `slide` is already at the next square after exiting the for-loop.
   do {
     c = board.at(x + slide, y);
-    if (c !== null) {
+    if (c !== Card.None) {
       // Add the cards that are touching to the right until an empty square.
       line.push(c);
     }
     ++slide;
-  } while (c !== null);
+  } while (c !== Card.None);
 
   // Now we have to prepend any cards we are touching to the left
   slide = 0;
   do {
     // We already did the current spot so start one over.
     c = board.at(x - (slide + 1), y);
-    if (c !== null) {
+    if (c !== Card.None) {
       // Add the cards that are touching to the left until an empty square.
       line.unshift(c);
     }
     ++slide;
-  } while (c != null);
+  } while (c !== Card.None);
 
   // Now we have a contiguous line of cards. This line could be huge, but it
   // isn't up to this function to resolve it.
@@ -388,7 +388,7 @@ export default class PlayerObject {
       for (let i = 0; i < permutation.length; ++i) {
         const x = spot.x - i;
         const c = board.at(x, spot.y);
-        if (c === null) {
+        if (c === Card.None) {
           // Now we have a completed line that needs scoring.
           const [line, leftShift] = buildRight(board, x, spot.y, permutation);
           // If the hand we're playing is illegal, don't bother
@@ -447,7 +447,7 @@ export default class PlayerObject {
         }
         vline.push(line[i]); // don't forget the card that should be there!
         let vscore = baseScore(vline);
-        if (vscore === card.score(line[i])) {
+        if (vscore === cardScore(line[i])) {
           // If the total score is the score of the card, it just the card.
         } else if (vscore === 0) {
           // If this play creates a bad vertical line, the whole play fails.
@@ -456,8 +456,7 @@ export default class PlayerObject {
           if (vline.length === 4) {
             // Did we play a card that completed a vertical lot?
             // or was there already a completed veritcal lot?
-            const c = board.at(x+i,y);
-            if (c === null) {
+            if (board.at(x + i, y) === Card.None) {
               scoreMultiplier *= 2;
             }
           }
@@ -520,7 +519,7 @@ export default class PlayerObject {
         const y = bestPlay.y;
         const at = board.at(x, y);
         // Sanity check, doesn't cost a lot.
-        if (at !== c && at !== null) {
+        if (at !== c && at !== Card.None) {
           throw new Error(`Cannot play a card on a card! [${x}, ${y}]`);
         }
         board.put(x, y, c);

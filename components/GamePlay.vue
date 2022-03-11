@@ -91,7 +91,7 @@
         tr(v-for='yy in cacheRangeY')
           //- th {{ yy - 48 }}
           td(v-for='xx in cacheRangeX')
-            card-image(v-if='cacheBoard[xx + yy * 97] !== null'
+            card-image(v-if='cacheBoard[xx + yy * 97] !== 0'
               :card='cacheBoard[xx + yy * 97]'
               :style='{ background: cacheBackground[xx + yy * 97] }'
               :key='0xf000000 + [xx + yy * 97]'
@@ -106,8 +106,7 @@
 <script lang="ts">
 import _ from 'lodash';
 import Vue from 'vue';
-import GameObject from './GameObject';
-import { DoneReason } from './GameObject';
+import { DoneReason, GameObject } from './GameObject';
 
 export default Vue.extend({
   name: 'GamePlay',
@@ -148,8 +147,14 @@ export default Vue.extend({
         '789cedddcf6e1a4700c0e157a9a6d7b1e4d9bfc0b17d80e6d09be503868d1d992c1136722ccbef9e591c936c2ba53dc40a82efe0efc72cbbc3dab326c407780acb6e711b664f5f7b919a26a6b68ea94a314df2ede63ca6729a9bc7651b535de5edb993dc226f9f94f92b779af7ab26799f7c6c93db0ef7e563eadc32b7c9c754f99832ef570ff3e7afb6c8cdc797f971aa7cbb9d5cc670d775cb302bda3ad56d0c9b799f474fcfcf315cade79be1f6eb8d8b7ebb5a45000000000000000000000000000000000000000000000000000000000000000000fc34523bbc9774730067823758dd7a78c770ab7b9ca4b28ca919de4bbe3880b3c1cf5ddc76f8a0000b7b9ca4669a577772006782b758dd223f295bdde324b5c3c7ba9c1fc099e00d56b7193e54a73c8033c11bac6e9b5f2e3756f7384975fe0f51e599f9d849d3fc2f70357c289ad75800000000000000000000000000000000000000000000000000000078332e63587657dbeb3fe68bdbebcd7adb2fc3ec223cdc7cb8ef42545555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555d523eeef5df75d7ef5d9a8fe82abff7f6e563da6bafaf574fb1f97b9df023de2fef8b9dfc5af475c2f7cf474ebead7d3adab5f4fb7ae7e3dddbafaf574fbc3abbfdfae563836467fcfbb8ce17e7edbf56176f1143e87d9790c8fd9e7b81ba5d1e8ec6598be0ecf47a3f17d67c56e588c8fdc0fcbddb01cefbc1f56bb6135de793fac77c37abc733d3a8bb3d7d328c6c3b366376ec653ed87ed6ed88e77de0f27bbe164bcf33f86d3f1b1d3f1034d9ff34ffbea6a9db73c85ed6a31e4dbccc35986d5e6756bf13a4378c8df56febe6e863ce7f1a7d5fcb1dba461bf9b79bfcc2b97aa36a6b288a998c4549fe747e9e71fbb300bef76bbfef6573facf7dd62bdc91b9bb49fa3f87e8eb28a6952c7d436798ef4af39fe7e587f9ba37e99e3f1e5cc16f3be5fdfbfdbac175d97a77a3f5fdd75316cbaf9ddbaff737c5fbe663ea5ab0ffdf57a777bd9bdef3677c315f60549be4318' as string,
     };
   },
+
+  /* 
+  cool game seeds:
+  560516 - dense game
+  */
+
   mounted() {
-    this.cacheBoard = Array(100 * 100);
+    this.cacheBoard = Array(100 * 100).fill(0);;
     this.cacheBackground = Array(100 * 100).fill('white');
   },
   methods: {

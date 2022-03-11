@@ -43,12 +43,11 @@ export default class DeckObject {
     }
   }
 
-  public drawOne(): number | null {
-    const c = this.deck.shift();
-    return c || null;
+  public drawOne(): number | undefined {
+    return this.deck.shift();
   }
 
-  // TODO: We never really check deck consistency. Maybe we should.
+  // TODO: We never really check deck consistency. Maybe we should?
   public returnCards(hand: number[], n: number) {
     while (n-- > 0) {
       const c = hand.pop();

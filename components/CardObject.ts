@@ -18,19 +18,18 @@
 // 0x80 = blue square 1
 // 0xbf = yellow triangle 4
 //
-// MSB is set so that card 0x00 isn't "falsy" in tests!
+// MSB is set so that card 0x00 (blue square 1) isn't "falsy" in tests!
 
-export function isCard(card: number | null) {
-  if (card === null) {
-    return false;
-  }
-  return (card & 0x7f) <= 0x3f;
+export function isCard(card: number) {
+  return card >= 0x80 && card < 0xc0;
 }
 
-export function color(card: number | null) {
-  if (card === null) {
-    return 'white';
-  }
+export enum Card {
+  None = 0,
+  // TODO: None is useful, but do we need EVERY card to be enum'd?
+};
+
+export function color(card: number) {
   switch ((card >> 4) & 0x3) {
     case 0:
       return 'blue';
@@ -41,14 +40,11 @@ export function color(card: number | null) {
     case 3:
       return 'yellow';
     default:
-      return 'white';
+      return 'color?';
   }
 }
 
-export function htmlColor(card: number | null) {
-  if (card === null) {
-    return 'white';
-  }
+export function htmlColor(card: number) {
   switch ((card >> 4) & 0x3) {
     case 0:
       return 'dodgerblue';
@@ -59,14 +55,11 @@ export function htmlColor(card: number | null) {
     case 3:
       return 'gold';
     default:
-      return 'white';
+      return 'black';
   }
 }
 
-export function shape(card: number | null) {
-  if (card === null) {
-    return '';
-  }
+export function shape(card: number) {
   switch ((card >> 2) & 0x3) {
     case 0:
       return 'square';
@@ -77,14 +70,11 @@ export function shape(card: number | null) {
     case 3:
       return 'triangle';
     default:
-      return '?';
+      return 'shape?';
   }
 }
 
-export function htmlShape(card: number | null) {
-  if (card === null) {
-    return '';
-  }
+export function htmlShape(card: number) {
   switch ((card >> 2) & 0x3) {
     case 0:
       return '&#x25a0;';
@@ -95,7 +85,7 @@ export function htmlShape(card: number | null) {
     case 3:
       return '&#x25b2';
     default:
-      return '?';
+      return 'shape?';
   }
 }
 
@@ -103,9 +93,6 @@ export function score(card: number) {
   return (card & 0x3) + 1;
 }
 
-export function name(card: number | null) {
-  if (card === null) {
-    return 'nocard';
-  }
+export function name(card: number) {
   return color(card) + ' ' + shape(card) + ' ' + score(card);
 }
