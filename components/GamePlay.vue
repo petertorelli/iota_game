@@ -39,14 +39,8 @@
           td Tie:
           td.text-right {{ pct(ties, nGames) }} %
         tr
-          td Deadlocks:
-          td.text-right {{ pct(deadlocks, nGames) }} %
-        tr
-          td Mean Speed (ms):
+          td Average Speed (ms):
           td.text-right {{ meanMs.toFixed(1) }}
-        tr
-          td Player 1 Bingos:
-          td.text-right {{ p1bingos }}
         tr
           td Average score:
           td.text-right {{ meanScore.toFixed(1) }}
@@ -65,11 +59,11 @@
       .flex.flex-row.items-center.h-12
         .w-24(:style='{ color: game.ply & 1 ? "black" : "dodgerblue" }') {{ game.player1.name }}
         .w-8.text-right.mr-4 {{ game.player1.score }}
-        card-image(v-for='card of game.player1.hand' :card='card' :key='card')
+        card-image(v-for='card of cachePlayer1Hand' :card='card' :key='card')
       .flex.flex-row.items-center.h-12
         .w-24(:style='{ color: game.ply & 1 ? "dodgerblue" : "black" }') {{ game.player2.name }}
         .w-8.text-right.mr-4 {{ game.player2.score }}
-        card-image(v-for='card of game.player2.hand' :card='card' :key='card')
+        card-image(v-for='card of cachePlayer2Hand' :card='card' :key='card')
     .mb-4
       div(v-if='game.cannotProceed')
         div(v-if='game.player1.score === game.player2.score')
@@ -90,22 +84,12 @@
       button.btn.btn-blue.mr-4(@click='stopAutoPlay()'
         ) Stop
     .mb-4
-      //-table
-        -let rows=97
-        while rows-- > 0
-          tr
-            -let cols=97
-            while cols-- > 0
-              -let idx = (cols + (rows * 97))
-              -let iidx = `i${idx}`
-              td(id= idx)
-                card-image(:card='cacheBoard[' + idx + ']')
       table(style='border: 1px solid #ddd')
-        tr
+        //- tr
           th
           th(v-for='xx in game.board.getXRange()') {{ xx }}
         tr(v-for='yy in cacheRangeY')
-          th {{ yy - 48 }}
+          //- th {{ yy - 48 }}
           td(v-for='xx in cacheRangeX')
             card-image(v-if='cacheBoard[xx + yy * 97] !== null'
               :card='cacheBoard[xx + yy * 97]'
@@ -114,20 +98,9 @@
               )
             .dummy-card(v-else
               :style='{ background: cacheBackground[xx + yy * 97] }') &nbsp;
-      //-table(style='border: 1px solid #ddd')
-        //-tr
-          th
-          th(v-for='xx in game.board.getXRange()') {{ xx }}
-        tr(v-for='yy in game.board.getYRange()')
-          //- th {{ yy }}
-          td(v-for='xx in game.board.getXRange()')
-            card-image(v-if='game.board.at(xx,yy) !== null'
-              :card='game.board.at(xx,yy)'
-              )
-            .dummy-card(v-else)
     .mb-4.max-w-md
       .flex.flex-row.flex-wrap
-        card-image(v-for='card of game.deck.deck' :card='card' :key='card')
+        card-image(v-for='card of cacheDeck' :card='card' :key='card')
 </template>
 
 <script lang="ts">
@@ -151,6 +124,9 @@ export default Vue.extend({
       cacheRangeX: [] as number[],
       cacheRangeY: [] as number[],
       cacheBackground: [] as string[],
+      cachePlayer1Hand: [] as number[],
+      cachePlayer2Hand: [] as number[],
+      cacheDeck: [] as number[],
       scores: [] as number[],
       areas: [] as number[],
       aspects: [] as number[],
@@ -165,13 +141,11 @@ export default Vue.extend({
       ties: 0,
       player1: 0,
       player2: 0,
-      p1bingos: 0,
-      deadlocks: 0,
       results: [] as string[],
       ms: [] as number[],
       error: '',
       compressedGame:
-        '789ceddadd4ee3461880e15ba9dc53478ae3dfe4b0bd80ee41cf1007817861054d56014457887bef38248109741ba088049e83bc6f3ecf8f07cf7c633be22699b4c767c9e866e983c334b968db49321a94cd7098a5c97c3c0dd1cded6d9a1ccdc6f3eefbeacbc1f4eafc3c0500000000000000000000000000000000000000000000000000000000000000000000000000000080dd4756156956163b301278ab29cebb29aec2540fd3ac1eeec088e0ada6ba2ac3a7099f7c0746036f3ad74d98eb22a475d1df81d1c01bcc70d965723fcc741d367119bdafc806e1c65b65e1e65b2f0fe4dd840e9641114a4b39bcd7c88a4148d3ead1e13a0f331f8aaa7a070609af9ce46197c3d93268c2b40efbab20ecd2e5ba243c6f17cd0e0c189e3bc38370c72d43ced68fde88b33c6cd34598d92a3c7235dea2f61559d9dd7b9fceceac08654597e46ec71f0e591d72bb289741decd7278812ac3a7f168fd31919561cf6ec24ce78f9ecc60df91e5ddef1f52f76322abc3e375ee360c000000000000000000000000000000000000000000000000000000000000000000000000002b1ca6c9a43dba3af96d7c7c76329f5d4d27c9e820b93efd76d92629333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333efb07f6ddb077aefd130bfc3ea9714fc79bde532970dfc09bcdddeef0ec19fc7cfca89f71e2cf3db2d7a0f4bfcf1fdf3f7e2d71d66de076ff5dbd0f31e89bc35f0fef92d6f065281f7c82fdaee5fd929f32efa7fdde89ff554c5bc4bfef9aa7ddd938f54e00fe417fda82a07f803db3f21f1a7b5df85983796fd42876972393e6ba7c9e8e026f93b19f5d3e447e06dba88b228ba2bcba2b22c2aebc585ebb0b7116f553bdbe2b4bdc1221cc42dd761b108f35598c7e1e0a9b0b7d1d73aeec7617ca68d61dc9da8887b2ea2baabd3c6638a07bc7dcdf289b2222a2ba25e8a2d6aae2ec8cb26b188ae48195f9ff2a9698aeb96cba88aa24114e551d4abe2a551c66115ade565693f1e426f63a9f4361747be51bfd8a8bf11f7e3e6fde86faa96511d454d142d8779dfef7f9cf767d7ae8ea2ed6b364fb4aba376abe86e704d54b389affffdc89ff997adda971bedd7711d5ff17f99eeb0df1d1dcdc2919be4eafcb8d37ddbaeafe47cbe3adaacc69f5c876514fa3b0d2a6e43fcfd7cfca39d675dbdd3f17412f6ceac6942cfd3f15f6d324abe2c8a7ff963daedb217c7b37938980f86eb8683870dcb419ad5d5a3c67f5ecf1e341e968bc65d8a87cb743c9e4e67975fe6b3e3b60d7d7c1d9f5fb469326fc717b3e9ef7159b888dfb3a36fd393d9225f27edd7767ed15d877f00ede323fd' as string,
+        '789cedddcf6e1a4700c0e157a9a6d7b1e4d9bfc0b17d80e6d09be503868d1d992c1136722ccbef9e591c936c2ba53dc40a82efe0efc72cbbc3dab326c407780acb6e711b664f5f7b919a26a6b68ea94a314df2ede63ca6729a9bc7651b535de5edb993dc226f9f94f92b779af7ab26799f7c6c93db0ef7e563eadc32b7c9c754f99832ef570ff3e7afb6c8cdc797f971aa7cbb9d5cc670d775cb302bda3ad56d0c9b799f474fcfcf315cade79be1f6eb8d8b7ebb5a45000000000000000000000000000000000000000000000000000000000000000000fc34523bbc9774730067823758dd7a78c770ab7b9ca4b28ca919de4bbe3880b3c1cf5ddc76f8a0000b7b9ca4669a577772006782b758dd223f295bdde324b5c3c7ba9c1fc099e00d56b7193e54a73c8033c11bac6e9b5f2e3756f7384975fe0f51e599f9d849d3fc2f70357c289ad75800000000000000000000000000000000000000000000000000000078332e63587657dbeb3fe68bdbebcd7adb2fc3ec223cdc7cb8ef42545555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555d523eeef5df75d7ef5d9a8fe82abff7f6e563da6bafaf574fb1f97b9df023de2fef8b9dfc5af475c2f7cf474ebead7d3adab5f4fb7ae7e3dddbafaf574fbc3abbfdfae563836467fcfbb8ce17e7edbf56176f1143e87d9790c8fd9e7b81ba5d1e8ec6598be0ecf47a3f17d67c56e588c8fdc0fcbddb01cefbc1f56bb6135de793fac77c37abc733d3a8bb3d7d328c6c3b366376ec653ed87ed6ed88e77de0f27bbe164bcf33f86d3f1b1d3f1034d9ff34ffbea6a9db73c85ed6a31e4dbccc35986d5e6756bf13a4378c8df56febe6e863ce7f1a7d5fcb1dba461bf9b79bfcc2b97aa36a6b288a998c4549fe747e9e71fbb300bef76bbfef6573facf7dd62bdc91b9bb49fa3f87e8eb28a6952c7d436798ef4af39fe7e587f9ba37e99e3f1e5cc16f3be5fdfbfdbac175d97a77a3f5fdd75316cbaf9ddbaff737c5fbe663ea5ab0ffdf57a777bd9bdef3677c315f60549be4318' as string,
     };
   },
   mounted() {
@@ -189,6 +163,9 @@ export default Vue.extend({
     update() {
       this.cacheRangeX = this.game.board.getXRangeA();
       this.cacheRangeY = this.game.board.getYRangeA();
+      this.cacheDeck = [...this.game.deck.deck];
+      this.cachePlayer1Hand = [...this.game.player1.hand];
+      this.cachePlayer2Hand = [...this.game.player2.hand];
       for (let i = 0; i < 97 * 97; ++i) {
         this.cacheBoard[i] = this.game.board.board[i];
         this.cacheBackground[i] = this.game.board.debugBackground[i];
@@ -225,18 +202,21 @@ export default Vue.extend({
             this.error = error as string;
           }
           this.nGames++;
+          let winner = '';
           if (this.game.player1.score === this.game.player2.score) {
             this.ties++;
+            winner = 'tie';
           } else if (this.game.player1.score > this.game.player2.score) {
             this.player1++;
+            winner = 'p1';
           } else {
             this.player2++;
+            winner = 'p2';
           }
           const res =
             `${this.game.player1.score}-${this.game.player2.score} ` +
-            `${this.game.ply}`;
+            `${this.game.ply} ${winner} ${this.game.deck.seed}`;
           this.results.unshift(res);
-          this.p1bingos += this.game.p1bingo;
           this.spreads.push(
             Math.abs(this.game.player1.score - this.game.player2.score)
           );
@@ -261,10 +241,10 @@ export default Vue.extend({
             }
           }
           if (gameRes !== undefined && gameRes.reason === DoneReason.Deadlock) {
-            this.deadlocks++;
-            // this.stopAutoPlay();
+            this.stopAutoPlay();
+            this.update();
           }
-        }, 125);
+        }, 65);
         resolve();
       });
     },

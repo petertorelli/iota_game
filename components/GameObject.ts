@@ -10,6 +10,7 @@ export enum DoneReason {
   Player2NoCards, // Player Two ran out of cards
   NoPlays, // Players still have cards, but no progress, and deck empty
   Deadlock, // Players still have cards, no progress, and deck not empty
+  LongGame, // Really long game?
 }
 
 export type GameResults = {
@@ -38,7 +39,6 @@ export default class GameObject {
     this.player1.init(name1);
     this.player2.init(name2);
     this.ply = 0;
-    this.p1bingo = 0;
     this.defers = 0;
     this.cannotProceed = false;
     this.deal();
@@ -52,43 +52,17 @@ export default class GameObject {
   }
 
   public turn() {
-    let p2b4;
-    let p2af;
-    let p1b4;
-    let p1af;
     if (this.cannotProceed) {
       return;
     }
     if (this.ply & 1) {
-      p2b4 = this.player2.score;
       this.player2.play(this.deck, this.board);
-      p2af = this.player2.score;
     } else {
-      p1b4 = this.player1.score;
       this.player1.play(this.deck, this.board);
-      p1af = this.player1.score;
     }
-    // --- Cases where even after 10 random hand swaps no progress? -----------|
-    // TODO I think this logic is wrong. Does it prematurely quit?
-    if (p2b4 === p2af && p1b4 === p1af) {
-      if (this.deck.deck.length === 0) {
-        this.cannotProceed = true;
-        this.reasonCannotProceed = DoneReason.NoPlays;
-      } else {
-        this.defers++;
-        if (this.defers > 50) {
-          this.reasonCannotProceed = DoneReason.Deadlock;
-          this.cannotProceed = true;
-        }
-      }
-    } else {
-      this.defers = 0;
-    }
-    // ------------------------------------------------------------------------|
-    if (this.ply === 0) {
-      if (this.player1.score === 20) {
-        this.p1bingo = 1;
-      }
+    if (this.ply > 150) {
+      this.cannotProceed = true;
+      this.reasonCannotProceed = DoneReason.LongGame;
     }
     ++this.ply;
     if (this.deck.deck.length === 0) {
