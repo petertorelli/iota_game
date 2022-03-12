@@ -84,6 +84,64 @@ function findContour(board: BoardObject): Point[] {
   return contour;
 }
 
+// horizontal compute, look up/down
+function computeScoreHoriz(
+  board: BoardObject,
+  line: number[],
+  x: number,
+  y: number,
+  permutation: number[],
+): Outcome | null {
+  let scoreMultiplier = 1;
+  if (line.length > 4) {
+    return null;
+  }
+  let score = baseScore(line);
+  if (score === 0 && line.length > 1) {
+    return null;
+  }
+  // Completed a horizontal lot
+  if (line.length === 4) {
+    scoreMultiplier *= 2;
+  }
+  // Now walk the verticals
+  for (let i = 0; i < line.length; ++i) {
+    const vline = buildVertical(board, x + i, y);
+    if (vline.length === 0) {
+      continue;
+    }
+    vline.push(line[i]); // don't forget the card that should be there!
+    let vscore = baseScore(vline);
+    if (vscore === cardScore(line[i])) {
+      // If the total score is the score of the card, it just the card.
+    } else if (vscore === 0) {
+      // If this play creates a bad vertical line, the whole play fails.
+      return null;
+    } else {
+      if (vline.length === 4) {
+        // Did we play a card that completed a vertical lot?
+        // or was there already a completed veritcal lot?
+        if (board.at(x + i, y) === Card.None) {
+          scoreMultiplier *= 2;
+        }
+      }
+      // Is the card we're scoring off of in the original permutation?
+      if (permutation.includes(line[i]) === false) {
+        vscore = 0;
+      }
+      score += vscore;
+    }
+  }
+  score *= scoreMultiplier;
+  return {
+    score,
+    line,
+    x,
+    y,
+    dir: 'r',
+  };
+}
+
 /**
  * Lay down all cards to the right, starting from spot x/y, to construct a
  * contiguous line of cards, including cards that are skipped over to find
@@ -270,7 +328,6 @@ function baseScore(line: number[]) {
   return pass ? score : 0;
 }
 
-const HAND: number[] = Array(4).fill(Card.None);
 
 
 export default class PlayerObject {
@@ -313,14 +370,15 @@ export default class PlayerObject {
   public playThisSpot(board: BoardObject, spot: Point, hand: number[]) {
     // The end result is the best outcome from this list
     const results: Outcome[] = [];
+    const permutedHand: number[] = Array(4);
 
     Permutes[hand.length - 1].forEach((permutationIndicies) => {
-      const LEN = permutationIndicies.length;
-      HAND.fill(Card.None);
-      for (let i=0; i<LEN;++i) {
-        HAND[i] = hand[permutationIndicies[i]];
+      const permLen = permutationIndicies.length;
+      // Using the permutation indices, construct a permuted hand from N=1 to 4
+      permutedHand.fill(Card.None);
+      for (let i=0; i<permLen;++i) {
+        permutedHand[i] = hand[permutationIndicies[i]];
       }
-//    getAllPermutations(hand).forEach((permutation) => {
       // We've got a permutation to lay out at point 'spot'
       // 1. We're going to lay it out at that spot first, and go to the right,
       //    building a line to examine.
@@ -336,20 +394,21 @@ export default class PlayerObject {
       //    too must be prepended.
 
       // We're going to creep to the left and build to the right.
-      for (let i = 0; i < LEN; ++i) {
+      for (let i = 0; i < permLen; ++i) {
         const x = spot.x - i;
         const c = board.at(x, spot.y);
         if (c === Card.None) {
           // Now we have a completed line that needs scoring.
-          const brr = buildRight(board, x, spot.y, HAND, LEN);
+          const brr = buildRight(board, x, spot.y, permutedHand, permLen);
           // If the hand we're playing is illegal, don't bother
-          const outcome = computeScoreHoriz(brr.line, x, spot.y, HAND);
-          if (outcome !== null) {
+          const outcome = computeScoreHoriz(board, brr.line, x, spot.y, permutedHand);
+          if (outcome) {
             // All four cards played, doubles score AGAIN
-            if (LEN === 4) {
+            if (permLen === 4) {
               outcome.score *= 2;
             }
-            // The outcome doesn't know that if builder added to the left.
+            // The outcome needs to know if the builder added to the left. If
+            // so, then the placement square needs to slide left.
             outcome.x = x - brr.slide;
             results.push(outcome);
           }
@@ -367,66 +426,10 @@ export default class PlayerObject {
       return b.score - a.score;
     });
 
-    // TODO: Our current selection criteria is the highest score, ignore ties
+    // TODO: Our current selection criteria is the highest score, ignores ties
     const bestPlay = sortedResults[0];
     return bestPlay;
 
-    // horizontal compute, look up/down
-    function computeScoreHoriz(
-      line: number[],
-      x: number,
-      y: number,
-      permutation: number[],
-    ): Outcome | null {
-      let scoreMultiplier = 1;
-      if (line.length > 4) {
-        return null;
-      }
-      let score = baseScore(line);
-      if (score === 0 && line.length > 1) {
-        return null;
-      }
-      // Completed a horizontal lot
-      if (line.length === 4) {
-        scoreMultiplier *= 2;
-      }
-      // Now walk the verticals
-      for (let i = 0; i < line.length; ++i) {
-        const vline = buildVertical(board, x + i, y);
-        if (vline.length === 0) {
-          continue;
-        }
-        vline.push(line[i]); // don't forget the card that should be there!
-        let vscore = baseScore(vline);
-        if (vscore === cardScore(line[i])) {
-          // If the total score is the score of the card, it just the card.
-        } else if (vscore === 0) {
-          // If this play creates a bad vertical line, the whole play fails.
-          return null;
-        } else {
-          if (vline.length === 4) {
-            // Did we play a card that completed a vertical lot?
-            // or was there already a completed veritcal lot?
-            if (board.at(x + i, y) === Card.None) {
-              scoreMultiplier *= 2;
-            }
-          }
-          // Is the card we're scoring off of in the original permutation?
-          if (permutation.includes(line[i]) === false) {
-            vscore = 0;
-          }
-          score += vscore;
-        }
-      }
-      score *= scoreMultiplier;
-      return {
-        score,
-        line,
-        x,
-        y,
-        dir: 'r',
-      };
-    }
   }
 
   public play(deck: DeckObject, board: BoardObject) {
