@@ -27,17 +27,6 @@ And then open a browser at `localhost:3000`.
 
 1. The games starts to really slow down after ~700 turns. The heatmap in FireFox shows it is the DOM being re-rendered. I'm experimenting with different layouts to see what is causing the problem. If I comment out the board table in the template, there is no slowdown, so something in there is causing a problem.
 
-# To-do
-
-1. Currently it does not play a space if there are cards on opposite sides. This is a simplification since determining if all the intersections are playable requires more thought.
-2. No wildcards.
-3. There are some options for the players, like if a hand has the same score for 1, 2, or 3 cards to play, which option should the player choose? Also, which order should the cards be played? And why favor one direction over another?
-4. I think I'm missing some scoring bonuses
-
-# Weirdness
-
-1. The first player to start has a +10% win advantage????
-
 # Screenshot
 
 ![image](https://user-images.githubusercontent.com/8249735/156663269-00577912-a5d6-4149-9e74-f57a92b20a65.png)
