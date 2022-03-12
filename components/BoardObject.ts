@@ -42,7 +42,7 @@ export default class BoardObject {
     w: 0,
     h: 0,
   };
-  
+
   constructor(initBoard: BoardObject | undefined = undefined) {
     this.board = Array(BOARD_DIM * BOARD_DIM).fill(Card.None);
     this.init(initBoard);

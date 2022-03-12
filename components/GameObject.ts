@@ -19,7 +19,6 @@ export type GameResults = {
   reason: DoneReason;
 };
 
-
 export class GameObject {
   public deck = new DeckObject();
   public board = new BoardObject();
@@ -116,5 +115,4 @@ export class GameObject {
   }
 }
 
-export default {
-}
+export default {};

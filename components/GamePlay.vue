@@ -152,7 +152,7 @@ export default Vue.extend({
   */
 
   mounted() {
-    this.cacheBoard = Array(100 * 100).fill(0);;
+    this.cacheBoard = Array(100 * 100).fill(0);
     this.cacheBackground = Array(100 * 100).fill('white');
   },
   methods: {
@@ -217,10 +217,6 @@ export default Vue.extend({
             this.player2++;
             winner = 'p2';
           }
-          const res =
-            `${this.game.player1.score}-${this.game.player2.score} ` +
-            `${this.game.ply} ${winner} ${this.game.deck.seed}`;
-          this.results.unshift(res);
           this.spreads.push(
             Math.abs(this.game.player1.score - this.game.player2.score)
           );
@@ -232,10 +228,17 @@ export default Vue.extend({
           this.meanAspect = _.mean(this.aspects);
           this.meanArea = _.mean(this.areas);
           this.meanSpread = _.mean(this.spreads);
+          let msec = -1;
           if (gameRes !== undefined) {
+            msec = gameRes.playTime;
             this.ms.push(gameRes.playTime);
           }
           this.meanMs = _.mean(this.ms);
+          const res =
+            `${this.game.player1.score}-${this.game.player2.score} ` +
+            `${this.game.ply} ${winner} ${this.game.deck.seed} ` +
+            `${msec} ms`;
+          this.results.unshift(res);
 
           // this.update();
           ++count;

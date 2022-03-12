@@ -27,7 +27,7 @@ export function isCard(card: number) {
 export enum Card {
   None = 0,
   // TODO: None is useful, but do we need EVERY card to be enum'd?
-};
+}
 
 export function color(card: number) {
   switch ((card >> 4) & 0x3) {

@@ -7,10 +7,11 @@ GUI options:
 1. Play One Turn - Causes the engine to play the next player's turn.
 2. Reset - Reset the board, reshuffle, and deal
 3. Autoplay Once - Causes the engine to finish the game
-4. Autoplay 10,000x - Autoplay a bunch of times
+4. Autoplay Forever - Play until clicking "Stop"
+
+Note that it does not render while autoplaying as it becomes progressively slower.
 
 Each time a game finishes, the scores, board side, and # of turns are reported on the left-hand side.
-
 
 # Running
 
@@ -22,6 +23,14 @@ It's a NuxtJS app, so:
 ```
 
 And then open a browser at `localhost:3000`.
+
+# Compatability & Performance
+
+On my 2019 MacBook Pro I get the following performance:
+
+Firefox: ~90 msec per game
+Chrome: ~50 msec per game
+Safari: ~1000 msec per game
 
 # Problems
 

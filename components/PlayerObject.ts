@@ -4,34 +4,44 @@ import { score as cardScore, Card } from './CardObject';
 import type { Point } from './BoardObject';
 import Permutes from './FasterPermute';
 
+const UP: Point = { x: 0, y: 1 };
+const RT: Point = { x: 1, y: 0 };
+// const DN: Point = { x:  0, y: -1 };
+// const LF: Point = { x: -1, y:  0 };
+
 type Outcome = {
   score: number;
   line: number[];
   x: number;
   y: number;
-  dir: 'u' | 'd' | 'l' | 'r';
+  dir: Point | null;
 };
 
-function buildVertical(board: BoardObject, x: number, y: number) {
+function scanPerpendicular(
+  board: BoardObject,
+  x: number,
+  y: number,
+  unit: Point
+) {
   // Order does NOT matter
-  const vline: number[] = [];
+  const line: number[] = [];
   for (let i = 1; i < 6; ++i) {
-    const c = board.at(x, y - i);
+    const c = board.at(x - unit.x * i, y - unit.y * i);
     if (c === Card.None) {
       break;
     } else {
-      vline.push(c);
+      line.push(c);
     }
   }
   for (let i = 1; i < 6; ++i) {
-    const c = board.at(x, y + i);
+    const c = board.at(x + unit.x * i, y + unit.y * i);
     if (c === Card.None) {
       break;
     } else {
-      vline.push(c);
+      line.push(c);
     }
   }
-  return vline;
+  return line;
 }
 
 /**
@@ -85,12 +95,14 @@ function findContour(board: BoardObject): Point[] {
 }
 
 // horizontal compute, look up/down
-function computeScoreHoriz(
+function scoreVerify(
   board: BoardObject,
   line: number[],
   x: number,
   y: number,
   permutation: number[],
+  unit1: Point,
+  unit2: Point
 ): Outcome | null {
   let scoreMultiplier = 1;
   if (line.length > 4) {
@@ -106,22 +118,24 @@ function computeScoreHoriz(
   }
   // Now walk the verticals
   for (let i = 0; i < line.length; ++i) {
-    const vline = buildVertical(board, x + i, y);
-    if (vline.length === 0) {
+    const _x = x + i * unit1.x;
+    const _y = y + i * unit1.y;
+    const perpLine = scanPerpendicular(board, _x, _y, unit2);
+    if (perpLine.length === 0) {
       continue;
     }
-    vline.push(line[i]); // don't forget the card that should be there!
-    let vscore = baseScore(vline);
+    perpLine.push(line[i]); // don't forget the card that should be there!
+    let vscore = baseScore(perpLine);
     if (vscore === cardScore(line[i])) {
       // If the total score is the score of the card, it just the card.
     } else if (vscore === 0) {
       // If this play creates a bad vertical line, the whole play fails.
       return null;
     } else {
-      if (vline.length === 4) {
+      if (perpLine.length === 4) {
         // Did we play a card that completed a vertical lot?
         // or was there already a completed veritcal lot?
-        if (board.at(x + i, y) === Card.None) {
+        if (board.at(_x, _y) === Card.None) {
           scoreMultiplier *= 2;
         }
       }
@@ -138,15 +152,20 @@ function computeScoreHoriz(
     line,
     x,
     y,
-    dir: 'r',
+    dir: null,
   };
 }
 
+type BuildLateralResult = {
+  line: number[];
+  slide: number;
+};
+
 /**
- * Lay down all cards to the right, starting from spot x/y, to construct a
+ * Lay down all cards to the +ve dir, starting from spot x/y, to construct a
  * contiguous line of cards, including cards that are skipped over to find
- * the next playable spot to the right, any cards touching to the right, and
- * any cards touching to the left. For example:
+ * the next playable spot in the +ve dir, any cards touching to the +ve, and
+ * any cards touching to the -ve. For example:
  *
  * Four cards to play: [i,j,k,l]
  * Board row at spot.y, playing spot.x = `?` and blank spaces are `.`:
@@ -161,26 +180,29 @@ function computeScoreHoriz(
  * @param x Current x location on the board
  * @param y Current y location on the board
  * @param cards Cards to play.
- * @returns A line of cards (array of numbers)
+ * @param validLen How many cards from 0..validLen are valid?
+ * @param unit The direction vector.
+ * @returns BuildLateralResult type.
  */
-type BuildRightResult = {
-  line: number[],
-  slide: number,
-}
-function buildRight(
+function buildLateral(
   board: BoardObject,
   x: number,
   y: number,
   cards: number[],
   validLen: number,
-): BuildRightResult {
+  unit: Point
+): BuildLateralResult {
   const line: number[] = [];
   let slide = 0;
   let c: number;
 
+  let _x;
+  let _y;
   // First, built to the right.
   for (let i = 0; i < validLen /* increment on play! */; ) {
-    c = board.at(x + slide, y);
+    _x = x + slide * unit.x;
+    _y = y + slide * unit.y;
+    c = board.at(_x, _y);
     if (c === Card.None) {
       // If the spot is empty, add the next card.
       line.push(cards[i]);
@@ -195,7 +217,9 @@ function buildRight(
   // We've played all cards, but the next spot to the right might have a card.
   // `slide` is already at the next square after exiting the for-loop.
   do {
-    c = board.at(x + slide, y);
+    _x = x + slide * unit.x;
+    _y = y + slide * unit.y;
+    c = board.at(_x, _y);
     if (c !== Card.None) {
       // Add the cards that are touching to the right until an empty square.
       line.push(c);
@@ -206,8 +230,10 @@ function buildRight(
   // Now we have to prepend any cards we are touching to the left
   slide = 0;
   do {
+    _x = x - (slide + 1) * unit.x;
+    _y = y - (slide + 1) * unit.y;
     // We already did the current spot so start one over.
-    c = board.at(x - (slide + 1), y);
+    c = board.at(_x, _y);
     if (c !== Card.None) {
       // Add the cards that are touching to the left until an empty square.
       line.unshift(c);
@@ -220,7 +246,7 @@ function buildRight(
   // If we've added cards to the LHS, let the caller know that with `slide`.
   return {
     line,
-    slide: slide - 1
+    slide: slide - 1,
   };
 }
 
@@ -328,8 +354,6 @@ function baseScore(line: number[]) {
   return pass ? score : 0;
 }
 
-
-
 export default class PlayerObject {
   public hand: number[] = [];
   public name: string = 'Player Name';
@@ -370,14 +394,16 @@ export default class PlayerObject {
   public playThisSpot(board: BoardObject, spot: Point, hand: number[]) {
     // The end result is the best outcome from this list
     const results: Outcome[] = [];
-    const permutedHand: number[] = Array(4);
+    const pHand: number[] = Array(4);
+    let br: BuildLateralResult;
+    let outcome: Outcome | null;
 
     Permutes[hand.length - 1].forEach((permutationIndicies) => {
       const permLen = permutationIndicies.length;
       // Using the permutation indices, construct a permuted hand from N=1 to 4
-      permutedHand.fill(Card.None);
-      for (let i=0; i<permLen;++i) {
-        permutedHand[i] = hand[permutationIndicies[i]];
+      pHand.fill(Card.None);
+      for (let i = 0; i < permLen; ++i) {
+        pHand[i] = hand[permutationIndicies[i]];
       }
       // We've got a permutation to lay out at point 'spot'
       // 1. We're going to lay it out at that spot first, and go to the right,
@@ -392,16 +418,16 @@ export default class PlayerObject {
       //    append any abutting cards. The line might be very large!
       // 6. Similarly, as we slide to the left, if we abutt any cards, those
       //    too must be prepended.
-
       // We're going to creep to the left and build to the right.
       for (let i = 0; i < permLen; ++i) {
-        const x = spot.x - i;
-        const c = board.at(x, spot.y);
+        const _x = spot.x - i;
+        const _y = spot.y;
+        const c = board.at(_x, _y);
         if (c === Card.None) {
           // Now we have a completed line that needs scoring.
-          const brr = buildRight(board, x, spot.y, permutedHand, permLen);
+          br = buildLateral(board, _x, _y, pHand, permLen, RT);
           // If the hand we're playing is illegal, don't bother
-          const outcome = computeScoreHoriz(board, brr.line, x, spot.y, permutedHand);
+          outcome = scoreVerify(board, br.line, _x, _y, pHand, RT, UP);
           if (outcome) {
             // All four cards played, doubles score AGAIN
             if (permLen === 4) {
@@ -409,7 +435,37 @@ export default class PlayerObject {
             }
             // The outcome needs to know if the builder added to the left. If
             // so, then the placement square needs to slide left.
-            outcome.x = x - brr.slide;
+            outcome.x = _x - br.slide;
+            outcome.dir = RT;
+            results.push(outcome);
+          }
+        } else {
+          // We can't creep right anymore, because we hit a card.
+          // There is no point in stepping OVER this card, because the contour
+          // search algorithm will have found the playable spots to the left
+          // of this 'blockage'.
+          break;
+        }
+      } // Creep-left loop.
+      // We're going to creep up and build down.
+      for (let i = 0; i < permLen; ++i) {
+        const _x = spot.x;
+        const _y = spot.y - i;
+        const c = board.at(_x, _y);
+        if (c === Card.None) {
+          // Now we have a completed line that needs scoring.
+          br = buildLateral(board, _x, _y, pHand, permLen, UP);
+          // If the hand we're playing is illegal, don't bother
+          outcome = scoreVerify(board, br.line, _x, _y, pHand, UP, RT);
+          if (outcome) {
+            // All four cards played, doubles score AGAIN
+            if (permLen === 4) {
+              outcome.score *= 2;
+            }
+            // The outcome needs to know if the builder added to the left. If
+            // so, then the placement square needs to slide left.
+            outcome.y = _y - br.slide;
+            outcome.dir = UP;
             results.push(outcome);
           }
         } else {
@@ -429,7 +485,6 @@ export default class PlayerObject {
     // TODO: Our current selection criteria is the highest score, ignores ties
     const bestPlay = sortedResults[0];
     return bestPlay;
-
   }
 
   public play(deck: DeckObject, board: BoardObject) {
@@ -448,7 +503,7 @@ export default class PlayerObject {
     const bestPlay = results.sort((a, b) => {
       return b.score - a.score;
     })[0];
-    
+
     if (bestPlay === undefined) {
       // TODO: strategic pass? swap fewer? Swap random to prevent deadlock.
       const r: number = deck.rand.next().value;
@@ -458,6 +513,10 @@ export default class PlayerObject {
     } else {
       let i = 0;
       let ndraw = 0;
+      const unitVector = bestPlay.dir;
+      if (unitVector === null) {
+        throw new Error('Play vector is null');
+      }
       bestPlay.line.forEach((c) => {
         // The best play contains cards that are ON the board too.
         const idx = this.hand.indexOf(c);
@@ -465,8 +524,8 @@ export default class PlayerObject {
           this.hand.splice(idx, 1);
           ++ndraw;
         }
-        const x = bestPlay.x + i;
-        const y = bestPlay.y;
+        const x = bestPlay.x + i * unitVector.x;
+        const y = bestPlay.y + i * unitVector.y;
         const at = board.at(x, y);
         // Sanity check, doesn't cost a lot.
         if (at !== c && at !== Card.None) {
@@ -476,7 +535,7 @@ export default class PlayerObject {
         ++i;
       });
       if (deck.deck.length === 0 && this.hand.length === 0) {
-        this.score += (bestPlay.score * 2);
+        this.score += bestPlay.score * 2;
         // Game over.
       } else {
         this.score += bestPlay.score;
