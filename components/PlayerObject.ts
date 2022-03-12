@@ -22,7 +22,7 @@ function permuteArray(items: number[]) {
   let j;
   let swap;
 
-  results.push(a);
+  results.push([...a]); // don't forgot to duplicate!
   i=1;
   while (i < N) {
     if (p[i] < i) {
@@ -32,7 +32,7 @@ function permuteArray(items: number[]) {
         j = 0;
       }
       swap = a[j]; a[j] = a[i]; a[i] = swap;
-      results.push(a);
+      results.push([...a]); // don't forgot to duplicate!
       p[i]++;
       i=1;
     } else {
@@ -40,8 +40,42 @@ function permuteArray(items: number[]) {
       ++i;
     }
   }
+
   return results;
 }
+
+/*
+// Copyright: https://www.quickperm.org/
+// Switching to this from a recursive was a 2x speedup.
+function *permuteGenerator(items: number[]): Generator<number[], any, number> {
+  const a = [...items];
+  const p = Array<number>(items.length).fill(0);
+  const N=items.length;
+  let i;
+  let j;
+  let swap;
+
+  yield a;
+  i=1;
+  while (i < N) {
+    if (p[i] < i) {
+      if (i & 1) {
+        j = p[i];
+      } else {
+        j = 0;
+      }
+      swap = a[j]; a[j] = a[i]; a[i] = swap;
+      yield a;
+      p[i]++;
+      i=1;
+    } else {
+      p[i] = 0;
+      ++i;
+    }
+  }
+}
+*/
+
 
 /**
  * Create all possible ways to play a hand (array) of cards. This is different
@@ -77,6 +111,43 @@ function getAllPermutations(input: any[]) {
   });
   return output;
 }
+
+/*
+function getAllPermutationsX(input: number[]) {
+  const results: Array<number[]> = [];
+  for (let i=1; i<16; ++i) {
+    const subset: number[] = [];
+    if (i & 1) { subset.push(input[0]); }
+    if (i & 2) { subset.push(input[1]); }
+    if (i & 4) { subset.push(input[2]); }
+    if (i & 8) { subset.push(input[3]); }
+    permuteArray(subset).forEach((permutation) => {
+      results.push(permutation);
+    })
+  }
+  return results;
+}
+
+
+function getAllPermutations(input: number[]) {
+  const results: Array<number[]> = [];
+  for (let i=1; i<16; ++i) {
+    const subset: number[] = [];
+    if (i & 1) { subset.push(input[0]); }
+    if (i & 2) { subset.push(input[1]); }
+    if (i & 4) { subset.push(input[2]); }
+    if (i & 8) { subset.push(input[3]); }
+    const gen = permuteGenerator(subset);
+    while (!gen.next().done) {
+      const p = gen.next().value;
+      if (p) {
+        results.push(p);
+      }
+    }
+  }
+  return results;
+}
+*/
 
 function buildVertical(board: BoardObject, x: number, y: number) {
   // Order does NOT matter

@@ -179,6 +179,7 @@ export default Vue.extend({
         this.update();
       } catch (error) {
         this.error = error as string;
+        console.error(error);
       }
     },
     reset() {
@@ -202,6 +203,7 @@ export default Vue.extend({
           } catch (error) {
             this.stopAutoPlay();
             this.error = error as string;
+            console.error(error);
           }
           this.nGames++;
           let winner = '';
@@ -246,7 +248,7 @@ export default Vue.extend({
             this.stopAutoPlay();
             this.update();
           }
-        }, 65);
+        }, 150);
         resolve();
       });
     },
