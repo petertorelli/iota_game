@@ -231,7 +231,7 @@ export default Vue.extend({
           let msec = -1;
           if (gameRes !== undefined) {
             msec = gameRes.playTime;
-            this.ms.push(gameRes.playTime);
+            this.ms.push(msec);
           }
           this.meanMs = _.mean(this.ms);
           const res =

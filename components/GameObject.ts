@@ -4,6 +4,14 @@ import DeckObject from './DeckObject';
 import BoardObject from './BoardObject';
 import PlayerObject from './PlayerObject';
 
+function portableMsecTimer () {
+  if (process.hrtime) {
+    return Number(process.hrtime.bigint()) / 1e6;
+  } else {
+    return window.performance.now();
+  }
+}
+
 export enum DoneReason {
   None = 0,
   Player1NoCards, // Player One ran out of cards
@@ -17,6 +25,13 @@ export type GameResults = {
   playTime: number;
   done: boolean;
   reason: DoneReason;
+  p1score: number;
+  p2score: number;
+  tie: boolean;
+  w: number;
+  h: number;
+  nply: number;
+  seed: number,
 };
 
 export class GameObject {
@@ -40,6 +55,8 @@ export class GameObject {
     this.cannotProceed = false;
     this.reasonCannotProceed = DoneReason.None;
     this.deal();
+    const firstCard: number = this.deck.deck.shift() as number;
+    this.board.put(0, 0, firstCard);
   }
 
   public deal() {
@@ -77,16 +94,23 @@ export class GameObject {
     if (this.cannotProceed) {
       this.init();
     }
-    const t0 = window.performance.now();
+    const t0 = portableMsecTimer(); // performance.now();
     while (!this.cannotProceed) {
       this.turn();
     }
-    const t1 = window.performance.now();
+    const t1 = portableMsecTimer(); // performance.now();
     return {
+      p1score: this.player1.score,
+      p2score: this.player2.score,
+      tie: (this.player1.score === this.player2.score),
       playTime: t1 - t0,
       // TODO: cannotProceed is redundant with reasonCannotProceed
       done: this.cannotProceed,
       reason: this.reasonCannotProceed,
+      w: this.board.bbox.w,
+      h: this.board.bbox.h,
+      nply: this.ply,
+      seed: this.deck.seed,
     };
   }
 
