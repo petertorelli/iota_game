@@ -1,4 +1,4 @@
-import { prng, rand, reseed } from './RandomGenerator';
+import { rand, reseed } from './RandomGenerator';
 
 export default class DeckObject {
   public deck: number[] = Array<number>(64); // 66 with wildcards
