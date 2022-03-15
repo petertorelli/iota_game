@@ -13,7 +13,7 @@ mixin sidebar
         td.text-right {{ game.deck.seed }}
       tr
         td
-          input(type='number' v-model='userSeed' @blur='reset(userSeed)').w-24.border.rounded
+          input(type='number' v-model='userSeed').w-24.border.rounded
         td.text-right
           button(@click='reset(userSeed)').px-1.py-1.text-xs.rounded.bg-gray-500.text-white Set Seed
       tr
