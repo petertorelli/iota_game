@@ -97,7 +97,10 @@ export class GameObject {
   }
 
   public playOneGame(seed: number | undefined = undefined): GameResults {
-    this.init(seed);
+    // Finish playing the current game, unless it is done, in which case init.
+    if (this.cannotProceed) {
+      this.init(seed);
+    }
     const t0 = portableMsecTimer(); // performance.now();
     while (!this.cannotProceed) {
       this.turn();
