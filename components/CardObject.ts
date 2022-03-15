@@ -32,62 +32,90 @@ export enum Card {
 }
 
 export function color(card: number) {
-  switch ((card >> 4) & 0x3) {
-    case 0:
-      return 'blue';
-    case 1:
-      return 'red';
-    case 2:
-      return 'green';
-    case 3:
-      return 'yellow';
+  switch (card) {
+    case Card.None:
+      return "none";
+    case Card.Dead:
+      return "dead";
     default:
-      return 'color?';
+    switch ((card >> 4) & 0x3) {
+      case 0:
+        return 'blue';
+      case 1:
+        return 'red';
+      case 2:
+        return 'green';
+      case 3:
+        return 'yellow';
+      default:
+        return 'color?';
+    }
   }
 }
 
 export function htmlColor(card: number) {
-  switch ((card >> 4) & 0x3) {
-    case 0:
-      return 'dodgerblue';
-    case 1:
-      return 'red';
-    case 2:
-      return 'seagreen';
-    case 3:
-      return 'gold';
+  switch (card) {
+    case Card.None:
+      return "black";
+    case Card.Dead:
+      return "black";
     default:
-      return 'black';
+    switch ((card >> 4) & 0x3) {
+      case 0:
+        return 'dodgerblue';
+      case 1:
+        return 'red';
+      case 2:
+        return 'seagreen';
+      case 3:
+        return 'gold';
+      default:
+        return 'gray';
+    }
   }
 }
 
 export function shape(card: number) {
-  switch ((card >> 2) & 0x3) {
-    case 0:
-      return 'square';
-    case 1:
-      return 'circle';
-    case 2:
-      return 'cross';
-    case 3:
-      return 'triangle';
+  switch (card) {
+    case Card.None:
+      return "O";
+    case Card.Dead:
+      return "X";
     default:
-      return 'shape?';
+    switch ((card >> 2) & 0x3) {
+      case 0:
+        return 'square';
+      case 1:
+        return 'circle';
+      case 2:
+        return 'cross';
+      case 3:
+        return 'triangle';
+      default:
+        return 'shape?';
+    }
   }
 }
 
 export function htmlShape(card: number) {
-  switch ((card >> 2) & 0x3) {
-    case 0:
-      return '&#x25a0;';
-    case 1:
-      return '&#x25cf;';
-    case 2:
-      return '&#x271a;';
-    case 3:
-      return '&#x25b2';
+  switch (card) {
+    case Card.None:
+      return "O";
+    case Card.Dead:
+      return "&mult;";
     default:
-      return 'shape?';
+    switch ((card >> 2) & 0x3) {
+      case 0:
+        return '&#x25a0;';
+      case 1:
+        return '&#x25cf;';
+      case 2:
+        return '&#x271a;';
+      case 3:
+        return '&#x25b2';
+      default:
+        return '?';
+    }
   }
 }
 
