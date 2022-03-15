@@ -21,11 +21,13 @@
 // MSB is set so that card 0x00 (blue square 1) isn't "falsy" in tests!
 
 export function isCard(card: number) {
+  // TODO: Wildcards.
   return card >= 0x80 && card < 0xc0;
 }
 
 export enum Card {
   None = 0,
+  Dead = 1, // This is a placeholder for board squares that cannot be played
   // TODO: None is useful, but do we need EVERY card to be enum'd?
 }
 

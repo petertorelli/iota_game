@@ -12,18 +12,25 @@ function* prng(seed: number = 1): Generator<number, any, number> {
 
 export default class DeckObject {
   public deck: number[] = [];
-  public seed: number = 0;
+  public seed: number = -1;
   public rand = prng(this.seed);
-  constructor() {
+  constructor(seed: number | undefined = undefined) {
+    if (seed === undefined) {
+      this.seed = Math.floor(Math.random() * (1024 * 1024));
+    } else {
+      this.seed = seed;
+    }
+    this.rand = prng(this.seed);
     this.init();
   }
-
-  public init() {
-    // Interesting seed: 939263 -> player 1 start bingo
-    // this.seed = 1034914; 4034;258991
-    // If we re-seed on init, it makes debugging easier
-    this.seed = Math.floor(Math.random() * (1024 * 1024));
-    this.rand = prng(this.seed);
+  
+  // Interesting seed: 939263 -> player 1 start bingo
+  // this.seed = 1034914; 4034;258991
+  // If we re-seed on init, it makes debugging easier
+  public init(seed: number | undefined = undefined) {
+    if (seed !== undefined) {
+      this.rand = prng(seed);
+    }
     // See note about MSB in CardObject.ts
     this.deck = _.range(0x80, 0xc0); // TODO: Actually 66 due to wildcards
     this.shuffleDeck();

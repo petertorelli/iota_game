@@ -89,11 +89,11 @@
           th
           th(v-for='xx in game.board.getXRange()') {{ xx }}
         tr(v-for='yy in cacheRangeY')
-          //- th {{ yy - 48 }}
+          //- th {{ yy - boardHalf }}
           td(v-for='xx in cacheRangeX')
-            card-image(v-if='cacheBoard[xx + yy * 97] !== 0'
-              :card='cacheBoard[xx + yy * 97]'
-              :key='0xf000000 + [xx + yy * 97]'
+            card-image(v-if='cacheBoard[xx + yy * boardDim] !== 0'
+              :card='cacheBoard[xx + yy * boardDim]'
+              :key='0xf000000 + [xx + yy * boardDim]'
               )
             .dummy-card(v-else) &nbsp;
     .mb-4.max-w-md
@@ -105,6 +105,7 @@
 import _ from 'lodash';
 import Vue from 'vue';
 import { DoneReason, GameObject } from './GameObject';
+import {BOARD_DIM, BOARD_HALF} from './BoardObject';
 
 export default Vue.extend({
   name: 'GamePlay',
@@ -138,6 +139,8 @@ export default Vue.extend({
       ties: 0,
       player1: 0,
       player2: 0,
+      boardDim: BOARD_DIM,
+      boardHalf: BOARD_HALF,
       results: [] as string[],
       ms: [] as number[],
       error: '',
@@ -205,6 +208,9 @@ export default Vue.extend({
             this.error = error as string;
             console.error(error);
           }
+          if (gameRes === undefined) {
+            return;
+          }
           this.nGames++;
           let winner = '';
           if (this.game.player1.score === this.game.player2.score) {
@@ -229,10 +235,8 @@ export default Vue.extend({
           this.meanArea = _.mean(this.areas);
           this.meanSpread = _.mean(this.spreads);
           let msec = -1;
-          if (gameRes !== undefined) {
-            msec = gameRes.playTime;
-            this.ms.push(msec);
-          }
+          msec = gameRes.playTime;
+          this.ms.push(msec);
           this.meanMs = _.mean(this.ms);
           const res =
             `${this.game.player1.score}-${this.game.player2.score} ` +

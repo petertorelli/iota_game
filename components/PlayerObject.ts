@@ -1,13 +1,14 @@
 import BoardObject from './BoardObject';
 import DeckObject from './DeckObject';
-import { score as cardScore, Card } from './CardObject';
+import { score as cardScore, Card, isCard } from './CardObject';
 import type { Point } from './BoardObject';
 import Permutes from './FasterPermute';
 
 const UP: Point = { x: 0, y: 1 };
 const RT: Point = { x: 1, y: 0 };
-// const DN: Point = { x:  0, y: -1 };
-// const LF: Point = { x: -1, y:  0 };
+const DN: Point = { x: 0, y: -1 };
+const LF: Point = { x: -1, y: 0 };
+const OR: Point = { x: 0, y: 0 };
 
 type Outcome = {
   score: number;
@@ -54,14 +55,9 @@ function scanPerpendicular(
  * @returns An array of Points (board coordinates) that may be played.
  */
 function findContour(board: BoardObject): Point[] {
-  const hSearch: Point[] = [
-    { x: -1, y: 0 },
-    { x: 1, y: 0 },
-  ];
-  const vSearch: Point[] = [
-    { x: 0, y: 1 },
-    { x: 0, y: -1 },
-  ];
+  // Always faster to use pre-defined arrays than construct them dynamically.
+  const hSearch: Point[] = [LF, RT];
+  const vSearch: Point[] = [UP, DN];
   // Since this is only called once per turn, use a Set to uniquify.
   const seen = new Map<string, Point>();
 
@@ -69,7 +65,7 @@ function findContour(board: BoardObject): Point[] {
   function check(p: Point, set: Point[]) {
     set.forEach((search) => {
       const newp = { x: p.x + search.x, y: p.y + search.y };
-      if (board.atP(newp) === 0) {
+      if (board.atP(newp) === Card.None) {
         const key = JSON.stringify(newp);
         if (!seen.has(key)) {
           seen.set(key, newp);
@@ -80,16 +76,78 @@ function findContour(board: BoardObject): Point[] {
 
   // Default case when it is the first move.
   if (board.taken.length === 0) {
-    return [{ x: 0, y: 0 }];
+    return [OR];
   }
   board.taken.forEach((anchor) => {
     check(anchor, hSearch);
     check(anchor, vSearch);
   });
 
+  // If there are more than 4 adjacent cards in any horizontal or vertical
+  // slice then this square is dead and cannot be played for the rest of
+  // the game.
+  function checkDead(x: number, y: number) {
+    // Count cards left/right
+    let count = 0;
+    let i = 1;
+    while (i) {
+      if (isCard(board.at(x + i, y))) {
+        ++count;
+        if (count > 3) {
+          return true;
+        }
+      } else {
+        // Not a card
+        break;
+      }
+      if (isCard(board.at(x - i, y))) {
+        ++count;
+        if (count > 3) {
+          return true;
+        }
+      } else {
+        // Not a card
+        break;
+      }
+      ++i;
+    }
+    count = 0;
+    i = 1;
+    while (i) {
+      if (isCard(board.at(x, y + i))) {
+        ++count;
+        if (count > 3) {
+          return true;
+        }
+      } else {
+        // Not a card
+        break;
+      }
+      if (isCard(board.at(x, y - i))) {
+        ++count;
+        if (count > 3) {
+          return true;
+        }
+      } else {
+        // Not a card
+        break;
+      }
+      ++i;
+    }
+    return false;
+  }
+
   const contour: Point[] = [];
   seen.forEach((v, _k) => {
+    // As the board dimensions shrink, this optimization has more impact
+    if (checkDead(v.x, v.y)) {
+      board.put(v.x, v.y, Card.Dead);
+    } else {
+      contour.push(v);
+    }
+    /*
     contour.push(v);
+    */
   });
   return contour;
 }

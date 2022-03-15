@@ -31,8 +31,8 @@ type BoundingBox = {
   h: number;
 };
 
-const BOARD_DIM = 97;
-const BOARD_HALF = (BOARD_DIM - 1) / 2;
+export const BOARD_DIM = 97; // After 1Million games 25 is the largest width/height
+export const BOARD_HALF = (BOARD_DIM - 1) / 2;
 export default class BoardObject {
   public board: number[];
   public taken: Point[] = [];

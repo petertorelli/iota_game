@@ -4,7 +4,7 @@ import DeckObject from './DeckObject';
 import BoardObject from './BoardObject';
 import PlayerObject from './PlayerObject';
 
-function portableMsecTimer () {
+export function portableMsecTimer() {
   if (process.hrtime) {
     return Number(process.hrtime.bigint()) / 1e6;
   } else {
@@ -19,6 +19,7 @@ export enum DoneReason {
   NoPlays, // Players still have cards, but no progress, and deck empty
   Deadlock, // Players still have cards, no progress, and deck not empty
   LongGame, // Really long game?
+  DebugEnd, // Ending in purpose for debugging reasons.
 }
 
 export type GameResults = {
@@ -31,24 +32,29 @@ export type GameResults = {
   w: number;
   h: number;
   nply: number;
-  seed: number,
+  seed: number;
 };
 
 export class GameObject {
-  public deck = new DeckObject();
+  public deck: DeckObject;
   public board = new BoardObject();
   public player1 = new PlayerObject('Player 1');
   public player2 = new PlayerObject('Player 2');
   public ply = 0;
   public cannotProceed: boolean = false;
   public reasonCannotProceed: DoneReason = DoneReason.None;
-  constructor() {
+  constructor(seed: number | undefined = undefined) {
+    this.deck = new DeckObject(seed);
     this.init();
   }
 
-  public init(name1: string = 'Player One', name2: string = 'Player Two') {
+  public init(
+    seed: number | undefined = undefined,
+    name1: string = 'Player One',
+    name2: string = 'Player Two'
+  ) {
     this.board.init();
-    this.deck.init();
+    this.deck.init(seed);
     this.player1.init(name1);
     this.player2.init(name2);
     this.ply = 0;
@@ -84,16 +90,14 @@ export class GameObject {
       }
     }
     ++this.ply;
-    if (this.ply > 150) {
+    if (this.ply >= 100) {
       this.cannotProceed = true;
       this.reasonCannotProceed = DoneReason.LongGame;
     }
   }
 
-  public playOneGame(): GameResults {
-    if (this.cannotProceed) {
-      this.init();
-    }
+  public playOneGame(seed: number | undefined = undefined): GameResults {
+    this.init(seed);
     const t0 = portableMsecTimer(); // performance.now();
     while (!this.cannotProceed) {
       this.turn();
@@ -102,7 +106,7 @@ export class GameObject {
     return {
       p1score: this.player1.score,
       p2score: this.player2.score,
-      tie: (this.player1.score === this.player2.score),
+      tie: this.player1.score === this.player2.score,
       playTime: t1 - t0,
       // TODO: cannotProceed is redundant with reasonCannotProceed
       done: this.cannotProceed,
