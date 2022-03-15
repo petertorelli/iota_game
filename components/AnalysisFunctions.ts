@@ -42,6 +42,9 @@ export function findContour(board: BoardObject): Point[] {
   // Helper function to reduce redundant code.
   function check(p: Point, set: Point[]) {
     set.forEach((search) => {
+      if (board.atP(p) === Card.Dead) {
+        return;
+      }
       const newp = { x: p.x + search.x, y: p.y + search.y };
       if (board.atP(newp) === Card.None) {
         const key = JSON.stringify(newp);
