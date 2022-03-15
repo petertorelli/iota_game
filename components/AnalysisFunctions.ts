@@ -140,7 +140,7 @@ export function findContour(board: BoardObject): Point[] {
  * @param line An array of cards (64 values from 0x00-0x3f)
  * @returns 0 = invalid line or score (sum of card values without bonuses)
  */
- function baseScore(line: number[]) {
+function baseScore(line: number[]) {
   // Putting the length check up here is ~5% faster for some reason! (Compared
   // to having a `default` case for non {2,3,4} values.)
   if (line.length > 4 || line.length < 2) {
@@ -429,4 +429,3 @@ export function scanPerpendicular(
   }
   return line;
 }
-  

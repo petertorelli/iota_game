@@ -19,11 +19,11 @@ export default Vue.component('CardImage', {
     },
     html() {
       if (this.card === card.Card.Dead) return '';
-      return card.htmlShape(this.card) + " " + card.score(this.card);
+      return card.htmlShape(this.card) + ' ' + card.score(this.card);
     },
     background() {
       return this.card === card.Card.Dead ? '#eee' : 'white';
-    }
+    },
   },
 });
 </script>

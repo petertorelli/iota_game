@@ -133,7 +133,7 @@ export default Vue.extend({
        * I stop trying to update the DOM after EVERY turn during autoplay, it
        * might ... do something? I dunno. Just a thought.
        */
-      userSeed: null as number|null,
+      userSeed: null as number | null,
       cacheBoard: [] as Array<number | null>,
       cacheRangeX: [] as number[],
       cacheRangeY: [] as number[],
@@ -188,14 +188,14 @@ export default Vue.extend({
     },
     turn() {
       try {
-        this.game.turn()
+        this.game.turn();
         this.update();
       } catch (error) {
         this.error = error as string;
         console.error(error);
       }
     },
-    reset(seed: number|undefined = undefined) {
+    reset(seed: number | undefined = undefined) {
       this.game.init(seed);
       this.update();
     },
@@ -282,9 +282,7 @@ export default Vue.extend({
 });
 </script>
 
-<style lang='scss'>
-
-
+<style lang="scss">
 h1 {
   @apply text-2xl font-bold;
 }

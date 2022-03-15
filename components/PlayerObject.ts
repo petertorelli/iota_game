@@ -94,7 +94,15 @@ export default class PlayerObject {
           br = Algs.buildLateral(board, _x, _y, pHand, permLen, Algs.RT);
           // If the hand we're playing is illegal, don't bother
           if (br !== null) {
-            outcome = Algs.scoreVerify(board, br.line, _x, _y, pHand, Algs.RT, Algs.UP);
+            outcome = Algs.scoreVerify(
+              board,
+              br.line,
+              _x,
+              _y,
+              pHand,
+              Algs.RT,
+              Algs.UP
+            );
             if (outcome) {
               // All four cards played, doubles score AGAIN
               if (permLen === 4) {
@@ -125,7 +133,15 @@ export default class PlayerObject {
           br = Algs.buildLateral(board, _x, _y, pHand, permLen, Algs.UP);
           // If the hand we're playing is illegal, don't bother
           if (br !== null) {
-            outcome = Algs.scoreVerify(board, br.line, _x, _y, pHand, Algs.UP, Algs.RT);
+            outcome = Algs.scoreVerify(
+              board,
+              br.line,
+              _x,
+              _y,
+              pHand,
+              Algs.UP,
+              Algs.RT
+            );
             if (outcome) {
               // All four cards played, doubles score AGAIN
               if (permLen === 4) {
@@ -154,10 +170,10 @@ export default class PlayerObject {
   /**
    * Play one hand according to the rules! The search algorithm is just a
    * one-ply lookahead. Nothing fancy. See "TODO"s for optimization ideas.
-   * 
+   *
    * @param deck A DeckObject, it will change as we draw from it (or return)
    * @param board A BoardObject, it will change with dead cards and plays
-   */  
+   */
   public playYourHand(deck: DeckObject, board: BoardObject) {
     // Find all of the playable spots on the board (the contour)
     const contour: Point[] = Algs.findContour(board);
