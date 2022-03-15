@@ -1,6 +1,6 @@
 import { sprintf } from 'sprintf-js';
 import _ from 'lodash';
-import { GameObject } from './components/GameObject';
+import { GameObject } from '../components/GameObject';
 
 const gamePlyOutcomes: Array<string[]> = [];
 const game = new GameObject(1234);

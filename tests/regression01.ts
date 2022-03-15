@@ -1,8 +1,5 @@
 import { sprintf } from 'sprintf-js';
-import _ from 'lodash';
-import { GameObject } from './components/GameObject';
-
-const times: number[] = [];
+import { GameObject } from '../components/GameObject';
 
 let p1wins = 0;
 let p2wins = 0;
