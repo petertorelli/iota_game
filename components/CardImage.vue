@@ -1,5 +1,5 @@
 <template lang="pug">
-.card(v-show='isCard' :style='{ color }' v-html='shape + " " + score')
+.card( :style='{ color, background }' v-html='html')
 </template>
 
 <script lang="ts">
@@ -14,18 +14,16 @@ export default Vue.component('CardImage', {
     },
   },
   computed: {
-    isCard() {
-      return card.isCard(this.card);
-    },
-    shape() {
-      return card.htmlShape(this.card);
-    },
     color() {
       return card.htmlColor(this.card);
     },
-    score() {
-      return card.score(this.card);
+    html() {
+      if (this.card === card.Card.Dead) return '';
+      return card.htmlShape(this.card) + " " + card.score(this.card);
     },
+    background() {
+      return this.card === card.Card.Dead ? '#eee' : 'white';
+    }
   },
 });
 </script>

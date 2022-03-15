@@ -102,7 +102,7 @@ export function htmlShape(card: number) {
     case Card.None:
       return 'O';
     case Card.Dead:
-      return '&mult;';
+      return '&times;';
     default:
       switch ((card >> 2) & 0x3) {
         case 0:
@@ -120,7 +120,11 @@ export function htmlShape(card: number) {
 }
 
 export function score(card: number) {
-  return (card & 0x3) + 1;
+  if (isCard(card)) {
+    return (card & 0x3) + 1;
+  } else {
+    return 0;
+  }
 }
 
 export function name(card: number) {
