@@ -1,4 +1,5 @@
 import { sprintf } from 'sprintf-js';
+import _ from 'lodash';
 import { GameObject } from './components/GameObject';
 import crypto from 'crypto';
 
@@ -7,10 +8,9 @@ let p2wins = 0;
 let ties = 0;
 let nPlys = 0;
 let msec = 0;
-
-const game = new GameObject();
-
 let check = '';
+const scores: number[] = [];
+const game = new GameObject();
 
 // for (let i=0; i<100_000; ++i) {
 for (let i=0; i<100; ++i) {
@@ -50,11 +50,14 @@ for (let i=0; i<100; ++i) {
   if (res.nply !== 100) {
     nPlys += res.nply;
     msec += res.playTime;
+    scores.push(res.p1score);
+    scores.push(res.p2score);
   } else {
     console.log("Skip deadlock in performance result");
   }
   check += `${res.p1score}${res.p2score}${res.nply}${res.w}${res.h}`;
 }
 
+console.log(sprintf("Average score: %.1f", _.mean(scores)));
 console.log(sprintf("msec per ply: %.3f", msec / nPlys));
 console.log('Checksum:', crypto.createHash('md5').update(check).digest('hex'));

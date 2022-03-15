@@ -79,13 +79,13 @@ export class GameObject {
       return;
     }
     if (this.ply & 1) {
-      this.player2.play(this.deck, this.board);
+      this.player2.playYourHand(this.deck, this.board);
       if (this.player2.hand.length === 0) {
         this.reasonCannotProceed = DoneReason.Player2NoCards;
         this.cannotProceed = true;
       }
     } else {
-      this.player1.play(this.deck, this.board);
+      this.player1.playYourHand(this.deck, this.board);
       if (this.player1.hand.length === 0) {
         this.reasonCannotProceed = DoneReason.Player1NoCards;
         this.cannotProceed = true;

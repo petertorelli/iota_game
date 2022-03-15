@@ -4,8 +4,21 @@ import { Card } from './CardObject';
 import type { Point } from './BoardObject';
 import Permutes from './FasterPermute';
 import { rand } from './RandomGenerator';
-
 import * as Algs from './AnalysisFunctions';
+
+// TODO: Picking largest play increases avg score by ~2.5pts
+function pickBestPlay(options: Algs.Outcome[]): Algs.Outcome {
+  const best = options.sort((a, b) => {
+    const highestScore = b.score - a.score;
+    if (highestScore === 0) {
+      // Longest line of scores are a tie.
+      return b.line.length - a.line.length;
+    } else {
+      return highestScore;
+    }
+  });
+  return best[0];
+}
 
 export default class PlayerObject {
   public hand: number[] = [];
@@ -135,46 +148,36 @@ export default class PlayerObject {
       } // Creep-left loop.
     }); // Permutation loop
 
-    const sortedResults = results.sort((a, b) => {
-      return b.score - a.score;
-    });
-
-    // TODO: Our current selection criteria is the highest score, ignores ties
-    const bestPlay = sortedResults[0];
-    return bestPlay;
+    return pickBestPlay(results);
   }
-/* // why is making copies faster when it should be slower
-// because we don't honor dead cards???
-  public play(deck: DeckObject, board: BoardObject) {
-    const virtualBoard = new BoardObject(board);
-    const contour: Point[] = Algs.findContour(virtualBoard);
-    const results: Algs.Outcome[] = [];
 
-    contour.forEach((spot) => {
-    const r = this.playThisSpot(virtualBoard, spot, virtualHand);
-  */
-  public play(deck: DeckObject, board: BoardObject) {
+  /**
+   * Play one hand according to the rules! The search algorithm is just a
+   * one-ply lookahead. Nothing fancy. See "TODO"s for optimization ideas.
+   * 
+   * @param deck A DeckObject, it will change as we draw from it (or return)
+   * @param board A BoardObject, it will change with dead cards and plays
+   */  
+  public playYourHand(deck: DeckObject, board: BoardObject) {
+    // Find all of the playable spots on the board (the contour)
     const contour: Point[] = Algs.findContour(board);
+    // Now create a list of all best plays for each contour spot
     const results: Algs.Outcome[] = [];
-
     contour.forEach((spot) => {
       const r = this.playThisSpot(board, spot, this.hand);
       if (r !== undefined) {
         results.push(r);
       }
     });
-
-    const bestPlay = results.sort((a, b) => {
-      return b.score - a.score;
-    })[0];
-
-    if (bestPlay === undefined) {
+    if (results.length === 0) {
+      // If there's nothing to do, swap hands
       // TODO: strategic pass? swap fewer? Swap random to prevent deadlock.
       const r: number = rand();
       const n: number = this.hand.length;
       const nswap = Math.max(1, Math.floor(r * n));
       this.swapHand(deck, nswap);
     } else {
+      const bestPlay = pickBestPlay(results);
       let i = 0;
       let ndraw = 0;
       const unitVector = bestPlay.dir;
