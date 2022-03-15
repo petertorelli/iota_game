@@ -3,6 +3,7 @@ import DeckObject from './DeckObject';
 import { score as cardScore, Card, isCard } from './CardObject';
 import type { Point } from './BoardObject';
 import Permutes from './FasterPermute';
+import { rand } from './RandomGenerator';
 
 const UP: Point = { x: 0, y: 1 };
 const RT: Point = { x: 1, y: 0 };
@@ -18,6 +19,14 @@ type Outcome = {
   dir: Point | null;
 };
 
+/**
+ * 
+ * @param board BoardObject (immutable)
+ * @param x Point at which to scan, x-coord
+ * @param y Point at which to scan, y-coord
+ * @param unit 
+ * @returns 
+ */
 function scanPerpendicular(
   board: BoardObject,
   x: number,
@@ -28,6 +37,7 @@ function scanPerpendicular(
   const line: number[] = [];
   for (let i = 1; i < 6; ++i) {
     const c = board.at(x - unit.x * i, y - unit.y * i);
+
     if (c === Card.None) {
       break;
     } else {
@@ -36,6 +46,7 @@ function scanPerpendicular(
   }
   for (let i = 1; i < 6; ++i) {
     const c = board.at(x + unit.x * i, y + unit.y * i);
+
     if (c === Card.None) {
       break;
     } else {
@@ -249,7 +260,7 @@ function buildLateral(
   cards: number[],
   validLen: number,
   unit: Point
-): BuildLateralResult {
+): BuildLateralResult|null {
   const line: number[] = [];
   let slide = 0;
   let c: number;
@@ -261,6 +272,9 @@ function buildLateral(
     _x = x + slide * unit.x;
     _y = y + slide * unit.y;
     c = board.at(_x, _y);
+    if (c === Card.Dead) {
+      return null;
+    }
     if (c === Card.None) {
       // If the spot is empty, add the next card.
       line.push(cards[i]);
@@ -278,6 +292,9 @@ function buildLateral(
     _x = x + slide * unit.x;
     _y = y + slide * unit.y;
     c = board.at(_x, _y);
+    if (c === Card.Dead) {
+      return null;
+    }
     if (c !== Card.None) {
       // Add the cards that are touching to the right until an empty square.
       line.push(c);
@@ -292,6 +309,9 @@ function buildLateral(
     _y = y - (slide + 1) * unit.y;
     // We already did the current spot so start one over.
     c = board.at(_x, _y);
+    if (c === Card.Dead) {
+      return null;
+    }
     if (c !== Card.None) {
       // Add the cards that are touching to the left until an empty square.
       line.unshift(c);
@@ -453,7 +473,7 @@ export default class PlayerObject {
     // The end result is the best outcome from this list
     const results: Outcome[] = [];
     const pHand: number[] = Array(4);
-    let br: BuildLateralResult;
+    let br: BuildLateralResult|null;
     let outcome: Outcome | null;
 
     Permutes[hand.length - 1].forEach((permutationIndicies) => {
@@ -485,17 +505,19 @@ export default class PlayerObject {
           // Now we have a completed line that needs scoring.
           br = buildLateral(board, _x, _y, pHand, permLen, RT);
           // If the hand we're playing is illegal, don't bother
-          outcome = scoreVerify(board, br.line, _x, _y, pHand, RT, UP);
-          if (outcome) {
-            // All four cards played, doubles score AGAIN
-            if (permLen === 4) {
-              outcome.score *= 2;
+          if (br !== null) {
+            outcome = scoreVerify(board, br.line, _x, _y, pHand, RT, UP);
+            if (outcome) {
+              // All four cards played, doubles score AGAIN
+              if (permLen === 4) {
+                outcome.score *= 2;
+              }
+              // The outcome needs to know if the builder added to the left. If
+              // so, then the placement square needs to slide left.
+              outcome.x = _x - br.slide;
+              outcome.dir = RT;
+              results.push(outcome);
             }
-            // The outcome needs to know if the builder added to the left. If
-            // so, then the placement square needs to slide left.
-            outcome.x = _x - br.slide;
-            outcome.dir = RT;
-            results.push(outcome);
           }
         } else {
           // We can't creep right anymore, because we hit a card.
@@ -514,17 +536,19 @@ export default class PlayerObject {
           // Now we have a completed line that needs scoring.
           br = buildLateral(board, _x, _y, pHand, permLen, UP);
           // If the hand we're playing is illegal, don't bother
-          outcome = scoreVerify(board, br.line, _x, _y, pHand, UP, RT);
-          if (outcome) {
-            // All four cards played, doubles score AGAIN
-            if (permLen === 4) {
-              outcome.score *= 2;
+          if (br !== null) {
+            outcome = scoreVerify(board, br.line, _x, _y, pHand, UP, RT);
+            if (outcome) {
+              // All four cards played, doubles score AGAIN
+              if (permLen === 4) {
+                outcome.score *= 2;
+              }
+              // The outcome needs to know if the builder added to the left. If
+              // so, then the placement square needs to slide left.
+              outcome.y = _y - br.slide;
+              outcome.dir = UP;
+              results.push(outcome);
             }
-            // The outcome needs to know if the builder added to the left. If
-            // so, then the placement square needs to slide left.
-            outcome.y = _y - br.slide;
-            outcome.dir = UP;
-            results.push(outcome);
           }
         } else {
           // We can't creep right anymore, because we hit a card.
@@ -564,7 +588,7 @@ export default class PlayerObject {
 
     if (bestPlay === undefined) {
       // TODO: strategic pass? swap fewer? Swap random to prevent deadlock.
-      const r: number = deck.rand.next().value;
+      const r: number = rand();
       const n: number = this.hand.length;
       const nswap = Math.max(1, Math.floor(r * n));
       this.swapHand(deck, nswap);

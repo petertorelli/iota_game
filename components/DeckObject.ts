@@ -1,26 +1,15 @@
-import _ from 'lodash';
-
-function* prng(seed: number = 1): Generator<number, any, number> {
-  let next;
-  let previous = seed;
-  while (1) {
-    next = (previous * 16807) % 2147483647;
-    previous = next;
-    yield next / 2147483647;
-  }
-}
+import { prng, rand, reseed } from './RandomGenerator';
 
 export default class DeckObject {
-  public deck: number[] = [];
-  public seed: number = -1;
-  public rand = prng(this.seed);
+  public deck: number[] = Array<number>(64); // 66 with wildcards
+  public seed: number;
   constructor(seed: number | undefined = undefined) {
-    if (seed === undefined) {
-      this.seed = Math.floor(Math.random() * (1024 * 1024));
-    } else {
+    if (seed) {
       this.seed = seed;
+    } else {
+      this.seed = Math.floor(rand() * (1024 * 1024));
     }
-    this.rand = prng(this.seed);
+    reseed(this.seed);
     this.init();
   }
   
@@ -28,11 +17,16 @@ export default class DeckObject {
   // this.seed = 1034914; 4034;258991
   // If we re-seed on init, it makes debugging easier
   public init(seed: number | undefined = undefined) {
-    if (seed !== undefined) {
-      this.rand = prng(seed);
+    if (seed) {
+      this.seed = seed;
+    } else {
+      this.seed = Math.floor(rand() * (1024 * 1024));
     }
+    reseed(this.seed);
     // See note about MSB in CardObject.ts
-    this.deck = _.range(0x80, 0xc0); // TODO: Actually 66 due to wildcards
+    for (let i=0x80; i<0xc0; ++i) {
+      this.deck[i-0x80] = i;
+    }
     this.shuffleDeck();
   }
 
@@ -41,7 +35,7 @@ export default class DeckObject {
     let currentIndex = array.length;
     let randomIndex;
     while (currentIndex !== 0) {
-      randomIndex = Math.floor(this.rand.next().value * currentIndex);
+      randomIndex = Math.floor(rand() * currentIndex);
       currentIndex--;
       [array[currentIndex], array[randomIndex]] = [
         array[randomIndex],

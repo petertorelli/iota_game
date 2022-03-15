@@ -1,5 +1,8 @@
 import { sprintf } from 'sprintf-js';
+import _ from 'lodash';
 import { GameObject } from './components/GameObject';
+
+const times: number[] = [];
 
 let p1wins = 0;
 let p2wins = 0;
@@ -7,10 +10,10 @@ let ties = 0;
 let nPlys = 0;
 let msec = 0;
 
-const game = new GameObject();
+const game = new GameObject(1234);
 
 // for (let i=0; i<100_000; ++i) {
-for (let i=0; i<10; ++i) {
+for (let i=0; i<1000; ++i) {
 
   const res = game.playOneGame();
 
