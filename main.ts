@@ -10,7 +10,7 @@ let msec = 0;
 const game = new GameObject();
 
 // for (let i=0; i<100_000; ++i) {
-for (let i=0; i<10; ++i) {
+for (let i=0; i<100; ++i) {
 
   const res = game.playOneGame();
 
@@ -27,8 +27,9 @@ for (let i=0; i<10; ++i) {
   const p1 = (p1wins / (i+1)) * 100;
   const p2 = (p2wins / (i+1)) * 100;
   const ti = (ties   / (i+1)) * 100;
-  console.log(sprintf("%5d %3d %3d %5.1f %3d %2d %2d %4d %5.3f %6.2f %6.2f %6.2f %9d",
+  console.log(sprintf("%5d [%d] %3d %3d %5.1f %3d %2d %2d %4d %5.3f %6.2f %6.2f %6.2f %9d",
     i+1,
+    res.nDead,
     res.p1score,
     res.p2score,
     res.playTime,

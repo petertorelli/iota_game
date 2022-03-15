@@ -117,7 +117,7 @@ export function findContour(board: BoardObject): Point[] {
 
   const contour: Point[] = [];
   seen.forEach((v, _k) => {
-    // As the board dimensions shrink, this optimization has more impact
+    // Banish spaces that may never be plaid again in this game.
     if (checkDead(v.x, v.y)) {
       board.put(v.x, v.y, Card.Dead);
     } else {

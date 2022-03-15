@@ -143,15 +143,22 @@ export default class PlayerObject {
     const bestPlay = sortedResults[0];
     return bestPlay;
   }
-
+/* // why is making copies faster when it should be slower
+// because we don't honor dead cards???
   public play(deck: DeckObject, board: BoardObject) {
     const virtualBoard = new BoardObject(board);
-    const virtualHand = [...this.hand];
     const contour: Point[] = Algs.findContour(virtualBoard);
     const results: Algs.Outcome[] = [];
 
     contour.forEach((spot) => {
-      const r = this.playThisSpot(virtualBoard, spot, virtualHand);
+    const r = this.playThisSpot(virtualBoard, spot, virtualHand);
+  */
+  public play(deck: DeckObject, board: BoardObject) {
+    const contour: Point[] = Algs.findContour(board);
+    const results: Algs.Outcome[] = [];
+
+    contour.forEach((spot) => {
+      const r = this.playThisSpot(board, spot, this.hand);
       if (r !== undefined) {
         results.push(r);
       }

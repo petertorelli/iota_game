@@ -1,5 +1,6 @@
 import zlib from 'zlib';
 
+import { Card } from './CardObject';
 import DeckObject from './DeckObject';
 import BoardObject from './BoardObject';
 import PlayerObject from './PlayerObject';
@@ -33,6 +34,7 @@ export type GameResults = {
   h: number;
   nply: number;
   seed: number;
+  nDead: number;
 };
 
 export class GameObject {
@@ -106,6 +108,7 @@ export class GameObject {
       this.turn();
     }
     const t1 = portableMsecTimer(); // performance.now();
+
     return {
       p1score: this.player1.score,
       p2score: this.player2.score,
@@ -118,6 +121,9 @@ export class GameObject {
       h: this.board.bbox.h,
       nply: this.ply,
       seed: this.deck.seed,
+      nDead: this.board.board.reduce((acc, item) => {
+        return acc += (item === Card.Dead) ? 1 : 0;
+      }, 0),
     };
   }
 
