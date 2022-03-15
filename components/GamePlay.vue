@@ -12,6 +12,11 @@ mixin sidebar
         td Deck seed:
         td.text-right {{ game.deck.seed }}
       tr
+        td
+          input(type='number' v-model='userSeed' @blur='reset(userSeed)').w-24.border.rounded
+        td.text-right
+          button(@click='reset(userSeed)').px-1.py-1.text-xs.rounded.bg-gray-500.text-white Set Seed
+      tr
         td Current turn:
         td.text-right {{ game.ply }}
     h2 Game state
@@ -128,6 +133,7 @@ export default Vue.extend({
        * I stop trying to update the DOM after EVERY turn during autoplay, it
        * might ... do something? I dunno. Just a thought.
        */
+      userSeed: null as number|null,
       cacheBoard: [] as Array<number | null>,
       cacheRangeX: [] as number[],
       cacheRangeY: [] as number[],
@@ -189,8 +195,8 @@ export default Vue.extend({
         console.error(error);
       }
     },
-    reset() {
-      this.game.init();
+    reset(seed: number|undefined = undefined) {
+      this.game.init(seed);
       this.update();
     },
     pct(n: number, d: number, prec: number = 1) {
