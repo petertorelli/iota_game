@@ -1024,4 +1024,4 @@ Accuracy at ply    21 =  79.3 %
 Accuracy at ply    22 =  79.3 %
 Accuracy at ply    23 =  81.1 %
 Accuracy at ply    24 =  82.2 %
-Done in 33.47s.
+Done in 33.03s.
