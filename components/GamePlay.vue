@@ -105,7 +105,7 @@
 import _ from 'lodash';
 import Vue from 'vue';
 import { DoneReason, GameObject } from './GameObject';
-import {BOARD_DIM, BOARD_HALF} from './BoardObject';
+import { BOARD_DIM, BOARD_HALF } from './BoardObject';
 
 export default Vue.extend({
   name: 'GamePlay',

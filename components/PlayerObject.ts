@@ -20,12 +20,12 @@ type Outcome = {
 };
 
 /**
- * 
+ *
  * @param board BoardObject (immutable)
  * @param x Point at which to scan, x-coord
  * @param y Point at which to scan, y-coord
- * @param unit 
- * @returns 
+ * @param unit
+ * @returns
  */
 function scanPerpendicular(
   board: BoardObject,
@@ -260,7 +260,7 @@ function buildLateral(
   cards: number[],
   validLen: number,
   unit: Point
-): BuildLateralResult|null {
+): BuildLateralResult | null {
   const line: number[] = [];
   let slide = 0;
   let c: number;
@@ -473,7 +473,7 @@ export default class PlayerObject {
     // The end result is the best outcome from this list
     const results: Outcome[] = [];
     const pHand: number[] = Array(4);
-    let br: BuildLateralResult|null;
+    let br: BuildLateralResult | null;
     let outcome: Outcome | null;
 
     Permutes[hand.length - 1].forEach((permutationIndicies) => {

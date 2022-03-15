@@ -1,4 +1,3 @@
-
 let previous;
 
 const globalPrng = prng(3);

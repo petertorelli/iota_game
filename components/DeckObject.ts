@@ -12,7 +12,7 @@ export default class DeckObject {
     reseed(this.seed);
     this.init();
   }
-  
+
   // Interesting seed: 939263 -> player 1 start bingo
   // this.seed = 1034914; 4034;258991
   // If we re-seed on init, it makes debugging easier
@@ -24,8 +24,8 @@ export default class DeckObject {
     }
     reseed(this.seed);
     // See note about MSB in CardObject.ts
-    for (let i=0x80; i<0xc0; ++i) {
-      this.deck[i-0x80] = i;
+    for (let i = 0x80; i < 0xc0; ++i) {
+      this.deck[i - 0x80] = i;
     }
     this.shuffleDeck();
   }
