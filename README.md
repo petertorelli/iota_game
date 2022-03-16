@@ -8,10 +8,10 @@ GUI options:
 2. Reset - Reset the board, reshuffle, and deal
 3. Autoplay Once - Causes the engine to finish the game
 4. Autoplay Forever - Play until clicking "Stop"
+5. Set seed - The game uses a PRNG and reports the seed at each game; a seed can be set with this option
+6. Export/Import - The game state can be exported as a hex string, or re-imported via cut-and-paste into this area.
 
-Note that it does not render while autoplaying as it becomes progressively slower.
-
-Each time a game finishes, the scores, board side, and # of turns are reported on the left-hand side.
+Each time a game finishes, the scores, board side, and # of turns are reported on the left-hand side. Note that it does not render while autoplaying as it becomes progressively slower.
 
 # Running
 
@@ -24,7 +24,7 @@ It's a NuxtJS app, so:
 % yarn dev
 ```
 
-And then open a browser at `localhost:3000`.
+And then open a browser at `localhost:3000`. See screenshot below.
 
 ## NodeJS app
 
