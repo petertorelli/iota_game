@@ -1,6 +1,6 @@
 import BoardObject from './BoardObject';
 import DeckObject from './DeckObject';
-import { Card } from './CardObject';
+import { Card, name } from './CardObject';
 import type { Point } from './BoardObject';
 import Permutes from './FasterPermute';
 import { rand } from './RandomGenerator';
@@ -217,7 +217,7 @@ export default class PlayerObject {
         const at = board.at(x, y);
         // Sanity check, doesn't cost a lot.
         if (at !== c && at !== Card.None) {
-          throw new Error(`Cannot play a card on a card! [${x}, ${y}]`);
+          throw new Error(`Cannot play a card on a card! [${x}, ${y}] ${name(c)} on ${name(at)}`);
         }
         board.put(x, y, c);
         ++i;

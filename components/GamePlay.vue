@@ -19,6 +19,8 @@ mixin sidebar
       tr
         td Current turn:
         td.text-right {{ game.ply }}
+    //h2 Interesting Seeds
+    //p 768371 is a deadlock
     h2 Game state
       textarea.w-full.border(v-model='compressedGame' rows=10)
       button(@click='exportGame()').mr-2.px-2.py-1.rounded.font-bold.bg-gray-500.text-white Export
@@ -102,6 +104,10 @@ mixin deck
   +sidebar
   .flex.flex-col
     .mt-8.mb-4.error-message(v-if='error') {{ error }}
+    h1.mt-8 Iota Auto-Player
+    p Based on the game "IOTA" by Gamewrite (c) www.gamewrite.com
+    p This app plays the game by itself, without wildcards. It's a fun study in 1-ply gameplay.
+    p It is extremely slow on Safari for some reason, recommend Chrome or Firefox.
     +players
     .mb-4
       div(v-if='game.cannotProceed')

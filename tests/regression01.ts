@@ -13,7 +13,7 @@ const scores: number[] = [];
 const game = new GameObject(1234);
 
 // for (let i=0; i<100_000; ++i) {
-for (let i = 0; i < 1000; ++i) {
+for (let i = 0; i < 10000; ++i) {
   const res = game.playOneGame();
 
   const area = res.w * res.h;

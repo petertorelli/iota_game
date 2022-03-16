@@ -1,5 +1,5 @@
 import BoardObject, { Point } from './BoardObject';
-import { Card, score as cardScore, isCard } from './CardObject';
+import { Card, score as cardScore, isCard, name } from './CardObject';
 
 // Direction unit vectors and origin.
 export const UP: Point = { x: 0, y: 1 };
@@ -21,6 +21,8 @@ export type Outcome = {
   x: number;
   y: number;
   dir: Point | null;
+  orgx: number;
+  orgy: number;
 };
 
 /**
@@ -43,13 +45,17 @@ export function findContour(board: BoardObject): Point[] {
   function check(p: Point, set: Point[]) {
     set.forEach((search) => {
       if (board.atP(p) === Card.Dead) {
+        // console.log("check contour at ", p.x, p.y, "dead");
         return;
       }
       const newp = { x: p.x + search.x, y: p.y + search.y };
       if (board.atP(newp) === Card.None) {
         const key = JSON.stringify(newp);
         if (!seen.has(key)) {
+          // console.log("check contour at ", newp.x, newp.y, "new");
           seen.set(key, newp);
+        } else {
+          // console.log("check contour at ", newp.x, newp.y, "seen");
         }
       }
     });
@@ -122,8 +128,10 @@ export function findContour(board: BoardObject): Point[] {
   seen.forEach(function filterContours(v, _k) {
     // Banish spaces that may never be plaid again in this game.
     if (checkDead(v.x, v.y)) {
+      // console.log("Card at", v.x, v.y, "is dead");
       board.put(v.x, v.y, Card.Dead);
     } else {
+      // console.log("Card at", v.x, v.y, "is to be examined");
       contour.push(v);
     }
   });
@@ -292,6 +300,8 @@ export function scoreVerify(
     x,
     y,
     dir: null,
+    orgx: x,
+    orgy: y,
   };
 }
 
@@ -329,7 +339,6 @@ export function buildLateral(
   const line: number[] = [];
   let slide = 0;
   let c: number;
-
   let _x;
   let _y;
   // First, built to the right.
@@ -359,15 +368,12 @@ export function buildLateral(
     _y = y + slide * unit.y;
     // c = board.at(_x, _y);
     c = board.board[(_x + 48) + ((_y + 48) * 97)];
-    if (c === Card.Dead) {
-      return null;
-    }
-    if (c !== Card.None) {
+    if (isCard(c)) {
       // Add the cards that are touching to the right until an empty square.
       line.push(c);
     }
     ++slide;
-  } while (c !== Card.None);
+  } while (isCard(c));
 
   // Now we have to prepend any cards we are touching to the left
   slide = 0;
@@ -377,15 +383,12 @@ export function buildLateral(
     // We already did the current spot so start one over.
     // c = board.at(_x, _y);
     c = board.board[(_x + 48) + ((_y + 48) * 97)];
-    if (c === Card.Dead) {
-      return null;
-    }
-    if (c !== Card.None) {
+    if (isCard(c)) {
       // Add the cards that are touching to the left until an empty square.
       line.unshift(c);
     }
     ++slide;
-  } while (c !== Card.None);
+  } while (isCard(c));
 
   // Now we have a contiguous line of cards. This line could be huge, but it
   // isn't up to this function to resolve it.

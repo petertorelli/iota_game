@@ -16,6 +16,7 @@
   "dependencies": {
     "@nuxtjs/pwa": "^3.3.5",
     "core-js": "^3.19.3",
+    "mersennetwister": "^0.2.3",
     "nuxt": "^2.15.8",
     "sprintf-js": "^1.1.2",
     "vue": "^2.6.14",
@@ -31,6 +32,7 @@
     "@nuxtjs/eslint-module": "^3.0.2",
     "@nuxtjs/tailwindcss": "^4.2.1",
     "@types/lodash": "^4.14.179",
+    "@types/mersennetwister": "^0.2.0",
     "@types/sprintf-js": "^1.1.2",
     "eslint": "^8.4.1",
     "eslint-config-prettier": "^8.3.0",
