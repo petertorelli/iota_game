@@ -59,7 +59,7 @@ export function findContour(board: BoardObject): Point[] {
   if (board.taken.length === 0) {
     return [OR];
   }
-  board.taken.forEach((anchor) => {
+  board.taken.forEach(function findFromAnchor(anchor) {
     check(anchor, hSearch);
     check(anchor, vSearch);
   });
@@ -119,7 +119,7 @@ export function findContour(board: BoardObject): Point[] {
   }
 
   const contour: Point[] = [];
-  seen.forEach((v, _k) => {
+  seen.forEach(function filterContours(v, _k) {
     // Banish spaces that may never be plaid again in this game.
     if (checkDead(v.x, v.y)) {
       board.put(v.x, v.y, Card.Dead);
@@ -336,7 +336,8 @@ export function buildLateral(
   for (let i = 0; i < validLen /* increment on play! */; ) {
     _x = x + slide * unit.x;
     _y = y + slide * unit.y;
-    c = board.at(_x, _y);
+    // c = board.at(_x, _y);
+    c = board.board[(_x + 48) + ((_y + 48) * 97)];
     if (c === Card.Dead) {
       return null;
     }
@@ -356,7 +357,8 @@ export function buildLateral(
   do {
     _x = x + slide * unit.x;
     _y = y + slide * unit.y;
-    c = board.at(_x, _y);
+    // c = board.at(_x, _y);
+    c = board.board[(_x + 48) + ((_y + 48) * 97)];
     if (c === Card.Dead) {
       return null;
     }
@@ -373,7 +375,8 @@ export function buildLateral(
     _x = x - (slide + 1) * unit.x;
     _y = y - (slide + 1) * unit.y;
     // We already did the current spot so start one over.
-    c = board.at(_x, _y);
+    // c = board.at(_x, _y);
+    c = board.board[(_x + 48) + ((_y + 48) * 97)];
     if (c === Card.Dead) {
       return null;
     }
@@ -411,7 +414,10 @@ export function scanPerpendicular(
   const line: number[] = [];
   // -ve direction
   for (let i = 1; i < 6; ++i) {
-    const c = board.at(x - unit.x * i, y - unit.y * i);
+    const _x = x - unit.x * i;
+    const _y = y - unit.y * i;
+    const c = board.board[(_x + 48) + ((_y + 48) * 97)];
+    // const c = board.at(x - unit.x * i, y - unit.y * i);
     if (c === Card.None) {
       break;
     } else {
@@ -420,7 +426,10 @@ export function scanPerpendicular(
   }
   // +ve direction
   for (let i = 1; i < 6; ++i) {
-    const c = board.at(x + unit.x * i, y + unit.y * i);
+    const _x = x + unit.x * i;
+    const _y = y + unit.y * i;
+    const c = board.board[(_x + 48) + ((_y + 48) * 97)];
+    // const c = board.at(x + unit.x * i, y + unit.y * i);
     if (c === Card.None) {
       break;
     } else {

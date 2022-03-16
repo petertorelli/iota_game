@@ -70,6 +70,7 @@ export default class BoardObject {
     return card === null ? Card.None : card;
   }
 
+  // TODO: Doing the [] lookup directly is a 10~15% perf increase over this!
   public at(_x: number, _y: number): number {
     const x = _x + BOARD_HALF;
     const y = _y + BOARD_HALF;

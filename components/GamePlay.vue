@@ -102,7 +102,7 @@ mixin deck
   +sidebar
   .flex.flex-col
     .mt-8.mb-4.error-message(v-if='error') {{ error }}
-    +players
+    //+players
     .mb-4
       div(v-if='game.cannotProceed')
         div(v-if='game.player1.score === game.player2.score')
@@ -112,8 +112,8 @@ mixin deck
       div(v-else)
         p Choose an option:
     +controls
-    +board
-    +deck
+    //+board
+    //+deck
 </template>
 
 <script lang="ts">
@@ -213,7 +213,7 @@ export default Vue.extend({
       }
       await new Promise<void>((resolve) => {
         let count = 0;
-        this.autoPlayTimer = window.setInterval(() => {
+        const intervalPlayLauncher = () => {
           let gameRes;
           try {
             gameRes = this.game.playOneGame();
@@ -269,7 +269,8 @@ export default Vue.extend({
             this.stopAutoPlay();
             this.update();
           }
-        }, 150);
+        }
+        this.autoPlayTimer = window.setInterval(intervalPlayLauncher, 150);
         resolve();
       });
     },

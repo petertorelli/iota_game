@@ -8,7 +8,8 @@ import * as Algs from './AnalysisFunctions';
 
 // TODO: Picking largest play increases avg score by ~2.5pts
 function pickBestPlay(options: Algs.Outcome[]): Algs.Outcome {
-  const best = options.sort((a, b) => {
+  // Name the anon function to make profiling easier
+  const picker002 = (a: Algs.Outcome, b: Algs.Outcome) => {
     const highestScore = b.score - a.score;
     if (highestScore === 0) {
       // Longest line of scores are a tie.
@@ -16,7 +17,8 @@ function pickBestPlay(options: Algs.Outcome[]): Algs.Outcome {
     } else {
       return highestScore;
     }
-  });
+  }
+  const best = options.sort(picker002);
   return best[0];
 }
 
@@ -46,13 +48,10 @@ export default class PlayerObject {
   }
 
   public draw(count: number, deck: DeckObject) {
-    // TODO: set draw rules?
     while (count-- > 0) {
       const card = deck.drawOne();
       if (card) {
         this.hand.push(card);
-      } else {
-        // console.log('Out of cards, cannot draw');
       }
     }
   }
@@ -64,12 +63,13 @@ export default class PlayerObject {
     let br: Algs.BuildLateralResult | null;
     let outcome: Algs.Outcome | null;
 
-    Permutes[hand.length - 1].forEach((permutationIndicies) => {
-      const permLen = permutationIndicies.length;
+    // Name the anon function to make profiling easier
+    Permutes[hand.length - 1].forEach(function playPermute (permuteIndices) {
+      const permLen = permuteIndices.length;
       // Using the permutation indices, construct a permuted hand from N=1 to 4
       pHand.fill(Card.None);
       for (let i = 0; i < permLen; ++i) {
-        pHand[i] = hand[permutationIndicies[i]];
+        pHand[i] = hand[permuteIndices[i]];
       }
       // We've got a permutation to lay out at point 'spot'
       // 1. We're going to lay it out at that spot first, and go to the right,
@@ -88,7 +88,8 @@ export default class PlayerObject {
       for (let i = 0; i < permLen; ++i) {
         const _x = spot.x - i;
         const _y = spot.y;
-        const c = board.at(_x, _y);
+        // const c = board.at(_x, _y);
+        const c = board.board[(_x + 48) + ((_y + 48) * 97)];
         if (c === Card.None) {
           // Now we have a completed line that needs scoring.
           br = Algs.buildLateral(board, _x, _y, pHand, permLen, Algs.RT);
@@ -127,7 +128,8 @@ export default class PlayerObject {
       for (let i = 0; i < permLen; ++i) {
         const _x = spot.x;
         const _y = spot.y - i;
-        const c = board.at(_x, _y);
+        // const c = board.at(_x, _y);
+        const c = board.board[(_x + 48) + ((_y + 48) * 97)];
         if (c === Card.None) {
           // Now we have a completed line that needs scoring.
           br = Algs.buildLateral(board, _x, _y, pHand, permLen, Algs.UP);
@@ -179,12 +181,14 @@ export default class PlayerObject {
     const contour: Point[] = Algs.findContour(board);
     // Now create a list of all best plays for each contour spot
     const results: Algs.Outcome[] = [];
-    contour.forEach((spot) => {
+    // Name the anon function to make profiling easier
+    const considerSpot = (spot: Point) => {
       const r = this.playThisSpot(board, spot, this.hand);
       if (r !== undefined) {
         results.push(r);
       }
-    });
+    };
+    contour.forEach(considerSpot);
     if (results.length === 0) {
       // If there's nothing to do, swap hands
       // TODO: strategic pass? swap fewer? Swap random to prevent deadlock.
@@ -200,7 +204,8 @@ export default class PlayerObject {
       if (unitVector === null) {
         throw new Error('Play vector is null');
       }
-      bestPlay.line.forEach((c) => {
+      // Name the anon function to make profiling easier
+      const playThisCard = (c: number) => {
         // The best play contains cards that are ON the board too.
         const idx = this.hand.indexOf(c);
         if (idx >= 0) {
@@ -216,7 +221,8 @@ export default class PlayerObject {
         }
         board.put(x, y, c);
         ++i;
-      });
+      }
+      bestPlay.line.forEach(playThisCard);
       if (deck.deck.length === 0 && this.hand.length === 0) {
         this.score += bestPlay.score * 2;
         // Game over.
