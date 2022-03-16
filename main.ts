@@ -1,6 +1,6 @@
 import { sprintf } from 'sprintf-js';
 import _ from 'lodash';
-import { GameObject } from './components/GameObject';
+import { GameObject } from './lib/GameObject';
 import crypto from 'crypto';
 
 let p1wins = 0;

@@ -4,7 +4,7 @@
 
 <script lang="ts">
 import Vue from 'vue';
-import * as card from './CardObject';
+import * as card from '../lib/CardObject';
 
 export default Vue.component('CardImage', {
   props: {

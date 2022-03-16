@@ -102,7 +102,7 @@ mixin deck
   +sidebar
   .flex.flex-col
     .mt-8.mb-4.error-message(v-if='error') {{ error }}
-    //+players
+    +players
     .mb-4
       div(v-if='game.cannotProceed')
         div(v-if='game.player1.score === game.player2.score')
@@ -112,15 +112,15 @@ mixin deck
       div(v-else)
         p Choose an option:
     +controls
-    //+board
-    //+deck
+    +board
+    +deck
 </template>
 
 <script lang="ts">
 import _ from 'lodash';
 import Vue from 'vue';
-import { DoneReason, GameObject } from './GameObject';
-import { BOARD_DIM, BOARD_HALF } from './BoardObject';
+import { DoneReason, GameObject } from '../lib/GameObject';
+import { BOARD_DIM, BOARD_HALF } from '../lib/BoardObject';
 
 export default Vue.extend({
   name: 'GamePlay',

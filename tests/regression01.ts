@@ -1,5 +1,5 @@
 import { sprintf } from 'sprintf-js';
-import { GameObject } from '../components/GameObject';
+import { GameObject } from '../lib/GameObject';
 import _ from 'lodash';
 import crypto from 'crypto';
 
