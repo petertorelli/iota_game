@@ -8,12 +8,14 @@ GUI options:
 2. Reset - Reset the board, reshuffle, and deal
 3. Autoplay Once - Causes the engine to finish the game
 4. Autoplay Forever - Play until clicking "Stop"
+5. Set seed - The game uses a PRNG and reports the seed at each game; a seed can be set with this option
+6. Export/Import - The game state can be exported as a hex string, or re-imported via cut-and-paste into this area.
 
-Note that it does not render while autoplaying as it becomes progressively slower.
-
-Each time a game finishes, the scores, board side, and # of turns are reported on the left-hand side.
+Each time a game finishes, the scores, board side, and # of turns are reported on the left-hand side. Note that it does not render while autoplaying as it becomes progressively slower.
 
 # Running
+
+## Browser
 
 It's a NuxtJS app, so:
 
@@ -22,15 +24,28 @@ It's a NuxtJS app, so:
 % yarn dev
 ```
 
-And then open a browser at `localhost:3000`.
+And then open a browser at `localhost:3000`. See screenshot below.
+
+## NodeJS app
+
+It can also be run as a NodeJS app, which is 3x faster since VueJS hasn't applied reactivity to all of the objects (`reactiveGetter` eats up a lot of cycles).
+
+```Bash
+% yarn ts-node -T main.ts
+% yarn ts-node -T tests/regression01.ts
+% yarn ts-node -T tests/regression02.ts
+```
+
+The file `main.ts` is just for experimenting. The two regressions have their own output files which I use to verify correctness (`regression01` has a checksum), and predictability (`regression02` evaluates how well the winner can be predicted at each ply).
 
 # Compatability & Performance
 
-On my 2019 MacBook Pro I get the following performance:
+On my 2019 MacBook Pro (Intel Core i9) I get the following performance:
 
-Firefox: ~90 msec per game
-Chrome: ~50 msec per game
+Firefox: ~70 msec per game
+Chrome: ~40 msec per game
 Safari: ~1000 msec per game
+NodeJS: ~25 msec per game (0.960 msec per ply)
 
 # Problems
 
@@ -38,5 +53,5 @@ Safari: ~1000 msec per game
 
 # Screenshot
 
-![image](https://user-images.githubusercontent.com/8249735/156663269-00577912-a5d6-4149-9e74-f57a92b20a65.png)
+![image](https://user-images.githubusercontent.com/8249735/158516125-fb3ffbc9-922c-47ae-a908-d35cd1ca698c.png)
 
