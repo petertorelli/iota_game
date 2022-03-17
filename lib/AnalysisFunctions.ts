@@ -251,6 +251,7 @@ export function scoreVerify(
   unit1: Point,
   unit2: Point
 ): Outcome | null {
+  // let debug = (x === -4) && (y === -4);
   let scoreMultiplier = 1;
   if (line.length > 4) {
     return null;
@@ -263,19 +264,26 @@ export function scoreVerify(
   if (line.length === 4) {
     scoreMultiplier *= 2;
   }
+  // debug && console.log('walkVerticals', line.map(x => name(x)));
   // Now walk the verticals
   for (let i = 0; i < line.length; ++i) {
     const _x = x + i * unit1.x;
     const _y = y + i * unit1.y;
+    // Don't vertically scan cards that are already on the board!
+    if (isCard(board.board[(_x + 48) + ((_y + 48) * 97)])) {
+      continue;
+    }
     const perpLine = scanPerpendicular(board, _x, _y, unit2);
     if (perpLine.length === 0) {
       continue;
     }
     perpLine.push(line[i]); // don't forget the card that should be there!
     let vscore = baseScore(perpLine);
+    // debug && console.log('perpLine, now:', perpLine.map(x => name(x)), 'score =', vscore);
     if (vscore === cardScore(line[i])) {
       // If the total score is the score of the card, it just the card.
     } else if (vscore === 0) {
+      // debug && console.log('badVertical', {_x, _y});
       // If this play creates a bad vertical line, the whole play fails.
       return null;
     } else {
