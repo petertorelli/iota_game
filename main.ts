@@ -10,10 +10,10 @@ let nPlys = 0;
 let msec = 0;
 let check = '';
 const scores: number[] = [];
-const game = new GameObject();
+const game = new GameObject(1234);
 
 // for (let i=0; i<100_000; ++i) {
-for (let i=0; i<100; ++i) {
+for (let i=0; i<20; ++i) {
 
   const res = game.playOneGame();
 

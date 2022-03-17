@@ -63,6 +63,8 @@ export default class PlayerObject {
     let br: Algs.BuildLateralResult | null;
     let outcome: Algs.Outcome | null;
 
+    // let debug = (spot.x === -4) && (spot.y === -4);
+
     // Name the anon function to make profiling easier
     Permutes[hand.length - 1].forEach(function playPermute (permuteIndices) {
       const permLen = permuteIndices.length;
@@ -71,6 +73,7 @@ export default class PlayerObject {
       for (let i = 0; i < permLen; ++i) {
         pHand[i] = hand[permuteIndices[i]];
       }
+      // debug && console.log('pHand', pHand.map(x => name(x)));
       // We've got a permutation to lay out at point 'spot'
       // 1. We're going to lay it out at that spot first, and go to the right,
       //    building a line to examine.
@@ -93,6 +96,7 @@ export default class PlayerObject {
         if (c === Card.None) {
           // Now we have a completed line that needs scoring.
           br = Algs.buildLateral(board, _x, _y, pHand, permLen, Algs.RT);
+          // debug && console.log('br/lr', br?.line.map(x => name(x)), br);
           // If the hand we're playing is illegal, don't bother
           if (br !== null) {
             outcome = Algs.scoreVerify(
@@ -115,6 +119,7 @@ export default class PlayerObject {
               outcome.dir = Algs.RT;
               results.push(outcome);
             }
+            // debug && console.log('outcome/lr', outcome);
           }
         } else {
           // We can't creep right anymore, because we hit a card.
@@ -133,6 +138,7 @@ export default class PlayerObject {
         if (c === Card.None) {
           // Now we have a completed line that needs scoring.
           br = Algs.buildLateral(board, _x, _y, pHand, permLen, Algs.UP);
+          // debug && console.log('br/ud', br?.line.map(x => name(x)), br);
           // If the hand we're playing is illegal, don't bother
           if (br !== null) {
             outcome = Algs.scoreVerify(
@@ -155,6 +161,7 @@ export default class PlayerObject {
               outcome.dir = Algs.UP;
               results.push(outcome);
             }
+            // debug && console.log('outcome/ud', outcome);
           }
         } else {
           // We can't creep right anymore, because we hit a card.

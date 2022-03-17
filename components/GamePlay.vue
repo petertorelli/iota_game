@@ -19,8 +19,8 @@ mixin sidebar
       tr
         td Current turn:
         td.text-right {{ game.ply }}
-    //h2 Interesting Seeds
-    //p 768371 is a deadlock
+    h2 Interesting Seeds
+    p 1668437305 is a high score
     h2 Game state
       textarea.w-full.border(v-model='compressedGame' rows=10)
       button(@click='exportGame()').mr-2.px-2.py-1.rounded.font-bold.bg-gray-500.text-white Export
@@ -165,7 +165,7 @@ export default Vue.extend({
       results: [] as string[],
       ms: [] as number[],
       error: '',
-      compressedGame: '' as string,
+      compressedGame: '789ced9ccd8adb3014855fa5682d83f52f67db07e82cba0b593819978149ede24c991942debd574ee319dd9a42c70563387c24cab1aea57bae2467e7b3d877757f2f3667f1543f36add86ccfe2456c4a295ee9fb220755a829a97259dc7499cb424f45e7c163a7c9273253bd3a1f98c9c230cdfb595e6caec2326d98d64c8fc359166f59bccdb3bdca31da4d499b4b9717f83694ca25b7ad26a34d1e3d4eecf3897d36f16fe973f95602375d1295c7977938db558563da326df22ab0cc592e2c15d6abf3a1587dc78943eefa2ac34dc629197359e5d5bea5c1b6103b477f0f66b57553c165165b66a163d9ab6b65ca3c63c5fa2b6e6827c57edfbda427c7cfe321356fc1a992e2d8dfaeba7144f14c2dc9076aa89eb787cfb6940000000000000000000000000000000000000000eb43392d95d78be731c7811fbe835466e95c66b8b04aaae8692d2cfd262f52854857c2e2997dc88d71e4843c546572e24945f265d4e299fdbb93b4af2afac4e4c4929340adb1832feab3a98fce505cd319529e769a1dce4d54c9894b27e8ba3a2a901b476eab35ad968a94713083175a9b40eba46965e2d2797dd80fe54ef9dbb42ed5e2d9ccf061693759b3781eb33c785a89e017cf63a60b43a7c3ad7d25c84358e77fe2e821a48f5d3c8f992ecceacf4348ff0f6ef13c66ba88e954afdd050000000000000000000000000000000000fc177617297e1cebd7a657e955510f759b5e06a57494ca5aa97cdc49d1d6df1bb1117743d8a72f6d23a4381dba9e2e6a6dc701f4fb012c0de0cb3f6efefadcbdbbd9f9e1e6f41a302fc5a16edbeee9aeef0e4d43637cab8fa7468abea94f5dfb39ef2ba5b86f0e8f69c26bbba5994e439788553436e84a89cbe5178160bb29' as string,
     };
   },
   mounted() {

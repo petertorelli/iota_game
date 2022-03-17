@@ -2,6 +2,7 @@ import { sprintf } from 'sprintf-js';
 import { GameObject } from '../lib/GameObject';
 import _ from 'lodash';
 import crypto from 'crypto';
+import { turnOnBetterRandom } from '../lib/RandomGenerator';
 
 let p1wins = 0;
 let p2wins = 0;
@@ -12,8 +13,10 @@ let check = '';
 const scores: number[] = [];
 const game = new GameObject(1234);
 
+turnOnBetterRandom(false);
+
 // for (let i=0; i<100_000; ++i) {
-for (let i = 0; i < 10000; ++i) {
+for (let i = 0; i < 1000; ++i) {
   const res = game.playOneGame();
 
   const area = res.w * res.h;
@@ -31,7 +34,7 @@ for (let i = 0; i < 10000; ++i) {
   const ti = (ties / (i + 1)) * 100;
   console.log(
     sprintf(
-      '%5d %3d %3d %3d %2d %2d %4d %5.3f %6.2f %6.2f %6.2f %9d [%3d] %5.1f',
+      '%5d %3d %3d %3d %2d %2d %4d %5.3f %6.2f %6.2f %6.2f %12d [%3d] %5.1f',
       i + 1,
       res.p1score,
       res.p2score,

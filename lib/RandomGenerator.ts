@@ -1,4 +1,3 @@
-/*
 let previous;
 
 const globalPrng = prng(3);
@@ -18,17 +17,34 @@ export function reseed(seed: number) {
   console.log('reseeding', seed);
 }
 
-export function rand() {
-  //return Math.random();
+let randfunc = () => {
   return globalPrng.next().value;
-}
-*/
+};
 
+export function turnOnBetterRandom(on: Boolean) {
+  if (on) {
+    randfunc = () => {
+      return Math.random();
+    }
+  } else {
+    randfunc = () => {
+      return globalPrng.next().value;
+    }
+  }
+}
+
+export function rand() {
+  return randfunc();
+}
+
+/*
 import MersenneTwister from 'mersennetwister';
 
+console.log("Creating new twister");
 const mt = new MersenneTwister();
 
 export function reseed(seed: number) {
+  console.log("Reseeding", seed)
   mt.seed(seed);
 }
 
@@ -36,3 +52,4 @@ export function rand() {
   // return Math.random();
   return mt.random();
 }
+*/

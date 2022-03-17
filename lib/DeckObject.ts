@@ -5,10 +5,10 @@ export default class DeckObject {
   public seed: number;
   constructor(seed: number | undefined = undefined) {
     if (seed) {
+      reseed(seed);
       this.seed = seed;
-      reseed(this.seed);
     } else {
-      this.seed = Math.floor(rand() * (1024 * 1024));
+      this.seed = rand();
     }
     this.init();
   }
@@ -18,10 +18,10 @@ export default class DeckObject {
   // If we re-seed on init, it makes debugging easier
   public init(seed: number | undefined = undefined) {
     if (seed) {
+      reseed(seed);
       this.seed = seed;
-      reseed(this.seed);
     } else {
-      this.seed = Math.floor(rand() * (1024 * 1024));
+      this.seed = rand() * 2147483647;
     }
     // See note about MSB in CardObject.ts
     for (let i = 0x80; i < 0xc0; ++i) {
