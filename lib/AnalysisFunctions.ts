@@ -1,5 +1,6 @@
 import BoardObject, { Point } from './BoardObject';
 import { Card, score as cardScore, isCard, name } from './CardObject';
+import Permutes from './FasterPermute';
 
 // Direction unit vectors and origin.
 export const UP: Point = { x: 0, y: 1 };
@@ -8,8 +9,8 @@ export const DN: Point = { x: 0, y: -1 };
 export const LF: Point = { x: -1, y: 0 };
 export const OR: Point = { x: 0, y: 0 };
 
-// The primary search function is called a "lateral" build.
-export type BuildLateralResult = {
+// The primary search function is called a "parallel" build.
+export type BuildParallelResult = {
   line: number[];
   slide: number;
 };
@@ -21,9 +22,79 @@ export type Outcome = {
   x: number;
   y: number;
   dir: Point | null;
-  orgx: number;
-  orgy: number;
 };
+
+// Note: Picking largest play increases avg score by ~2.5pts!
+export function pickBestPlay(options: Outcome[]): Outcome {
+  // Name the anon function to make profiling easier
+  const picker002 = (a: Outcome, b: Outcome) => {
+    const highestScore = b.score - a.score;
+    if (highestScore === 0) {
+      // Pick the most cards to play when there's a score tie.
+      // TODO: What about the fewest? Leaves more chances to score points?
+      return b.line.length - a.line.length;
+    } else {
+      return highestScore;
+    }
+  };
+  const best = options.sort(picker002);
+  return best[0];
+}
+
+/**
+ * If putting a card in this spot creates more than four cards in a row
+ * up or down, this spot cannot be played, ever. It is now dead.
+ *
+ * @param board BoardObject
+ * @param x Board X-coordinate
+ * @param y Board Y-coordinate
+ * @returns Boolean, true if this spot is "dead" (see above).
+ */
+function checkDead(board: BoardObject, x: number, y: number) {
+  let count = 0;
+  let i = 1;
+  while (i) {
+    if (isCard(board.at(x + i, y))) {
+      ++count;
+      if (count > 3) {
+        return true;
+      }
+    } else {
+      break;
+    }
+    if (isCard(board.at(x - i, y))) {
+      ++count;
+      if (count > 3) {
+        return true;
+      }
+    } else {
+      break;
+    }
+    ++i;
+  }
+  count = 0;
+  i = 1;
+  while (i) {
+    if (isCard(board.at(x, y + i))) {
+      ++count;
+      if (count > 3) {
+        return true;
+      }
+    } else {
+      break;
+    }
+    if (isCard(board.at(x, y - i))) {
+      ++count;
+      if (count > 3) {
+        return true;
+      }
+    } else {
+      break;
+    }
+    ++i;
+  }
+  return false;
+}
 
 /**
  * Scan the board to find all the bounding contour of all playable coordinates.
@@ -70,68 +141,12 @@ export function findContour(board: BoardObject): Point[] {
     check(anchor, vSearch);
   });
 
-  // If there are more than 4 adjacent cards in any horizontal or vertical
-  // slice then this square is dead and cannot be played for the rest of
-  // the game.
-  function checkDead(x: number, y: number) {
-    // Count cards left/right
-    let count = 0;
-    let i = 1;
-    while (i) {
-      if (isCard(board.at(x + i, y))) {
-        ++count;
-        if (count > 3) {
-          return true;
-        }
-      } else {
-        // Not a card
-        break;
-      }
-      if (isCard(board.at(x - i, y))) {
-        ++count;
-        if (count > 3) {
-          return true;
-        }
-      } else {
-        // Not a card
-        break;
-      }
-      ++i;
-    }
-    count = 0;
-    i = 1;
-    while (i) {
-      if (isCard(board.at(x, y + i))) {
-        ++count;
-        if (count > 3) {
-          return true;
-        }
-      } else {
-        // Not a card
-        break;
-      }
-      if (isCard(board.at(x, y - i))) {
-        ++count;
-        if (count > 3) {
-          return true;
-        }
-      } else {
-        // Not a card
-        break;
-      }
-      ++i;
-    }
-    return false;
-  }
-
   const contour: Point[] = [];
   seen.forEach(function filterContours(v, _k) {
     // Banish spaces that may never be plaid again in this game.
-    if (checkDead(v.x, v.y)) {
-      // console.log("Card at", v.x, v.y, "is dead");
+    if (checkDead(board, v.x, v.y)) {
       board.put(v.x, v.y, Card.Dead);
     } else {
-      // console.log("Card at", v.x, v.y, "is to be examined");
       contour.push(v);
     }
   });
@@ -143,14 +158,15 @@ export function findContour(board: BoardObject): Point[] {
  * same, or if all properties are different. Can be used for validation as
  * well as basic scoring. "Basic" means no bonuses are computed.
  *
- * This is a 20x performance improvement over using Set()s and dynamic arrays.
+ * Note: This is a 20x performance improvement over using Set()s and
+ *       creating dynamic arrays.
  *
  * @param line An array of cards (64 values from 0x00-0x3f)
  * @returns 0 = invalid line or score (sum of card values without bonuses)
  */
 function baseScore(line: number[]) {
-  // Putting the length check up here is ~5% faster for some reason! (Compared
-  // to having a `default` case for non {2,3,4} values.)
+  // Note: Putting the length check up here is ~5% faster for some reason,
+  //       compared to having a `default` case for non {2,3,4} values.
   if (line.length > 4 || line.length < 2) {
     return 0;
   }
@@ -251,7 +267,6 @@ export function scoreVerify(
   unit1: Point,
   unit2: Point
 ): Outcome | null {
-  // let debug = (x === -4) && (y === -4);
   let scoreMultiplier = 1;
   if (line.length > 4) {
     return null;
@@ -264,13 +279,12 @@ export function scoreVerify(
   if (line.length === 4) {
     scoreMultiplier *= 2;
   }
-  // debug && console.log('walkVerticals', line.map(x => name(x)));
-  // Now walk the verticals
+  // Now walk the perpendiculars
   for (let i = 0; i < line.length; ++i) {
     const _x = x + i * unit1.x;
     const _y = y + i * unit1.y;
-    // Don't vertically scan cards that are already on the board!
-    if (isCard(board.board[(_x + 48) + ((_y + 48) * 97)])) {
+    // Don't include cards that are already on the board!
+    if (isCard(board.board[_x + 48 + (_y + 48) * 97])) {
       continue;
     }
     const perpLine = scanPerpendicular(board, _x, _y, unit2);
@@ -279,11 +293,9 @@ export function scoreVerify(
     }
     perpLine.push(line[i]); // don't forget the card that should be there!
     let vscore = baseScore(perpLine);
-    // debug && console.log('perpLine, now:', perpLine.map(x => name(x)), 'score =', vscore);
     if (vscore === cardScore(line[i])) {
       // If the total score is the score of the card, it just the card.
     } else if (vscore === 0) {
-      // debug && console.log('badVertical', {_x, _y});
       // If this play creates a bad vertical line, the whole play fails.
       return null;
     } else {
@@ -308,9 +320,50 @@ export function scoreVerify(
     x,
     y,
     dir: null,
-    orgx: x,
-    orgy: y,
   };
+}
+
+/**
+ *
+ * @param board BoardObject (immutable)
+ * @param x Point at which to scan, x-coord
+ * @param y Point at which to scan, y-coord
+ * @param unit
+ * @returns
+ */
+export function scanPerpendicular(
+  board: BoardObject,
+  x: number,
+  y: number,
+  unit: Point
+) {
+  // Order does NOT matter
+  const line: number[] = [];
+  // -ve direction
+  for (let i = 1; i < 6; ++i) {
+    const _x = x - unit.x * i;
+    const _y = y - unit.y * i;
+    const c = board.board[_x + 48 + (_y + 48) * 97];
+    // const c = board.at(x - unit.x * i, y - unit.y * i);
+    if (c === Card.None) {
+      break;
+    } else {
+      line.push(c);
+    }
+  }
+  // +ve direction
+  for (let i = 1; i < 6; ++i) {
+    const _x = x + unit.x * i;
+    const _y = y + unit.y * i;
+    const c = board.board[_x + 48 + (_y + 48) * 97];
+    // const c = board.at(x + unit.x * i, y + unit.y * i);
+    if (c === Card.None) {
+      break;
+    } else {
+      line.push(c);
+    }
+  }
+  return line;
 }
 
 /**
@@ -336,14 +389,14 @@ export function scoreVerify(
  * @param unit The direction vector.
  * @returns BuildLateralResult type.
  */
-export function buildLateral(
+ export function scanParallel(
   board: BoardObject,
   x: number,
   y: number,
   cards: number[],
   validLen: number,
   unit: Point
-): BuildLateralResult | null {
+): BuildParallelResult | null {
   const line: number[] = [];
   let slide = 0;
   let c: number;
@@ -354,7 +407,8 @@ export function buildLateral(
     _x = x + slide * unit.x;
     _y = y + slide * unit.y;
     // c = board.at(_x, _y);
-    c = board.board[(_x + 48) + ((_y + 48) * 97)];
+    c = board.board[_x + 48 + (_y + 48) * 97];
+    // If we still have valid cards to play and we hit a dead card, fail!
     if (c === Card.Dead) {
       return null;
     }
@@ -375,7 +429,7 @@ export function buildLateral(
     _x = x + slide * unit.x;
     _y = y + slide * unit.y;
     // c = board.at(_x, _y);
-    c = board.board[(_x + 48) + ((_y + 48) * 97)];
+    c = board.board[_x + 48 + (_y + 48) * 97];
     if (isCard(c)) {
       // Add the cards that are touching to the right until an empty square.
       line.push(c);
@@ -390,7 +444,7 @@ export function buildLateral(
     _y = y - (slide + 1) * unit.y;
     // We already did the current spot so start one over.
     // c = board.at(_x, _y);
-    c = board.board[(_x + 48) + ((_y + 48) * 97)];
+    c = board.board[_x + 48 + (_y + 48) * 97];
     if (isCard(c)) {
       // Add the cards that are touching to the left until an empty square.
       line.unshift(c);
@@ -408,44 +462,113 @@ export function buildLateral(
 }
 
 /**
+ * We've got a permutation to lay out at point 'spot'.
+ * 1. We're going to lay it out at that spot first, and go to the right,
+ *    building a line to examine.
+ * 2. Then we're going to validate/score that line.
+ * 3. Then we're going to slide to the left one spot, and see if we
+ *    can start building there, going to step #2, until we have moved
+ *    so far to the left that we can't play on `spot`.
+ * 4. When playing cards to the right, we have to add existing cards to
+ *    the line and skip over them to find an unplayed square.
+ * 5. If we run out of cards to play as we play to the right, we have to
+ *    append any abutting cards. The line might be very large!
+ * 6. Similarly, as we slide to the left, if we abutt any cards, those
+ *    too must be prepended.
+ * We're going to creep to the left and build to the right.
  *
- * @param board BoardObject (immutable)
- * @param x Point at which to scan, x-coord
- * @param y Point at which to scan, y-coord
- * @param unit
- * @returns
+ * @param board BoardObject
+ * @param pHand Hand to analyze
+ * @param permLen How many cards in the pHand are valid (can't use .length)
+ * @param spot Where we are on the board
+ * @param parallel Parallel direction vector to line of play.
+ * @param perpendicular Perpendicular direction vector to line of play.
+ * @returns A list of possible outcomes.
  */
-export function scanPerpendicular(
+ export function scan(
   board: BoardObject,
-  x: number,
-  y: number,
-  unit: Point
-) {
-  // Order does NOT matter
-  const line: number[] = [];
-  // -ve direction
-  for (let i = 1; i < 6; ++i) {
-    const _x = x - unit.x * i;
-    const _y = y - unit.y * i;
-    const c = board.board[(_x + 48) + ((_y + 48) * 97)];
-    // const c = board.at(x - unit.x * i, y - unit.y * i);
+  pHand: number[],
+  permLen: number,
+  spot: Point,
+  parallel: Point,
+  perpendicular: Point
+): Outcome[] {
+  const results: Outcome[] = [];
+
+  for (let i = 0; i < permLen; ++i) {
+    const _x = spot.x - i * parallel.x;
+    const _y = spot.y - i * parallel.y;
+    const c = board.board[_x + 48 + (_y + 48) * 97];
     if (c === Card.None) {
-      break;
+      // Now we have a completed line that needs scoring.
+      const br = scanParallel(board, _x, _y, pHand, permLen, parallel);
+      // If the hand we're playing is illegal, don't bother
+      if (br !== null) {
+        const outcome = scoreVerify(
+          board,
+          br.line,
+          _x,
+          _y,
+          pHand,
+          parallel,
+          perpendicular
+        );
+        if (outcome) {
+          // All four cards played, doubles score
+          if (permLen === 4) {
+            outcome.score *= 2;
+          }
+          // The outcome needs to know if the builder added to the left. If
+          // so, then the placement square needs to slide left.
+          outcome.x = _x - br.slide * parallel.x;
+          outcome.y = _y - br.slide * parallel.y;
+          outcome.dir = parallel;
+          results.push(outcome);
+        }
+      }
     } else {
-      line.push(c);
+      // We can't creep +ve parallel anymore, because we hit a card.
+      // There is no point in stepping OVER this card, because the contour
+      // search algorithm will have found the playable spots to the left
+      // of this 'blockage'.
+      break;
     }
   }
-  // +ve direction
-  for (let i = 1; i < 6; ++i) {
-    const _x = x + unit.x * i;
-    const _y = y + unit.y * i;
-    const c = board.board[(_x + 48) + ((_y + 48) * 97)];
-    // const c = board.at(x + unit.x * i, y + unit.y * i);
-    if (c === Card.None) {
-      break;
-    } else {
-      line.push(c);
+  return results;
+}
+
+/**
+ * Look at a spot on the board and find the best play that can be made in
+ * either the horizontal or vertical direction. Return that outcome, or
+ * undefined if there is no outcome.
+ * 
+ * @param board BoardObject (doesn't change)
+ * @param spot x,y Point on board
+ * @param hand Player's hand (does not change)
+ * @returns 
+ */
+ export function considerThisSpot(
+  board: BoardObject,
+  spot: Point,
+  hand: number[]
+) : Outcome | undefined {
+  const results: Outcome[] = [];
+  const pHand: number[] = Array(4);
+  // Name the anon function to make profiling easier
+  Permutes[hand.length - 1].forEach(function playPermute(permuteIndices) {
+    const permLen = permuteIndices.length;
+    // Using the permutation indices, construct a permuted hand from N=1 to 4
+    pHand.fill(Card.None);
+    for (let i = 0; i < permLen; ++i) {
+      pHand[i] = hand[permuteIndices[i]];
     }
-  }
-  return line;
+    let r;
+    // Look right, creep left
+    r = scan(board, pHand, permLen, spot, RT, UP);
+    results.splice(0, 0, ...r);
+    // Look down, creep up
+    r = scan(board, pHand, permLen, spot, UP, RT);
+    results.splice(0, 0, ...r);
+  });
+  return pickBestPlay(results);
 }

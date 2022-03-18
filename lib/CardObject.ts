@@ -20,16 +20,22 @@
 //
 // MSB is set so that card 0x00 (blue square 1) isn't "falsy" in tests!
 
+// 0xc0 is now the wildcard. It should contain aliases that indicate what
+// role it plays in both contexts, so that it may be recalled later.
+
 export function isCard(card: number) {
   // TODO: Wildcards.
-  return card >= 0x80 && card < 0xc0;
+  return card >= 0x80 && card <= 0xc0; // <= instead of < for wildcards
 }
 
 export enum Card {
   None = 0,
   Dead = 1, // This is a placeholder for board squares that cannot be played
   // TODO: None is useful, but do we need EVERY card to be enum'd?
+  Wild = 0xc0,
 }
+
+
 
 export function color(card: number) {
   switch (card) {
@@ -37,6 +43,8 @@ export function color(card: number) {
       return 'none';
     case Card.Dead:
       return 'dead';
+    case Card.Wild:
+      return 'wild';
     default:
       switch ((card >> 4) & 0x3) {
         case 0:
@@ -59,6 +67,8 @@ export function htmlColor(card: number) {
       return 'black';
     case Card.Dead:
       return 'black';
+    case Card.Wild:
+      return 'magenta';
     default:
       switch ((card >> 4) & 0x3) {
         case 0:
@@ -81,6 +91,8 @@ export function shape(card: number) {
       return 'O';
     case Card.Dead:
       return 'X';
+    case Card.Wild:
+      return 'W';
     default:
       switch ((card >> 2) & 0x3) {
         case 0:
@@ -103,6 +115,8 @@ export function htmlShape(card: number) {
       return 'O';
     case Card.Dead:
       return '&times;';
+    case Card.Wild:
+      return 'W';
     default:
       switch ((card >> 2) & 0x3) {
         case 0:
@@ -120,11 +134,13 @@ export function htmlShape(card: number) {
 }
 
 export function score(card: number) {
-  if (isCard(card)) {
-    return (card & 0x3) + 1;
-  } else {
+  if (card === Card.Wild) {
     return 0;
   }
+  if (isCard(card)) {
+    return (card & 0x3) + 1;
+  }
+  return 0;
 }
 
 export function name(card: number) {
