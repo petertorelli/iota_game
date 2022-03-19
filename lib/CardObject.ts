@@ -24,18 +24,16 @@
 // role it plays in both contexts, so that it may be recalled later.
 
 export function isCard(card: number) {
-  // TODO: Wildcards.
-  return card >= 0x80 && card <= 0xc0; // <= instead of < for wildcards
+  return card >= 0x80 && card <= 0xc1; // <= instead of < for wildcards
 }
 
 export enum Card {
   None = 0,
   Dead = 1, // This is a placeholder for board squares that cannot be played
   // TODO: None is useful, but do we need EVERY card to be enum'd?
-  Wild = 0xc0,
+  Wild_One = 0xc0,
+  Wild_Two = 0xc1,
 }
-
-
 
 export function color(card: number) {
   switch (card) {
@@ -43,8 +41,10 @@ export function color(card: number) {
       return 'none';
     case Card.Dead:
       return 'dead';
-    case Card.Wild:
-      return 'wild';
+    case Card.Wild_One:
+      return 'wild1';
+    case Card.Wild_Two:
+      return 'wild2';
     default:
       switch ((card >> 4) & 0x3) {
         case 0:
@@ -67,7 +67,8 @@ export function htmlColor(card: number) {
       return 'black';
     case Card.Dead:
       return 'black';
-    case Card.Wild:
+    case Card.Wild_One:
+    case Card.Wild_Two:
       return 'magenta';
     default:
       switch ((card >> 4) & 0x3) {
@@ -91,8 +92,10 @@ export function shape(card: number) {
       return 'O';
     case Card.Dead:
       return 'X';
-    case Card.Wild:
+    case Card.Wild_One:
       return 'W';
+    case Card.Wild_Two:
+      return 'w';
     default:
       switch ((card >> 2) & 0x3) {
         case 0:
@@ -115,8 +118,10 @@ export function htmlShape(card: number) {
       return 'O';
     case Card.Dead:
       return '&times;';
-    case Card.Wild:
+    case Card.Wild_One:
       return 'W';
+    case Card.Wild_Two:
+      return 'w';
     default:
       switch ((card >> 2) & 0x3) {
         case 0:
@@ -134,7 +139,7 @@ export function htmlShape(card: number) {
 }
 
 export function score(card: number) {
-  if (card === Card.Wild) {
+  if ((card & 0xc0) === 0xc0) {
     return 0;
   }
   if (isCard(card)) {

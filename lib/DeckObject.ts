@@ -1,8 +1,11 @@
+import { Card } from './CardObject';
 import { rand, reseed } from './RandomGenerator';
 
 export default class DeckObject {
-  public deck: number[] = Array<number>(64); // 66 with wildcards
+  public deck: number[] = Array<number>(64 + 2); // 66 with wildcards
   public seed: number;
+  public w1_choices = new Set<number>();
+  public w2_choices = new Set<number>();
   constructor(seed: number | undefined = undefined) {
     if (seed) {
       reseed(seed);
@@ -23,10 +26,18 @@ export default class DeckObject {
     } else {
       this.seed = rand() * 2147483647;
     }
+    this.w1_choices.clear();
+    this.w2_choices.clear();
     // See note about MSB in CardObject.ts
     for (let i = 0x80; i < 0xc0; ++i) {
       this.deck[i - 0x80] = i;
+      // TODO: Is et lookup faster than indexOf? I sure hope so!
+      this.w1_choices.add(0x80);
+      this.w2_choices.add(0x80);
     }
+    // Two wildcards
+    this.deck[64] = Card.Wild_One;
+    this.deck[65] = Card.Wild_Two;
     this.shuffleDeck();
   }
 

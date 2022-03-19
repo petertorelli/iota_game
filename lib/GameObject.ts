@@ -122,7 +122,7 @@ export class GameObject {
       nply: this.ply,
       seed: this.deck.seed,
       nDead: this.board.board.reduce((acc, item) => {
-        return (acc += item === Card.Dead ? 1 : 0);
+        return (acc + (item === Card.Dead ? 1 : 0));
       }, 0),
     };
   }

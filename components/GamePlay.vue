@@ -1,7 +1,7 @@
 <!-- Please remove this file from your project -->
 <template lang="pug">
 mixin sidebar
-  .m-4.p-4.w-64.text-sm
+  .m-4.p-4.w-80.text-sm
     h1 Results
     h2 Game log
     .h-48.overflow-y-scroll.border
@@ -13,7 +13,7 @@ mixin sidebar
         td.text-right {{ game.deck.seed }}
       tr
         td
-          input(type='number' v-model='userSeed').w-24.border.rounded
+          input(type='number' v-model='userSeed').w-40.border.rounded
         td.text-right
           button(@click='reset(userSeed)').px-1.py-1.text-xs.rounded.bg-gray-500.text-white Set Seed
       tr
@@ -101,12 +101,13 @@ mixin deck
       card-image(v-for='card of cacheDeck' :card='card' :key='card')
 
 .flex.flex-row
-  +sidebar
+  .w-80.mr-4
+    +sidebar
   .flex.flex-col
     .mt-8.mb-4.error-message(v-if='error') {{ error }}
     h1.mt-8 Iota Auto-Player
     p Based on the game "IOTA" by Gamewrite (c) www.gamewrite.com
-    p This app plays the game by itself, without wildcards. It's a fun study in 1-ply gameplay.
+    p This app plays the game by itself (wildcard rules are still in progress). It's a fun study in 1-ply gameplay.
     p It is extremely slow on Safari for some reason, recommend Chrome or Firefox.
     +players
     .mb-4
@@ -165,7 +166,7 @@ export default Vue.extend({
       results: [] as string[],
       ms: [] as number[],
       error: '',
-      compressedGame: '789ced9ccd8adb3014855fa5682d83f52f67db07e82cba0b593819978149ede24c991942debd574ee319dd9a42c70563387c24cab1aea57bae2467e7b3d877757f2f3667f1543f36add86ccfe2456c4a295ee9fb220755a829a97259dc7499cb424f45e7c163a7c9273253bd3a1f98c9c230cdfb595e6caec2326d98d64c8fc359166f59bccdb3bdca31da4d499b4b9717f83694ca25b7ad26a34d1e3d4eecf3897d36f16fe973f95602375d1295c7977938db558563da326df22ab0cc592e2c15d6abf3a1587dc78943eefa2ac34dc629197359e5d5bea5c1b6103b477f0f66b57553c165165b66a163d9ab6b65ca3c63c5fa2b6e6827c57edfbda427c7cfe321356fc1a992e2d8dfaeba7144f14c2dc9076aa89eb787cfb6940000000000000000000000000000000000000000eb43392d95d78be731c7811fbe835466e95c66b8b04aaae8692d2cfd262f52854857c2e2997dc88d71e4843c546572e24945f265d4e299fdbb93b4af2afac4e4c4929340adb1832feab3a98fce505cd319529e769a1dce4d54c9894b27e8ba3a2a901b476eab35ad968a94713083175a9b40eba46965e2d2797dd80fe54ef9dbb42ed5e2d9ccf061693759b3781eb33c785a89e017cf63a60b43a7c3ad7d25c84358e77fe2e821a48f5d3c8f992ecceacf4348ff0f6ef13c66ba88e954afdd050000000000000000000000000000000000fc177617297e1cebd7a657e955510f759b5e06a57494ca5aa97cdc49d1d6df1bb1117743d8a72f6d23a4381dba9e2e6a6dc701f4fb012c0de0cb3f6efefadcbdbbd9f9e1e6f41a302fc5a16edbeee9aeef0e4d43637cab8fa7468abea94f5dfb39ef2ba5b86f0e8f69c26bbba5994e439788553436e84a89cbe5178160bb29' as string,
+      compressedGame: '789ced9c4d6edb301085af5270cd00e23fe56d0fd02cba3382425154b8882b15720a27087cf70e15cbf1b072e1240bd5c0c3075b79223d9c37437115e859dc76557f2716cfe2a1ba6f5ab1583e8b47b128a478a2ef9d1cd4959a926a949a8f6a3e6a077975d026d33ad3fbf93a9b9fe92c5c363ae652f0d88acb7c6535395bf3d98795dc8b3699d67c69c3838dd24cca43ecf0a2eda87da65da6f7f35d36df9daaf1bf3ba67949ed9434ac2a05f35130cfa3b23c67cb2ba0b9b4dc80cbfc389ebf9d92073b31fb719c4cc4f3a53c2fa5e22b67f2b5b07e7a9364c53bb9b9f7327039e6927535db1466529ed86126ab4998f6916bc38b147826617723c5ed6df7988e93dfeb3a5d8e0a4eb3c5ba1feffa711b892dd59302aee842eb8d07d2b29000000000000000000000000000000000000000782fcaeaf4edac54b19c3d9b8ff8f052992855b0b3e77266c6baa4ba6ba9ca8931ea46ea481a55b3677a961befa8fe811cd127847cd492235f0e7fc5d9733ddb1339d2af2a18ea484877437a62dcecf9bdc98ba1dd16a8472ee53f3ee9ca93723412e7ceefad6ec88937c373927656da5783f26907d249102fab3ba3abd4113fb82237864e005b0eaee81cb097e64819f2e0e2f0bca4fca933d1cf9ed547fc50671c790a9771229ff4112eb90b0000000000000000000000000000000000000000e0bfe06627c5af75f5d4f42abd216a55b5e92550caa67fe4b2528528952b6ea468ab9f8d5888eb61eaa72f6d23a4d8d45d4f37b5768720fa3848a41f7bfa18255569fe0af275db1d05317108925e7916a4a8abb6ed1eaefbae6e1a8af5bd5a6f1a29faa6da74ed673e564871d7d4f769e197eb5279ca5cd3c2a5a645b7ea5bbdea7ed4cd86a6a4f75e69ae374314e59d8aaa28acdbedfe0084d6cd97' as string,
     };
   },
   mounted() {
@@ -260,8 +261,8 @@ export default Vue.extend({
           this.meanMs = _.mean(this.ms);
           const res =
             `${this.game.player1.score}-${this.game.player2.score} ` +
-            `${this.game.ply} ${winner} ${this.game.deck.seed} ` +
-            `${msec} ms`;
+            `${this.game.ply} ${winner} ` +
+            `${msec.toString().padStart(4, '.')} ms ${this.game.deck.seed} `;
           this.results.unshift(res);
 
           // this.update();
@@ -328,16 +329,22 @@ textarea {
   width: 30px;
   height: 30px;
   margin: 3px;
+  user-select: none;
+  @apply rounded;
 }
 
 .card {
-  @apply base-card rounded;
+  @apply base-card;
   border: 1px solid #ccc;
 }
 
 .dummy-card {
   @apply base-card;
   border: 1px solid white;
+}
+
+.base-card:hover {
+  background: #aaa;
 }
 
 td {

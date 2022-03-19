@@ -153,6 +153,26 @@ export function findContour(board: BoardObject): Point[] {
   return contour;
 }
 
+// Note: this added 20% more time (990us to 1120us). Dammmit.
+function wildScore(line: number[]): number {
+  // Note: Putting the length check up here is ~5% faster for some reason,
+  //       compared to having a `default` case for non {2,3,4} values.
+  if (line.length > 4 || line.length < 2) {
+    return 0;
+  }
+  // We can ignore wildcards: if the hand without wildcards is valid, then
+  // return just the baseScore of that smaller hand subset.
+  const newLine: number[] = [];
+  line.forEach(card => {
+    if (card === Card.Wild_One || card === Card.Wild_Two) {
+      // do nothing
+    } else {
+      newLine.push(card);
+    }
+  })
+  return baseScore(newLine);
+}
+
 /**
  * An loop-unrolled comparison that checks to see if all properties are the
  * same, or if all properties are different. Can be used for validation as
@@ -165,11 +185,6 @@ export function findContour(board: BoardObject): Point[] {
  * @returns 0 = invalid line or score (sum of card values without bonuses)
  */
 function baseScore(line: number[]) {
-  // Note: Putting the length check up here is ~5% faster for some reason,
-  //       compared to having a `default` case for non {2,3,4} values.
-  if (line.length > 4 || line.length < 2) {
-    return 0;
-  }
   let aSame = false;
   let aDiff = false;
   let bSame = false;
@@ -271,7 +286,7 @@ export function scoreVerify(
   if (line.length > 4) {
     return null;
   }
-  let score = baseScore(line);
+  let score = wildScore(line);
   if (score === 0 && line.length > 1) {
     return null;
   }
@@ -292,7 +307,7 @@ export function scoreVerify(
       continue;
     }
     perpLine.push(line[i]); // don't forget the card that should be there!
-    let vscore = baseScore(perpLine);
+    let vscore = wildScore(perpLine);
     if (vscore === cardScore(line[i])) {
       // If the total score is the score of the card, it just the card.
     } else if (vscore === 0) {
@@ -389,7 +404,7 @@ export function scanPerpendicular(
  * @param unit The direction vector.
  * @returns BuildLateralResult type.
  */
- export function scanParallel(
+export function scanParallel(
   board: BoardObject,
   x: number,
   y: number,
@@ -402,7 +417,7 @@ export function scanPerpendicular(
   let c: number;
   let _x;
   let _y;
-  // First, built to the right.
+  // First, built to the +ve.
   for (let i = 0; i < validLen /* increment on play! */; ) {
     _x = x + slide * unit.x;
     _y = y + slide * unit.y;
@@ -423,7 +438,7 @@ export function scanPerpendicular(
     ++slide;
   }
 
-  // We've played all cards, but the next spot to the right might have a card.
+  // We've played all cards, but the next spot to the +ve might have a card.
   // `slide` is already at the next square after exiting the for-loop.
   do {
     _x = x + slide * unit.x;
@@ -431,13 +446,13 @@ export function scanPerpendicular(
     // c = board.at(_x, _y);
     c = board.board[_x + 48 + (_y + 48) * 97];
     if (isCard(c)) {
-      // Add the cards that are touching to the right until an empty square.
+      // Add the cards that are touching to the +ve until an empty square.
       line.push(c);
     }
     ++slide;
   } while (isCard(c));
 
-  // Now we have to prepend any cards we are touching to the left
+  // Now we have to prepend any cards we are touching to the -ve
   slide = 0;
   do {
     _x = x - (slide + 1) * unit.x;
@@ -446,7 +461,7 @@ export function scanPerpendicular(
     // c = board.at(_x, _y);
     c = board.board[_x + 48 + (_y + 48) * 97];
     if (isCard(c)) {
-      // Add the cards that are touching to the left until an empty square.
+      // Add the cards that are touching to the -ve until an empty square.
       line.unshift(c);
     }
     ++slide;
@@ -454,7 +469,7 @@ export function scanPerpendicular(
 
   // Now we have a contiguous line of cards. This line could be huge, but it
   // isn't up to this function to resolve it.
-  // If we've added cards to the LHS, let the caller know that with `slide`.
+  // If we've added cards to the -ve, let the caller know that with `slide`.
   return {
     line,
     slide: slide - 1,
@@ -463,19 +478,19 @@ export function scanPerpendicular(
 
 /**
  * We've got a permutation to lay out at point 'spot'.
- * 1. We're going to lay it out at that spot first, and go to the right,
+ * 1. We're going to lay it out at that spot first, and go to the +ve,
  *    building a line to examine.
  * 2. Then we're going to validate/score that line.
- * 3. Then we're going to slide to the left one spot, and see if we
+ * 3. Then we're going to slide to the -ve one spot, and see if we
  *    can start building there, going to step #2, until we have moved
- *    so far to the left that we can't play on `spot`.
- * 4. When playing cards to the right, we have to add existing cards to
+ *    so far to the -ve that we can't play on `spot`.
+ * 4. When playing cards to the +ve, we have to add existing cards to
  *    the line and skip over them to find an unplayed square.
- * 5. If we run out of cards to play as we play to the right, we have to
+ * 5. If we run out of cards to play as we play to the +ve, we have to
  *    append any abutting cards. The line might be very large!
- * 6. Similarly, as we slide to the left, if we abutt any cards, those
+ * 6. Similarly, as we slide to the -ve, if we abutt any cards, those
  *    too must be prepended.
- * We're going to creep to the left and build to the right.
+ * We're going to creep to the -ve and build to the +ve.
  *
  * @param board BoardObject
  * @param pHand Hand to analyze
@@ -485,7 +500,7 @@ export function scanPerpendicular(
  * @param perpendicular Perpendicular direction vector to line of play.
  * @returns A list of possible outcomes.
  */
- export function scan(
+export function scan(
   board: BoardObject,
   pHand: number[],
   permLen: number,
@@ -494,7 +509,6 @@ export function scanPerpendicular(
   perpendicular: Point
 ): Outcome[] {
   const results: Outcome[] = [];
-
   for (let i = 0; i < permLen; ++i) {
     const _x = spot.x - i * parallel.x;
     const _y = spot.y - i * parallel.y;
@@ -514,12 +528,12 @@ export function scanPerpendicular(
           perpendicular
         );
         if (outcome) {
-          // All four cards played, doubles score
+      // All four cards played, doubles score
           if (permLen === 4) {
             outcome.score *= 2;
           }
-          // The outcome needs to know if the builder added to the left. If
-          // so, then the placement square needs to slide left.
+          // The outcome needs to know if the builder added to the -ve. If
+          // so, then the placement square needs to slide -ve.
           outcome.x = _x - br.slide * parallel.x;
           outcome.y = _y - br.slide * parallel.y;
           outcome.dir = parallel;
@@ -529,7 +543,7 @@ export function scanPerpendicular(
     } else {
       // We can't creep +ve parallel anymore, because we hit a card.
       // There is no point in stepping OVER this card, because the contour
-      // search algorithm will have found the playable spots to the left
+      // search algorithm will have found the playable spots to the -ve
       // of this 'blockage'.
       break;
     }
@@ -541,20 +555,20 @@ export function scanPerpendicular(
  * Look at a spot on the board and find the best play that can be made in
  * either the horizontal or vertical direction. Return that outcome, or
  * undefined if there is no outcome.
- * 
+ *
  * @param board BoardObject (doesn't change)
  * @param spot x,y Point on board
  * @param hand Player's hand (does not change)
- * @returns 
+ * @returns
  */
- export function considerThisSpot(
+export function considerThisSpot(
   board: BoardObject,
   spot: Point,
   hand: number[]
-) : Outcome | undefined {
+): Outcome | undefined {
   const results: Outcome[] = [];
   const pHand: number[] = Array(4);
-  // Name the anon function to make profiling easier
+    // Name the anon function to make profiling easier
   Permutes[hand.length - 1].forEach(function playPermute(permuteIndices) {
     const permLen = permuteIndices.length;
     // Using the permutation indices, construct a permuted hand from N=1 to 4
