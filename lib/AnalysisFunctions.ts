@@ -1,5 +1,5 @@
 import BoardObject, { Point } from './BoardObject';
-import { Card, score as cardScore, isCard, name } from './CardObject';
+import { Card, score as cardScore, isCard, name, color as cardColor, shape as cardShape } from './CardObject';
 import Permutes from './FasterPermute';
 
 // Direction unit vectors and origin.
@@ -273,7 +273,7 @@ function baseScore(line: number[]) {
   return pass ? score : 0;
 }
 
-export function scoreVerify(
+function scoreVerify(
   board: BoardObject,
   line: number[],
   x: number,
@@ -346,7 +346,7 @@ export function scoreVerify(
  * @param unit
  * @returns
  */
-export function scanPerpendicular(
+function scanPerpendicular(
   board: BoardObject,
   x: number,
   y: number,
@@ -381,6 +381,130 @@ export function scanPerpendicular(
   return line;
 }
 
+// Who resets these?
+let w1set_color = 0;
+let w1set_shape = 0;
+let w1set_score = 0;
+let w2set_color = 0;
+let w2set_shape = 0;
+let w2set_score = 0;
+
+function verifyWildcardConsistency(line: number[]): boolean {
+
+  // FML this is hard.
+  
+  // The line has been verified up to this point, so we can make assumptions.
+
+  let colorBits = 0; // YGRB
+  let shapeBits = 0; // T+CS
+  let scoreBits = 0; // 4321
+
+  let w1 = false;
+  let w2 = false;
+
+  let w1color = 0;
+  let w1shape = 0;
+  let w1score = 0;
+  let w2color = 0;
+  let w2shape = 0;
+  let w2score = 0;
+
+  // Set up the comparison values
+  
+  line.forEach((card, i) => {
+    if ((card !== Card.Wild_One) && (card !== Card.Wild_Two)) {
+      colorBits |= (1 << ((card >> 4) & 0x3));
+      shapeBits |= (1 << ((card >> 2) & 0x3));
+      scoreBits |= (1 << ((card >> 0) & 0x3));
+    } else if (card === Card.Wild_One) {
+      w1 = true;
+    } else if (card === Card.Wild_Two) {
+      w2 = true;
+    }
+  });
+
+  // Determine what the wildcards can be
+
+  if ((colorBits === 1) || (colorBits === 2) || (colorBits === 4) || (colorBits === 8)) {
+    // one-hot = all same
+    w1color = colorBits;
+  } else {
+    // else all different, can only be missing values
+    w1color = ~colorBits & 0xf;
+  }
+  w2color = w1color;
+
+  if ((shapeBits === 1) || (shapeBits === 2) || (shapeBits === 4) || (shapeBits === 8)) {
+    // one-hot = all same
+    w1shape = shapeBits;
+  } else {
+    // else all different, can only be missing values
+    w1color = ~shapeBits & 0xf;
+  }
+  w2shape = w1shape;
+
+  if ((scoreBits === 1) || (scoreBits === 2) || (scoreBits === 4) || (scoreBits === 8)) {
+    // one-hot = all same
+    w1score = scoreBits;
+  } else {
+    // else all different, can only be missing values
+    w1color = ~scoreBits & 0xf;
+  }
+  w2score = w1score;
+
+  // Check if these match the current choices set earlier
+
+  if (w1) {
+    if (w1set_color === 0) {
+      w1set_color = w1color;
+    } else if (w1set_color & w1color) {
+      // passes color check, there must be at least one bit of overlap
+    } else {
+      return false;
+    }
+    if (w1set_shape === 0) {
+      w1set_shape = w1shape;
+    } else if (w1set_shape & w1shape) {
+      // passes shape check, there must be at least one bit of overlap
+    } else {
+      return false;
+    }
+    if (w1set_score === 0) {
+      w1set_score = w1score;
+    } else if (w1set_score & w1score) {
+      // passes score check, there must be at least one bit of overlap
+    } else {
+      return false;
+    }
+  }
+
+  if (w2) {
+    if (w2set_color === 0) {
+      w2set_color = w2color;
+    } else if (w2set_color & w2color) {
+      // passes color check, there must be at least one bit of overlap
+    } else {
+      return false;
+    }
+    if (w2set_shape === 0) {
+      w2set_shape = w2shape;
+    } else if (w2set_shape & w2shape) {
+      // passes shape check, there must be at least one bit of overlap
+    } else {
+      return false;
+    }
+    if (w2set_score === 0) {
+      w2set_score = w2score;
+    } else if (w2set_score & w2score) {
+      // passes score check, there must be at least one bit of overlap
+    } else {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 /**
  * Lay down all cards to the +ve dir, starting from spot x/y, to construct a
  * contiguous line of cards, including cards that are skipped over to find
@@ -404,7 +528,7 @@ export function scanPerpendicular(
  * @param unit The direction vector.
  * @returns BuildLateralResult type.
  */
-export function scanParallel(
+function scanParallel(
   board: BoardObject,
   x: number,
   y: number,
@@ -417,6 +541,17 @@ export function scanParallel(
   let c: number;
   let _x;
   let _y;
+  let w1 = false;
+  let w2 = false;
+
+
+  w1set_color = 0;
+  w1set_shape = 0;
+  w1set_score = 0;
+  w2set_color = 0;
+  w2set_shape = 0;
+  w2set_score = 0;
+
   // First, built to the +ve.
   for (let i = 0; i < validLen /* increment on play! */; ) {
     _x = x + slide * unit.x;
@@ -430,10 +565,14 @@ export function scanParallel(
     if (c === Card.None) {
       // If the spot is empty, add the next card.
       line.push(cards[i]);
+      w1 ||= (cards[i] === Card.Wild_One);
+      w2 ||= (cards[i] === Card.Wild_Two);
       ++i;
     } else {
       // If it is not empty, and there are still cards to add, add one!
       line.push(c);
+      w1 ||= (c === Card.Wild_One);
+      w2 ||= (c === Card.Wild_Two);
     }
     ++slide;
   }
@@ -448,6 +587,8 @@ export function scanParallel(
     if (isCard(c)) {
       // Add the cards that are touching to the +ve until an empty square.
       line.push(c);
+      w1 ||= (c === Card.Wild_One);
+      w2 ||= (c === Card.Wild_Two);
     }
     ++slide;
   } while (isCard(c));
@@ -463,10 +604,17 @@ export function scanParallel(
     if (isCard(c)) {
       // Add the cards that are touching to the -ve until an empty square.
       line.unshift(c);
+      w1 ||= (c === Card.Wild_One);
+      w2 ||= (c === Card.Wild_Two);
     }
     ++slide;
   } while (isCard(c));
 
+  if (w1 || w2) {
+    if (!verifyWildcardConsistency(line)) {
+      return null;
+    };
+  }
   // Now we have a contiguous line of cards. This line could be huge, but it
   // isn't up to this function to resolve it.
   // If we've added cards to the -ve, let the caller know that with `slide`.
@@ -500,7 +648,7 @@ export function scanParallel(
  * @param perpendicular Perpendicular direction vector to line of play.
  * @returns A list of possible outcomes.
  */
-export function scan(
+function scan(
   board: BoardObject,
   pHand: number[],
   permLen: number,
@@ -521,14 +669,14 @@ export function scan(
         const outcome = scoreVerify(
           board,
           br.line,
-          _x,
-          _y,
+          _x - br.slide * parallel.x,
+          _y - br.slide * parallel.y,
           pHand,
           parallel,
           perpendicular
         );
         if (outcome) {
-      // All four cards played, doubles score
+          // All four cards played, doubles score
           if (permLen === 4) {
             outcome.score *= 2;
           }
@@ -541,7 +689,7 @@ export function scan(
         }
       }
     } else {
-      // We can't creep +ve parallel anymore, because we hit a card.
+      // We can't creep -ve parallel anymore, because we hit a card.
       // There is no point in stepping OVER this card, because the contour
       // search algorithm will have found the playable spots to the -ve
       // of this 'blockage'.
@@ -585,4 +733,94 @@ export function considerThisSpot(
     results.splice(0, 0, ...r);
   });
   return pickBestPlay(results);
+}
+
+// Evaluates the board to make sure nothing is illegal.
+export function sanityCheckBoard(board: BoardObject): void {
+  let ulcx = board.bbox.ulc.x;
+  let ulcy = board.bbox.ulc.y;
+  const h = board.bbox.h;
+  const w = board.bbox.w;
+
+  let line: number[] = [];
+  for (let y=ulcy; y<(ulcy+h); ++y) {
+    for (let x=ulcx; x<w; ++x) {
+      const c = board.at(x, y);
+      if (isCard(c)) {
+        // 1. Make sure no card is isolated
+        const nNeighbors = 
+          (isCard(board.at(x+1, y)) ? 1 : 0) +
+          (isCard(board.at(x-1, y)) ? 1 : 0) +
+          (isCard(board.at(x, y+1)) ? 1 : 0) +
+          (isCard(board.at(x, y-1)) ? 1 : 0);
+        if (nNeighbors === 0) {
+          throw new Error(`Card at (${x}, ${y}) is an orphan`);
+        }
+        // 2. Line-check state machine
+        line.push(c);
+      } else {
+        // 2a. We hit the end of a line.
+        if (line.length > 4) {
+          throw new Error(`Line is greater than 4 cards at (${x}, ${y})`);
+        }
+        function countBits (value: number) {
+          // Seriously need a faster function (see Hackers Delight)
+          let total = 0;
+          for (let i=0; i<32; ++i) {
+            total += ((value >> i) & 1);
+          }
+          return total;
+        }
+        if (line.length > 1) {
+          // TODO: We need to switch to one-hot encoding.
+          let colorBits = 0;
+          let shapeBits = 0;
+          let scoreBits = 0;
+          let w1 = false;
+          let w2 = false;
+          let nCards = 0;
+
+          line.forEach((card, i) => {
+            if ((card !== Card.Wild_One) && (card !== Card.Wild_Two)) {
+              colorBits |= (1 << ((card >> 4) & 0x3));
+              shapeBits |= (1 << ((card >> 2) & 0x3));
+              scoreBits |= (1 << ((card >> 0) & 0x3));
+              ++nCards;
+            } else if (card === Card.Wild_One) {
+              w1 = true;
+            } else if (card === Card.Wild_Two) {
+              w2 = true;
+            }
+            // Color consistency
+            if ((colorBits === 1) || (colorBits === 2) || (colorBits === 4) || (colorBits === 8)) {
+              // one-hot = all same
+            } else if (countBits(colorBits) === nCards) {
+              // all different, can only be missing values
+            } else {
+              throw new Error(`Scan done at (${x},${y}) breaks color rules ${countBits(colorBits)}, ${colorBits}, ${nCards}`);
+            }
+            // Shape consistency
+            if ((shapeBits === 1) || (shapeBits === 2) || (shapeBits === 4) || (shapeBits === 8)) {
+              // one-hot = all same
+            } else if (countBits(shapeBits) === nCards) {
+              // all different, can only be missing values
+            } else {
+              throw new Error(`Scan done at (${x},${y}) breaks shape rules`);
+            }
+            // Score consistency
+            if ((scoreBits === 1) || (scoreBits === 2) || (scoreBits === 4) || (scoreBits === 8)) {
+              // one-hot = all same
+            } else if (countBits(scoreBits) === nCards) {
+              // all different, can only be missing values
+            } else {
+              throw new Error(`Scan done at (${x},${y}) breaks score rules`);
+            }
+          });
+          // 4. Check wildcard consistency. (Yikes.)
+        }
+        // 3. Not a card at (x,y) - empty or dead, reset line checker
+        line = [];
+      }
+    }
+  }
 }

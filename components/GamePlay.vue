@@ -1,7 +1,7 @@
 <!-- Please remove this file from your project -->
 <template lang="pug">
 mixin sidebar
-  .m-4.p-4.w-80.text-sm
+  .text-sm
     h1 Results
     h2 Game log
     .h-48.overflow-y-scroll.border
@@ -69,15 +69,15 @@ mixin players
 
 mixin controls
   .mb-4
-    button.btn.btn-blue.mr-4(@click='turn()'
+    button.btn.btn-blue.mb-1.mr-2(@click='turn()'
       ) Play One Turn
-    button.btn.btn-blue.mr-4(@click='reset()'
+    button.btn.btn-blue.mb-1.mr-2(@click='reset()'
       ) Reset
-    button.btn.btn-blue.mr-4(@click='autoPlay(1)'
+    button.btn.btn-blue.mb-1.mr-2(@click='autoPlay(1)'
       ) Autoplay Once
-    button.btn.btn-blue.mr-4(@click='autoPlay()'
+    button.btn.btn-blue.mb-1.mr-2(@click='autoPlay()'
       ) Autoplay Forever
-    button.btn.btn-blue.mr-4(@click='stopAutoPlay()'
+    button.btn.btn-blue.mb-1(@click='stopAutoPlay()'
       ) stop
 
 mixin board
@@ -100,24 +100,22 @@ mixin deck
     .flex.flex-row.flex-wrap
       card-image(v-for='card of cacheDeck' :card='card' :key='card')
 
-.flex.flex-row
+//- Main!
+.m-4.flex.flex-row
   .w-80.mr-4
     +sidebar
   .flex.flex-col
-    .mt-8.mb-4.error-message(v-if='error') {{ error }}
-    h1.mt-8 Iota Auto-Player
+    .mb-4.error-message(v-if='error') {{ error }}
+    h1 Iota Auto-Player
     p Based on the game "IOTA" by Gamewrite (c) www.gamewrite.com
     p This app plays the game by itself (wildcard rules are still in progress). It's a fun study in 1-ply gameplay.
     p It is extremely slow on Safari for some reason, recommend Chrome or Firefox.
     +players
-    .mb-4
-      div(v-if='game.cannotProceed')
-        div(v-if='game.player1.score === game.player2.score')
-          b Tie!
-        div(v-else)
-          b Winner is player # {{ game.player1.score > game.player2.score ? 1 : 2 }}
+    .mb-4(v-if='game.cannotProceed')
+      div(v-if='game.player1.score === game.player2.score')
+        b Tie!
       div(v-else)
-        p Choose an option:
+        b Winner is player # {{ game.player1.score > game.player2.score ? 1 : 2 }}
     +controls
     +board
     +deck
@@ -140,7 +138,7 @@ export default Vue.extend({
        * I stop trying to update the DOM after EVERY turn during autoplay, it
        * might ... do something? I dunno. Just a thought.
        */
-      userSeed: null as number | null,
+      userSeed: 1799331762 as number | null,
       cacheBoard: [] as Array<number | null>,
       cacheRangeX: [] as number[],
       cacheRangeY: [] as number[],

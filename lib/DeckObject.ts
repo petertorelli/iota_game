@@ -31,9 +31,6 @@ export default class DeckObject {
     // See note about MSB in CardObject.ts
     for (let i = 0x80; i < 0xc0; ++i) {
       this.deck[i - 0x80] = i;
-      // TODO: Is et lookup faster than indexOf? I sure hope so!
-      this.w1_choices.add(0x80);
-      this.w2_choices.add(0x80);
     }
     // Two wildcards
     this.deck[64] = Card.Wild_One;

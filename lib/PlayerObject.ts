@@ -109,6 +109,7 @@ export default class PlayerObject {
     } else {
       const bestPlay = Algs.pickBestPlay(results);
       let ndraw = this.layEmDown(board, bestPlay);
+      Algs.sanityCheckBoard(board);
       if (deck.deck.length === 0 && this.hand.length === 0) {
         this.score += bestPlay.score * 2;
         // Game over.

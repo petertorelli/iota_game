@@ -22,7 +22,7 @@ export default Vue.component('CardImage', {
       return card.htmlShape(this.card) + ' ' + card.score(this.card);
     },
     background() {
-      return this.card === card.Card.Dead ? '#eee' : 'white';
+      return this.card === card.Card.Dead ? '#f2f2f2' : 'white';
     },
   },
 });
