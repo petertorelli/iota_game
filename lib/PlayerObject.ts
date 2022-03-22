@@ -9,6 +9,7 @@ export default class PlayerObject {
   public hand: number[] = [];
   public name: string = 'Player Name';
   public score = 0;
+  public debug: boolean = false;
   constructor(name: string) {
     this.init(name);
   }
@@ -37,7 +38,7 @@ export default class PlayerObject {
 
   /**
    * Draw cards from a deck if there are any.
-   * 
+   *
    * @param nCards Number of cards to draw.
    * @param deck Deck to draw them from.
    */
@@ -52,7 +53,7 @@ export default class PlayerObject {
 
   /**
    * Given a best play outcome, actually put the cards on the board.
-   * 
+   *
    * @param board BoardObject (it will be modified)
    * @param bestPlay An Outcome the player chose to play.
    * @returns How many cards were played from the player's hand.
@@ -77,11 +78,14 @@ export default class PlayerObject {
       const at = board.at(x, y);
       // Sanity check, doesn't cost a lot.
       if (at !== c && at !== Card.None) {
-        throw new Error(`Cannot play a card on a card! [${x}, ${y}] ${name(c)} on ${name(at)}`);
+        throw new Error(
+          `Cannot play a card on a card! [${x}, ${y}] ${name(c)} on ${name(at)}`
+        );
       }
+      this.debug && console.log(`${this.name} puts ${name(c)} at ${x}, ${y}`);
       board.put(x, y, c);
       ++i;
-    }
+    };
     bestPlay.line.forEach(playThisCard);
     return nDraw;
   }
@@ -98,6 +102,7 @@ export default class PlayerObject {
     const results: Algs.Outcome[] = [];
     // Name the anon function to make profiling easier
     const considerSpot = (spot: Point) => {
+      this.debug && console.log(`${this.name} looks at ${spot.x}, ${spot.y}`);
       const r = Algs.considerThisSpot(board, spot, this.hand);
       if (r !== undefined) {
         results.push(r);
@@ -108,8 +113,8 @@ export default class PlayerObject {
       this.swapHand(deck);
     } else {
       const bestPlay = Algs.pickBestPlay(results);
+      this.debug && console.log(`${this.name} plays`, bestPlay);
       let ndraw = this.layEmDown(board, bestPlay);
-      Algs.sanityCheckBoard(board);
       if (deck.deck.length === 0 && this.hand.length === 0) {
         this.score += bestPlay.score * 2;
         // Game over.

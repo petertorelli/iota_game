@@ -1,6 +1,14 @@
 import BoardObject, { Point } from './BoardObject';
-import { Card, score as cardScore, isCard, name, color as cardColor, shape as cardShape } from './CardObject';
+import {
+  Card,
+  score as cardScore,
+  isCard,
+  name,
+  color as cardColor,
+  shape as cardShape,
+} from './CardObject';
 import Permutes from './FasterPermute';
+import { rand } from './RandomGenerator';
 
 // Direction unit vectors and origin.
 export const UP: Point = { x: 0, y: 1 };
@@ -15,6 +23,29 @@ export type BuildParallelResult = {
   slide: number;
 };
 
+let debugFlag: boolean = false;
+let debugX: number | undefined = undefined;
+let debugY: number | undefined = undefined;
+export function toggleDebug(
+  x: number | undefined = undefined,
+  y: number | undefined = undefined
+) {
+  debugFlag = !debugFlag;
+  debugX = x !== undefined ? x : debugX;
+  debugY = y !== undefined ? y : debugY;
+}
+
+function debug(
+  x: number | undefined = undefined,
+  y: number | undefined = undefined
+) {
+  // use '==' since it's text from the form control.
+  return (
+    (x !== undefined && x == debugX && y !== undefined && y == debugY) ||
+    debugFlag
+  );
+}
+
 // The result of a play is an outcome.
 export type Outcome = {
   score: number;
@@ -22,6 +53,9 @@ export type Outcome = {
   x: number;
   y: number;
   dir: Point | null;
+  tag: number;
+  orgx: number;
+  orgy: number;
 };
 
 // Note: Picking largest play increases avg score by ~2.5pts!
@@ -163,13 +197,13 @@ function wildScore(line: number[]): number {
   // We can ignore wildcards: if the hand without wildcards is valid, then
   // return just the baseScore of that smaller hand subset.
   const newLine: number[] = [];
-  line.forEach(card => {
+  line.forEach((card) => {
     if (card === Card.Wild_One || card === Card.Wild_Two) {
       // do nothing
     } else {
       newLine.push(card);
     }
-  })
+  });
   return baseScore(newLine);
 }
 
@@ -273,6 +307,308 @@ function baseScore(line: number[]) {
   return pass ? score : 0;
 }
 
+function grabOrthoLine(board: BoardObject, x: number, y: number, unit: Point) {
+  const ortho: Point = { x: unit.y, y: unit.x };
+  const line: number[] = [];
+  for (let i = 1; i < 6; ++i) {
+    const _x = x - ortho.x * i;
+    const _y = y - ortho.y * i;
+    const c = board.board[_x + 48 + (_y + 48) * 97];
+    if (c === Card.None) {
+      break;
+    } else {
+      line.unshift(c);
+    }
+  }
+  for (let i = 1; i < 6; ++i) {
+    const _x = x + ortho.x * i;
+    const _y = y + ortho.y * i;
+    const c = board.board[_x + 48 + (_y + 48) * 97];
+    if (c === Card.None) {
+      break;
+    } else {
+      line.push(c);
+    }
+  }
+  return line;
+}
+
+function countBits32(int32: number) {
+  // Hacker's Delight, Chapter 5-1. Counting 1-Bits
+  let x = int32;
+  x = (x & 0x5555_5555) + ((x >> 1) & 0x5555_5555);
+  x = (x & 0x3333_3333) + ((x >> 2) & 0x3333_3333);
+  x = (x & 0x0f0f_0f0f) + ((x >> 4) & 0x0f0f_0f0f);
+  x = (x & 0x00ff_00ff) + ((x >> 8) & 0x00ff_00ff);
+  x = (x & 0x0000_ffff) + ((x >> 16) & 0x0000_ffff);
+  return x;
+  /* TODO: Someday compare these algorithms
+  // Seriously need a faster function (see Hackers Delight)
+  let total = 0;
+  for (let i=0; i<32; ++i) {
+    total += ((int32 >> i) & 1);
+  }
+  return total;
+  */
+}
+
+function choiceMask(bits4: number, nCards: number): number {
+  let choices: number;
+  // Color consistency
+  if (bits4 === 1 || bits4 === 2 || bits4 === 4 || bits4 === 8) {
+    // one-hot = all same
+    choices = bits4;
+  } else if (countBits32(bits4) === nCards) {
+    // all different
+    choices = ~bits4 & 0xf;
+  } else {
+    // violation of all or none.
+    choices = -1;
+  }
+  return choices;
+}
+
+function getWildcardMasks(line: number[]): [number, number, number] {
+  // TODO: We need to switch to one-hot encoding!
+  let nCards = 0;
+  let cbits = 0; // YGRB
+  let hbits = 0; // T+CS
+  let sbits = 0; // 4321
+  let w1 = false;
+  let w2 = false;
+
+  line.forEach((card) => {
+    if (card !== Card.Wild_One && card !== Card.Wild_Two) {
+      cbits |= 1 << ((card >> 4) & 0x3);
+      hbits |= 1 << ((card >> 2) & 0x3);
+      sbits |= 1 << ((card >> 0) & 0x3);
+      ++nCards;
+    } else {
+      w1 = card === Card.Wild_One ? true : w1;
+      w2 = card === Card.Wild_Two ? true : w2;
+      /*
+      if (w1 && w2) {
+        // Seed 459432530 has two wildcards?!?!?
+        throw new Error('Cannot handle two wildcards, yet');
+      }
+      */
+    }
+  });
+
+  const cMask = choiceMask(cbits, nCards);
+  const hMask = choiceMask(hbits, nCards);
+  const sMask = choiceMask(sbits, nCards);
+
+  return [cMask, hMask, sMask];
+}
+
+function rasterCheck(board: BoardObject, x: number, y: number, line: number[]) {
+  const c = board.at(x, y);
+  if (isCard(c)) {
+    // 1. Make sure no card is isolated
+    const nNeighbors =
+      (isCard(board.at(x + 1, y)) ? 1 : 0) +
+      (isCard(board.at(x - 1, y)) ? 1 : 0) +
+      (isCard(board.at(x, y + 1)) ? 1 : 0) +
+      (isCard(board.at(x, y - 1)) ? 1 : 0);
+    if (nNeighbors === 0) {
+      throw new Error(`Card at (${x}, ${y}) is an orphan`);
+    }
+    // 2. Line-check state machine
+    line.push(c);
+  } else {
+    // 2a. We hit the end of a line.
+    if (line.length > 4) {
+      throw new Error(`Line is greater than 4 cards at (${x}, ${y})`);
+    }
+    // 2b. Check non-wildcard consistency
+    if (line.length > 1) {
+      // TODO: We need to switch to one-hot encoding!
+      let nCards = 0;
+      let colorBits = 0; // YGRB
+      let shapeBits = 0; // T+CS
+      let scoreBits = 0; // 4321
+      line.forEach((card) => {
+        if (card !== Card.Wild_One && card !== Card.Wild_Two) {
+          colorBits |= 1 << ((card >> 4) & 0x3);
+          shapeBits |= 1 << ((card >> 2) & 0x3);
+          scoreBits |= 1 << ((card >> 0) & 0x3);
+          ++nCards;
+        }
+      });
+      if (choiceMask(colorBits, nCards) < 0) {
+        throw new Error(`Scan done at (${x},${y}) breaks color rules.`);
+      }
+      if (choiceMask(shapeBits, nCards) < 0) {
+        throw new Error(`Scan done at (${x},${y}) breaks shape rules`);
+      }
+      if (choiceMask(scoreBits, nCards) < 0) {
+        throw new Error(`Scan done at (${x},${y}) breaks score rules`);
+      }
+    }
+    // 3. Not a card at (x,y) - empty or dead, reset line checker
+    // Since we passed by reference, we cannot do `line = []` to clear.
+    line.splice(0, line.length);
+  }
+}
+
+function isWilcardCrossConsistent(hline: number[], vline: number[]) {
+  let hpossible: [number, number, number] = getWildcardMasks(hline);
+  let vpossible: [number, number, number] = getWildcardMasks(vline);
+  if (hpossible[0] < 0 || hpossible[1] < 0 || hpossible[2] < 0) {
+    return false;
+  }
+  if (vpossible[0] < 0 || vpossible[1] < 0 || vpossible[2] < 0) {
+    return false;
+  }
+  const colorsOk = hpossible[0] & vpossible[0];
+  const shapesOk = hpossible[1] & vpossible[1];
+  const scoresOk = hpossible[2] & vpossible[2];
+  return colorsOk && shapesOk && scoresOk;
+}
+
+function isWilcardConsistent(board: BoardObject, spot: Point) {
+  let c: number;
+  const hline: number[] = [];
+  const vline: number[] = [];
+
+  // Create a horizontal line WITHOUT the CENTER CARD.
+  for (let i = 1; ; ++i) {
+    c = board.at(spot.x + i, spot.y);
+    if (isCard(c)) {
+      hline.push(c);
+    } else {
+      break;
+    }
+  }
+  for (let i = 1; ; ++i) {
+    c = board.at(spot.x - i, spot.y);
+    if (isCard(c)) {
+      hline.unshift(c);
+    } else {
+      break;
+    }
+  }
+
+  // Create a vertical line WITHOUT the CENTER CARD.
+  for (let i = 1; ; ++i) {
+    c = board.at(spot.x, spot.y + i);
+    if (isCard(c)) {
+      vline.push(c);
+    } else {
+      break;
+    }
+  }
+  for (let i = 1; ; ++i) {
+    c = board.at(spot.x, spot.y - i);
+    if (isCard(c)) {
+      vline.unshift(c);
+    } else {
+      break;
+    }
+  }
+
+  return isWilcardCrossConsistent(hline, vline);
+}
+
+// Evaluates the board to make sure nothing is illegal.
+export function sanityCheckBoard(board: BoardObject): void {
+  let ulcx = board.bbox.ulc.x;
+  let ulcy = board.bbox.ulc.y;
+  const h = board.bbox.h;
+  const w = board.bbox.w;
+
+  // Skip first card turned over from deck on turn #1.
+  if (board.taken.length < 2) {
+    return;
+  }
+
+  // Horizontal raster
+  for (let y = ulcy; y < ulcy + h; ++y) {
+    const line: number[] = [];
+    for (let x = ulcx; x < w; ++x) {
+      rasterCheck(board, x, y, line);
+    }
+  }
+
+  // Vertical raster
+  for (let x = ulcx; x < w; ++x) {
+    const line: number[] = [];
+    for (let y = ulcy; y < ulcy + h; ++y) {
+      rasterCheck(board, x, y, line);
+    }
+  }
+
+  // Now find both wildcards and make sure they are consistently used
+  board.taken.forEach((spot) => {
+    if (board.atP(spot) === Card.Wild_One) {
+      if (!isWilcardConsistent(board, spot)) {
+        throw new Error(`Wildcard at (${spot.x},${spot.y}) is inconsistent`);
+      }
+    } else if (board.atP(spot) === Card.Wild_Two) {
+      if (!isWilcardConsistent(board, spot)) {
+        throw new Error(`Wildcard at (${spot.x},${spot.y}) is inconsistent`);
+      }
+    }
+  });
+}
+
+// ======================
+
+/**
+ *
+ * @param board BoardObject (immutable)
+ * @param x Point at which to scan, x-coord
+ * @param y Point at which to scan, y-coord
+ * @param unit
+ * @returns
+ */
+function buildPerpendicular(
+  board: BoardObject,
+  x: number,
+  y: number,
+  unit: Point,
+  wildLines: Array<Array<number>>
+) {
+  // Order does NOT matter
+  const line: number[] = [];
+  // -ve direction
+  for (let i = 1; i < 6; ++i) {
+    const _x = x - unit.x * i;
+    const _y = y - unit.y * i;
+    const c = board.board[_x + 48 + (_y + 48) * 97];
+    // const c = board.at(x - unit.x * i, y - unit.y * i);
+    if (!isCard(c)) {
+      break;
+    } else {
+      line.unshift(c);
+      if (c === Card.Wild_One) {
+        wildLines[0] = grabOrthoLine(board, _x, _y, unit);
+      } else if (c === Card.Wild_Two) {
+        wildLines[1] = grabOrthoLine(board, _x, _y, unit);
+      }
+    }
+  }
+  // +ve direction
+  for (let i = 1; i < 6; ++i) {
+    const _x = x + unit.x * i;
+    const _y = y + unit.y * i;
+    const c = board.board[_x + 48 + (_y + 48) * 97];
+    // const c = board.at(x + unit.x * i, y + unit.y * i);
+    if (!isCard(c)) {
+      break;
+    } else {
+      line.push(c);
+      if (c === Card.Wild_One) {
+        wildLines[0] = grabOrthoLine(board, _x, _y, unit);
+      } else if (c === Card.Wild_Two) {
+        wildLines[1] = grabOrthoLine(board, _x, _y, unit);
+      }
+    }
+  }
+  return line;
+}
+
 function scoreVerify(
   board: BoardObject,
   line: number[],
@@ -286,6 +622,7 @@ function scoreVerify(
   if (line.length > 4) {
     return null;
   }
+  // Score the parallel line first
   let score = wildScore(line);
   if (score === 0 && line.length > 1) {
     return null;
@@ -298,15 +635,51 @@ function scoreVerify(
   for (let i = 0; i < line.length; ++i) {
     const _x = x + i * unit1.x;
     const _y = y + i * unit1.y;
-    // Don't include cards that are already on the board!
-    if (isCard(board.board[_x + 48 + (_y + 48) * 97])) {
+
+    // Don't include cards that are already on the board, they are valid
+    // from the previous scan that placed them there! (optimization)
+    /* BUG? if (isCard(board.board[_x + 48 + (_y + 48) * 97])) {
       continue;
-    }
-    const perpLine = scanPerpendicular(board, _x, _y, unit2);
+    } */
+    const wildLines: Array<Array<number>> = [[], []];
+    const perpLine = buildPerpendicular(board, _x, _y, unit2, wildLines);
+    // The perpendicular scan won't include our card
     if (perpLine.length === 0) {
       continue;
     }
+
+    // Did we add to a wildcard line? If so, we need to check the cross with
+    // that line! But what is that line?
+
     perpLine.push(line[i]); // don't forget the card that should be there!
+
+    const debug2 = debug(x, y) && unit1.y === 0;
+    debug2 &&
+      console.log(
+        `-- scoreVerify(${x},${y}) build perp at ${_x}, ${_y} ->`,
+        perpLine.map((x) => name(x))
+      );
+
+    // Are we on a wildcard?
+    if ((line[i] & 0xc0) === 0xc0) {
+      // Wildcard. Check to see if these two lines are consistent.
+      if (!isWilcardCrossConsistent(line, perpLine)) {
+        debug2 && console.log('--- onWild fail');
+        return null;
+      }
+      debug2 && console.log('--- onWild pass');
+    }
+    if (wildLines[0].length) {
+      if (!isWilcardCrossConsistent(wildLines[0], perpLine)) {
+        return null;
+      }
+    }
+    if (wildLines[1].length) {
+      if (!isWilcardCrossConsistent(wildLines[1], perpLine)) {
+        return null;
+      }
+    }
+
     let vscore = wildScore(perpLine);
     if (vscore === cardScore(line[i])) {
       // If the total score is the score of the card, it just the card.
@@ -334,175 +707,11 @@ function scoreVerify(
     line,
     x,
     y,
+    orgx: x,
+    orgy: y,
     dir: null,
+    tag: Math.floor(rand() * 1024),
   };
-}
-
-/**
- *
- * @param board BoardObject (immutable)
- * @param x Point at which to scan, x-coord
- * @param y Point at which to scan, y-coord
- * @param unit
- * @returns
- */
-function scanPerpendicular(
-  board: BoardObject,
-  x: number,
-  y: number,
-  unit: Point
-) {
-  // Order does NOT matter
-  const line: number[] = [];
-  // -ve direction
-  for (let i = 1; i < 6; ++i) {
-    const _x = x - unit.x * i;
-    const _y = y - unit.y * i;
-    const c = board.board[_x + 48 + (_y + 48) * 97];
-    // const c = board.at(x - unit.x * i, y - unit.y * i);
-    if (c === Card.None) {
-      break;
-    } else {
-      line.push(c);
-    }
-  }
-  // +ve direction
-  for (let i = 1; i < 6; ++i) {
-    const _x = x + unit.x * i;
-    const _y = y + unit.y * i;
-    const c = board.board[_x + 48 + (_y + 48) * 97];
-    // const c = board.at(x + unit.x * i, y + unit.y * i);
-    if (c === Card.None) {
-      break;
-    } else {
-      line.push(c);
-    }
-  }
-  return line;
-}
-
-// Who resets these?
-let w1set_color = 0;
-let w1set_shape = 0;
-let w1set_score = 0;
-let w2set_color = 0;
-let w2set_shape = 0;
-let w2set_score = 0;
-
-function verifyWildcardConsistency(line: number[]): boolean {
-
-  // FML this is hard.
-  
-  // The line has been verified up to this point, so we can make assumptions.
-
-  let colorBits = 0; // YGRB
-  let shapeBits = 0; // T+CS
-  let scoreBits = 0; // 4321
-
-  let w1 = false;
-  let w2 = false;
-
-  let w1color = 0;
-  let w1shape = 0;
-  let w1score = 0;
-  let w2color = 0;
-  let w2shape = 0;
-  let w2score = 0;
-
-  // Set up the comparison values
-  
-  line.forEach((card, i) => {
-    if ((card !== Card.Wild_One) && (card !== Card.Wild_Two)) {
-      colorBits |= (1 << ((card >> 4) & 0x3));
-      shapeBits |= (1 << ((card >> 2) & 0x3));
-      scoreBits |= (1 << ((card >> 0) & 0x3));
-    } else if (card === Card.Wild_One) {
-      w1 = true;
-    } else if (card === Card.Wild_Two) {
-      w2 = true;
-    }
-  });
-
-  // Determine what the wildcards can be
-
-  if ((colorBits === 1) || (colorBits === 2) || (colorBits === 4) || (colorBits === 8)) {
-    // one-hot = all same
-    w1color = colorBits;
-  } else {
-    // else all different, can only be missing values
-    w1color = ~colorBits & 0xf;
-  }
-  w2color = w1color;
-
-  if ((shapeBits === 1) || (shapeBits === 2) || (shapeBits === 4) || (shapeBits === 8)) {
-    // one-hot = all same
-    w1shape = shapeBits;
-  } else {
-    // else all different, can only be missing values
-    w1color = ~shapeBits & 0xf;
-  }
-  w2shape = w1shape;
-
-  if ((scoreBits === 1) || (scoreBits === 2) || (scoreBits === 4) || (scoreBits === 8)) {
-    // one-hot = all same
-    w1score = scoreBits;
-  } else {
-    // else all different, can only be missing values
-    w1color = ~scoreBits & 0xf;
-  }
-  w2score = w1score;
-
-  // Check if these match the current choices set earlier
-
-  if (w1) {
-    if (w1set_color === 0) {
-      w1set_color = w1color;
-    } else if (w1set_color & w1color) {
-      // passes color check, there must be at least one bit of overlap
-    } else {
-      return false;
-    }
-    if (w1set_shape === 0) {
-      w1set_shape = w1shape;
-    } else if (w1set_shape & w1shape) {
-      // passes shape check, there must be at least one bit of overlap
-    } else {
-      return false;
-    }
-    if (w1set_score === 0) {
-      w1set_score = w1score;
-    } else if (w1set_score & w1score) {
-      // passes score check, there must be at least one bit of overlap
-    } else {
-      return false;
-    }
-  }
-
-  if (w2) {
-    if (w2set_color === 0) {
-      w2set_color = w2color;
-    } else if (w2set_color & w2color) {
-      // passes color check, there must be at least one bit of overlap
-    } else {
-      return false;
-    }
-    if (w2set_shape === 0) {
-      w2set_shape = w2shape;
-    } else if (w2set_shape & w2shape) {
-      // passes shape check, there must be at least one bit of overlap
-    } else {
-      return false;
-    }
-    if (w2set_score === 0) {
-      w2set_score = w2score;
-    } else if (w2set_score & w2score) {
-      // passes score check, there must be at least one bit of overlap
-    } else {
-      return false;
-    }
-  }
-
-  return true;
 }
 
 /**
@@ -528,7 +737,7 @@ function verifyWildcardConsistency(line: number[]): boolean {
  * @param unit The direction vector.
  * @returns BuildLateralResult type.
  */
-function scanParallel(
+function buildParallelLine(
   board: BoardObject,
   x: number,
   y: number,
@@ -541,16 +750,6 @@ function scanParallel(
   let c: number;
   let _x;
   let _y;
-  let w1 = false;
-  let w2 = false;
-
-
-  w1set_color = 0;
-  w1set_shape = 0;
-  w1set_score = 0;
-  w2set_color = 0;
-  w2set_shape = 0;
-  w2set_score = 0;
 
   // First, built to the +ve.
   for (let i = 0; i < validLen /* increment on play! */; ) {
@@ -565,14 +764,10 @@ function scanParallel(
     if (c === Card.None) {
       // If the spot is empty, add the next card.
       line.push(cards[i]);
-      w1 ||= (cards[i] === Card.Wild_One);
-      w2 ||= (cards[i] === Card.Wild_Two);
       ++i;
     } else {
       // If it is not empty, and there are still cards to add, add one!
       line.push(c);
-      w1 ||= (c === Card.Wild_One);
-      w2 ||= (c === Card.Wild_Two);
     }
     ++slide;
   }
@@ -587,8 +782,6 @@ function scanParallel(
     if (isCard(c)) {
       // Add the cards that are touching to the +ve until an empty square.
       line.push(c);
-      w1 ||= (c === Card.Wild_One);
-      w2 ||= (c === Card.Wild_Two);
     }
     ++slide;
   } while (isCard(c));
@@ -604,20 +797,14 @@ function scanParallel(
     if (isCard(c)) {
       // Add the cards that are touching to the -ve until an empty square.
       line.unshift(c);
-      w1 ||= (c === Card.Wild_One);
-      w2 ||= (c === Card.Wild_Two);
     }
     ++slide;
   } while (isCard(c));
 
-  if (w1 || w2) {
-    if (!verifyWildcardConsistency(line)) {
-      return null;
-    };
-  }
   // Now we have a contiguous line of cards. This line could be huge, but it
   // isn't up to this function to resolve it.
   // If we've added cards to the -ve, let the caller know that with `slide`.
+  // TODO: optimize: return null on len > 4 ASAP
   return {
     line,
     slide: slide - 1,
@@ -663,7 +850,7 @@ function scan(
     const c = board.board[_x + 48 + (_y + 48) * 97];
     if (c === Card.None) {
       // Now we have a completed line that needs scoring.
-      const br = scanParallel(board, _x, _y, pHand, permLen, parallel);
+      const br = buildParallelLine(board, _x, _y, pHand, permLen, parallel);
       // If the hand we're playing is illegal, don't bother
       if (br !== null) {
         const outcome = scoreVerify(
@@ -716,7 +903,7 @@ export function considerThisSpot(
 ): Outcome | undefined {
   const results: Outcome[] = [];
   const pHand: number[] = Array(4);
-    // Name the anon function to make profiling easier
+  // Name the anon function to make profiling easier
   Permutes[hand.length - 1].forEach(function playPermute(permuteIndices) {
     const permLen = permuteIndices.length;
     // Using the permutation indices, construct a permuted hand from N=1 to 4
@@ -733,94 +920,4 @@ export function considerThisSpot(
     results.splice(0, 0, ...r);
   });
   return pickBestPlay(results);
-}
-
-// Evaluates the board to make sure nothing is illegal.
-export function sanityCheckBoard(board: BoardObject): void {
-  let ulcx = board.bbox.ulc.x;
-  let ulcy = board.bbox.ulc.y;
-  const h = board.bbox.h;
-  const w = board.bbox.w;
-
-  let line: number[] = [];
-  for (let y=ulcy; y<(ulcy+h); ++y) {
-    for (let x=ulcx; x<w; ++x) {
-      const c = board.at(x, y);
-      if (isCard(c)) {
-        // 1. Make sure no card is isolated
-        const nNeighbors = 
-          (isCard(board.at(x+1, y)) ? 1 : 0) +
-          (isCard(board.at(x-1, y)) ? 1 : 0) +
-          (isCard(board.at(x, y+1)) ? 1 : 0) +
-          (isCard(board.at(x, y-1)) ? 1 : 0);
-        if (nNeighbors === 0) {
-          throw new Error(`Card at (${x}, ${y}) is an orphan`);
-        }
-        // 2. Line-check state machine
-        line.push(c);
-      } else {
-        // 2a. We hit the end of a line.
-        if (line.length > 4) {
-          throw new Error(`Line is greater than 4 cards at (${x}, ${y})`);
-        }
-        function countBits (value: number) {
-          // Seriously need a faster function (see Hackers Delight)
-          let total = 0;
-          for (let i=0; i<32; ++i) {
-            total += ((value >> i) & 1);
-          }
-          return total;
-        }
-        if (line.length > 1) {
-          // TODO: We need to switch to one-hot encoding.
-          let colorBits = 0;
-          let shapeBits = 0;
-          let scoreBits = 0;
-          let w1 = false;
-          let w2 = false;
-          let nCards = 0;
-
-          line.forEach((card, i) => {
-            if ((card !== Card.Wild_One) && (card !== Card.Wild_Two)) {
-              colorBits |= (1 << ((card >> 4) & 0x3));
-              shapeBits |= (1 << ((card >> 2) & 0x3));
-              scoreBits |= (1 << ((card >> 0) & 0x3));
-              ++nCards;
-            } else if (card === Card.Wild_One) {
-              w1 = true;
-            } else if (card === Card.Wild_Two) {
-              w2 = true;
-            }
-            // Color consistency
-            if ((colorBits === 1) || (colorBits === 2) || (colorBits === 4) || (colorBits === 8)) {
-              // one-hot = all same
-            } else if (countBits(colorBits) === nCards) {
-              // all different, can only be missing values
-            } else {
-              throw new Error(`Scan done at (${x},${y}) breaks color rules ${countBits(colorBits)}, ${colorBits}, ${nCards}`);
-            }
-            // Shape consistency
-            if ((shapeBits === 1) || (shapeBits === 2) || (shapeBits === 4) || (shapeBits === 8)) {
-              // one-hot = all same
-            } else if (countBits(shapeBits) === nCards) {
-              // all different, can only be missing values
-            } else {
-              throw new Error(`Scan done at (${x},${y}) breaks shape rules`);
-            }
-            // Score consistency
-            if ((scoreBits === 1) || (scoreBits === 2) || (scoreBits === 4) || (scoreBits === 8)) {
-              // one-hot = all same
-            } else if (countBits(scoreBits) === nCards) {
-              // all different, can only be missing values
-            } else {
-              throw new Error(`Scan done at (${x},${y}) breaks score rules`);
-            }
-          });
-          // 4. Check wildcard consistency. (Yikes.)
-        }
-        // 3. Not a card at (x,y) - empty or dead, reset line checker
-        line = [];
-      }
-    }
-  }
 }

@@ -6,6 +6,36 @@ mixin sidebar
     h2 Game log
     .h-48.overflow-y-scroll.border
       .font-mono.text-xs(v-for='res in results') {{ res }}
+    h2 Debug Settings (see Dev Console)
+    table.w-full
+      tr
+        td Game
+        td.text-right
+          input(type='checkbox' @change='game.debug = !game.debug')
+      tr
+        td Board
+        td.text-right
+          input(type='checkbox' @change='game.board.debug = !game.board.debug')
+      tr
+        td Player 1
+        td.text-right
+          input(type='checkbox' @change='game.player1.debug = !game.player1.debug')
+      tr
+        td Player 2
+        td.text-right
+          input(type='checkbox' @change='game.player2.debug = !game.player2.debug')
+      tr
+        td Algorithms
+        td.text-right
+          input(type='checkbox' @change='toggleAlgDebug()')
+      tr
+        td Algorithm X
+        td.text-right
+          input.border(type='number' v-model='algX' @change='toggleAlgDebug(algX, algY)')
+      tr
+        td Algorithm Y
+        td.text-right
+          input.border(type='number' v-model='algY' @change='toggleAlgDebug(algX, algY)')
     h2 Settings
     table.w-full
       tr
@@ -105,7 +135,6 @@ mixin deck
   .w-80.mr-4
     +sidebar
   .flex.flex-col
-    .mb-4.error-message(v-if='error') {{ error }}
     h1 Iota Auto-Player
     p Based on the game "IOTA" by Gamewrite (c) www.gamewrite.com
     p This app plays the game by itself (wildcard rules are still in progress). It's a fun study in 1-ply gameplay.
@@ -117,6 +146,7 @@ mixin deck
       div(v-else)
         b Winner is player # {{ game.player1.score > game.player2.score ? 1 : 2 }}
     +controls
+    .mb-4.error-message(v-if='error') <button @click="error=''">&times;</button> {{ error }}
     +board
     +deck
 </template>
@@ -126,6 +156,7 @@ import _ from 'lodash';
 import Vue from 'vue';
 import { DoneReason, GameObject } from '../lib/GameObject';
 import { BOARD_DIM, BOARD_HALF } from '../lib/BoardObject';
+import { toggleDebug } from '../lib/AnalysisFunctions';
 
 export default Vue.extend({
   name: 'GamePlay',
@@ -138,7 +169,7 @@ export default Vue.extend({
        * I stop trying to update the DOM after EVERY turn during autoplay, it
        * might ... do something? I dunno. Just a thought.
        */
-      userSeed: 1799331762 as number | null,
+      userSeed: 732349923 as number | null,
       cacheBoard: [] as Array<number | null>,
       cacheRangeX: [] as number[],
       cacheRangeY: [] as number[],
@@ -164,13 +195,18 @@ export default Vue.extend({
       results: [] as string[],
       ms: [] as number[],
       error: '',
-      compressedGame: '789ced9c4d6edb301085af5270cd00e23fe56d0fd02cba3382425154b8882b15720a27087cf70e15cbf1b072e1240bd5c0c3075b79223d9c37437115e859dc76557f2716cfe2a1ba6f5ab1583e8b47b128a478a2ef9d1cd4959a926a949a8f6a3e6a077975d026d33ad3fbf93a9b9fe92c5c363ae652f0d88acb7c6535395bf3d98795dc8b3699d67c69c3838dd24cca43ecf0a2eda87da65da6f7f35d36df9daaf1bf3ba67949ed9434ac2a05f35130cfa3b23c67cb2ba0b9b4dc80cbfc389ebf9d92073b31fb719c4cc4f3a53c2fa5e22b67f2b5b07e7a9364c53bb9b9f7327039e6927535db1466529ed86126ab4998f6916bc38b147826617723c5ed6df7988e93dfeb3a5d8e0a4eb3c5ba1feffa711b892dd59302aee842eb8d07d2b29000000000000000000000000000000000000000782fcaeaf4edac54b19c3d9b8ff8f052992855b0b3e77266c6baa4ba6ba9ca8931ea46ea481a55b3677a961befa8fe811cd127847cd492235f0e7fc5d9733ddb1339d2af2a18ea484877437a62dcecf9bdc98ba1dd16a8472ee53f3ee9ca93723412e7ceefad6ec88937c373927656da5783f26907d249102fab3ba3abd4113fb82237864e005b0eaee81cb097e64819f2e0e2f0bca4fca933d1cf9ed547fc50671c790a9771229ff4112eb90b0000000000000000000000000000000000000000e0bfe06627c5af75f5d4f42abd216a55b5e92550caa67fe4b2528528952b6ea468ab9f8d5888eb61eaa72f6d23a4d8d45d4f37b5768720fa3848a41f7bfa18255569fe0af275db1d05317108925e7916a4a8abb6ed1eaefbae6e1a8af5bd5a6f1a29faa6da74ed673e564871d7d4f769e197eb5279ca5cd3c2a5a645b7ea5bbdea7ed4cd86a6a4f75e69ae374314e59d8aaa28acdbedfe0084d6cd97' as string,
+      algX: undefined,
+      algY: undefined,
+      compressedGame: '789ced9ccf8e9b3010c65fa5f2d92be1bf40ae7d80eea1b728074268236d162a48945d45fbee1d43a03b2e521be580227dfa89d883c7e3f96c4c2e1617b16d8a76275617712c5eaa5aacd617f126568914eff4fb217beb49cd996a34356fd5bcd5f4e653e43dd97ca484f51d2c7db5d48c65c6a87688aa237b1ad50db68d6c13d9537f1fb5fbf9f8ff3bbee2cd6aae3561169f836920c54dcde346737b5da84975124d421ab9fbf949532c3a1fcbb0d096656999a78d92723c29c7074df8444ea661a6e17d0dd767f85c193e57963bdbd989353c699eb3636a79dbd43112afafbe1b29b6dbe62d6cbcd3a10cc5a705a150e2d08e77ed185e9c692c0ab0a782d664dcbaeb4402000000000000000000000000000000000000003c1ecaa752393bd473bd783e37e76fd2b1966574f9a16ea9eed4e2d9dda424339477c8dd4dda4845aa24916ab2f2c573bc498ff17485d2fcb9e7e84a9d543a5b3cbf9bb438cad9ebb01219d5b29caee1e95229a9f4e6aee80b69ca484f6a7a4d9634900e4bef82fc11b54c9a725263488d0b6bb57436776a71b4fbf3f084d9c573b94b073d5fe17fe6b1de5e4c8133fd2fedfa9476887fdcf55036ec747a8359da1f597a773c000000000000000000000000000000000000008005d87c48f1eb50bc57ad0adf85da1775f8f493f29954361c1e0a87a2f28d1475f15a899578ee5dbf7cab2b214557362dddd4e42476d5f6f453ac8eeda99a226a16311c190987aa722ad3bf227e3f379f22aa648af8a3387443c8f091301aa92ceaba393eb74d5955bb6bbb146d55744dfd95b745518255be84a48672ad8c238924d386b386945c4ab23dd93a9c6d493671f7f36bd1f5fdcffd64958349a3eca75a77ad85cf6ae97f3a9157d7679a2799cd73ede9d66fa00fbafb' as string,
     };
   },
   mounted() {
     this.reset();
   },
   methods: {
+    toggleAlgDebug(x: number|undefined=undefined, y: number|undefined=undefined) {
+      toggleDebug(x, y);
+    },
     exportGame() {
       this.compressedGame = this.game.exportGame();
     },
@@ -189,6 +225,12 @@ export default Vue.extend({
       this.cachePlayer2Hand = [...this.game.player2.hand];
       for (let i = 0; i < 97 * 97; ++i) {
         this.cacheBoard[i] = this.game.board.board[i];
+      }
+      try {
+        this.game.checkGame();
+      } catch (error) {
+        this.error = error as string;
+        console.error(error);
       }
     },
     turn() {
@@ -210,6 +252,11 @@ export default Vue.extend({
         pct = (n / d) * 100;
       }
       return pct.toFixed(prec);
+    },
+    stopAutoPlay() {
+      clearInterval(this.autoPlayTimer);
+      this.autoPlayTimer = 0;
+      this.update();
     },
     async autoPlay(n: number | undefined) {
       // Don't start autoPlay'ing again if already in progress!
@@ -279,11 +326,6 @@ export default Vue.extend({
         resolve();
       });
     },
-    stopAutoPlay() {
-      clearInterval(this.autoPlayTimer);
-      this.autoPlayTimer = 0;
-      this.update();
-    },
   },
 });
 </script>
@@ -348,4 +390,9 @@ textarea {
 td {
   padding: 0;
 }
+
+tr:hover {
+  background: #eee;
+}
+
 </style>

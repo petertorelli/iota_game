@@ -4,8 +4,19 @@ import { rand, reseed } from './RandomGenerator';
 export default class DeckObject {
   public deck: number[] = Array<number>(64 + 2); // 66 with wildcards
   public seed: number;
-  public w1_choices = new Set<number>();
-  public w2_choices = new Set<number>();
+  public debug: boolean = false;
+  public wmask = {
+    w1: {
+      cmask: 0,
+      hmask: 0,
+      smask: 0,
+    },
+    w2: {
+      cmask: 0,
+      hmask: 0,
+      smask: 0,
+    },
+  };
   constructor(seed: number | undefined = undefined) {
     if (seed) {
       reseed(seed);
@@ -26,8 +37,6 @@ export default class DeckObject {
     } else {
       this.seed = rand() * 2147483647;
     }
-    this.w1_choices.clear();
-    this.w2_choices.clear();
     // See note about MSB in CardObject.ts
     for (let i = 0x80; i < 0xc0; ++i) {
       this.deck[i - 0x80] = i;

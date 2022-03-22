@@ -1,5 +1,5 @@
 import zlib from 'zlib';
-
+import * as Algs from './AnalysisFunctions';
 import { Card } from './CardObject';
 import DeckObject from './DeckObject';
 import BoardObject from './BoardObject';
@@ -45,6 +45,7 @@ export class GameObject {
   public ply = 0;
   public cannotProceed: boolean = false;
   public reasonCannotProceed: DoneReason = DoneReason.None;
+  public debug: boolean = false;
   constructor(seed: number | undefined = undefined) {
     this.deck = new DeckObject(seed);
     this.init();
@@ -98,6 +99,10 @@ export class GameObject {
     }
   }
 
+  public checkGame() {
+    Algs.sanityCheckBoard(this.board);
+  }
+
   public playOneGame(seed: number | undefined = undefined): GameResults {
     // Finish playing the current game, unless it is done, in which case init.
     if (this.cannotProceed) {
@@ -122,7 +127,7 @@ export class GameObject {
       nply: this.ply,
       seed: this.deck.seed,
       nDead: this.board.board.reduce((acc, item) => {
-        return (acc + (item === Card.Dead ? 1 : 0));
+        return acc + (item === Card.Dead ? 1 : 0);
       }, 0),
     };
   }
