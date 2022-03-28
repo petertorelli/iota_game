@@ -4,6 +4,7 @@ import { Card } from './CardObject';
 import DeckObject from './DeckObject';
 import BoardObject from './BoardObject';
 import PlayerObject from './PlayerObject';
+import { sanityCheckBoard } from './SanityCheckBoard';
 
 export function portableMsecTimer() {
   if (process.hrtime) {
@@ -100,7 +101,7 @@ export class GameObject {
   }
 
   public checkGame() {
-    Algs.sanityCheckBoard(this.board);
+    sanityCheckBoard(this.board);
   }
 
   public playOneGame(seed: number | undefined = undefined): GameResults {

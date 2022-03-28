@@ -9,6 +9,59 @@ import {
 } from './CardObject';
 import Permutes from './FasterPermute';
 import { rand } from './RandomGenerator';
+import { checkTwo, checkThree, growCrossAt, choiceMask } from './SanityCheckBoard';
+import type { CardCross } from './SanityCheckBoard';
+
+// replaceing this with checkTwo makes a diffrenet game for 459432530...
+function getWildcardMasks(line: number[]): [number, number, number] {
+  // TODO: We need to switch to one-hot encoding!
+  let nCards = 0;
+  let cbits = 0; // YGRB
+  let hbits = 0; // T+CS
+  let sbits = 0; // 4321
+  let w1 = false;
+  let w2 = false;
+
+  line.forEach((card) => {
+    if (card !== Card.Wild_One && card !== Card.Wild_Two) {
+      cbits |= 1 << ((card >> 4) & 0x3);
+      hbits |= 1 << ((card >> 2) & 0x3);
+      sbits |= 1 << ((card >> 0) & 0x3);
+      ++nCards;
+    } else {
+      w1 = card === Card.Wild_One ? true : w1;
+      w2 = card === Card.Wild_Two ? true : w2;
+      /*
+      if (w1 && w2) {
+        // Seed 459432530 has two wildcards?!?!?
+        throw new Error('Cannot handle two wildcards, yet');
+      }
+      */
+    }
+  });
+
+  const cMask = choiceMask(cbits, nCards);
+  const hMask = choiceMask(hbits, nCards);
+  const sMask = choiceMask(sbits, nCards);
+
+  return [cMask, hMask, sMask];
+}
+
+function isWilcardCrossConsistent(hline: number[], vline: number[]) {
+  let hpossible: [number, number, number] = getWildcardMasks(hline);
+  let vpossible: [number, number, number] = getWildcardMasks(vline);
+  if (hpossible[0] < 0 || hpossible[1] < 0 || hpossible[2] < 0) {
+    return false;
+  }
+  if (vpossible[0] < 0 || vpossible[1] < 0 || vpossible[2] < 0) {
+    return false;
+  }
+  const colorsOk = hpossible[0] & vpossible[0];
+  const shapesOk = hpossible[1] & vpossible[1];
+  const scoresOk = hpossible[2] & vpossible[2];
+  return colorsOk && shapesOk && scoresOk;
+}
+
 
 // Direction unit vectors and origin.
 export const UP: Point = { x: 0, y: 1 };
@@ -333,228 +386,6 @@ function grabOrthoLine(board: BoardObject, x: number, y: number, unit: Point) {
   return line;
 }
 
-function countBits32(int32: number) {
-  // Hacker's Delight, Chapter 5-1. Counting 1-Bits
-  let x = int32;
-  x = (x & 0x5555_5555) + ((x >> 1) & 0x5555_5555);
-  x = (x & 0x3333_3333) + ((x >> 2) & 0x3333_3333);
-  x = (x & 0x0f0f_0f0f) + ((x >> 4) & 0x0f0f_0f0f);
-  x = (x & 0x00ff_00ff) + ((x >> 8) & 0x00ff_00ff);
-  x = (x & 0x0000_ffff) + ((x >> 16) & 0x0000_ffff);
-  return x;
-  /* TODO: Someday compare these algorithms
-  // Seriously need a faster function (see Hackers Delight)
-  let total = 0;
-  for (let i=0; i<32; ++i) {
-    total += ((int32 >> i) & 1);
-  }
-  return total;
-  */
-}
-
-function choiceMask(bits4: number, nCards: number): number {
-  let choices: number;
-  // Color consistency
-  if (bits4 === 1 || bits4 === 2 || bits4 === 4 || bits4 === 8) {
-    // one-hot = all same
-    choices = bits4;
-  } else if (countBits32(bits4) === nCards) {
-    // all different
-    choices = ~bits4 & 0xf;
-  } else {
-    // violation of all or none.
-    choices = -1;
-  }
-  return choices;
-}
-
-function getWildcardMasks(line: number[]): [number, number, number] {
-  // TODO: We need to switch to one-hot encoding!
-  let nCards = 0;
-  let cbits = 0; // YGRB
-  let hbits = 0; // T+CS
-  let sbits = 0; // 4321
-  let w1 = false;
-  let w2 = false;
-
-  line.forEach((card) => {
-    if (card !== Card.Wild_One && card !== Card.Wild_Two) {
-      cbits |= 1 << ((card >> 4) & 0x3);
-      hbits |= 1 << ((card >> 2) & 0x3);
-      sbits |= 1 << ((card >> 0) & 0x3);
-      ++nCards;
-    } else {
-      w1 = card === Card.Wild_One ? true : w1;
-      w2 = card === Card.Wild_Two ? true : w2;
-      /*
-      if (w1 && w2) {
-        // Seed 459432530 has two wildcards?!?!?
-        throw new Error('Cannot handle two wildcards, yet');
-      }
-      */
-    }
-  });
-
-  const cMask = choiceMask(cbits, nCards);
-  const hMask = choiceMask(hbits, nCards);
-  const sMask = choiceMask(sbits, nCards);
-
-  return [cMask, hMask, sMask];
-}
-
-function rasterCheck(board: BoardObject, x: number, y: number, line: number[]) {
-  const c = board.at(x, y);
-  if (isCard(c)) {
-    // 1. Make sure no card is isolated
-    const nNeighbors =
-      (isCard(board.at(x + 1, y)) ? 1 : 0) +
-      (isCard(board.at(x - 1, y)) ? 1 : 0) +
-      (isCard(board.at(x, y + 1)) ? 1 : 0) +
-      (isCard(board.at(x, y - 1)) ? 1 : 0);
-    if (nNeighbors === 0) {
-      throw new Error(`Card at (${x}, ${y}) is an orphan`);
-    }
-    // 2. Line-check state machine
-    line.push(c);
-  } else {
-    // 2a. We hit the end of a line.
-    if (line.length > 4) {
-      throw new Error(`Line is greater than 4 cards at (${x}, ${y})`);
-    }
-    // 2b. Check non-wildcard consistency
-    if (line.length > 1) {
-      // TODO: We need to switch to one-hot encoding!
-      let nCards = 0;
-      let colorBits = 0; // YGRB
-      let shapeBits = 0; // T+CS
-      let scoreBits = 0; // 4321
-      line.forEach((card) => {
-        if (card !== Card.Wild_One && card !== Card.Wild_Two) {
-          colorBits |= 1 << ((card >> 4) & 0x3);
-          shapeBits |= 1 << ((card >> 2) & 0x3);
-          scoreBits |= 1 << ((card >> 0) & 0x3);
-          ++nCards;
-        }
-      });
-      if (choiceMask(colorBits, nCards) < 0) {
-        throw new Error(`Scan done at (${x},${y}) breaks color rules.`);
-      }
-      if (choiceMask(shapeBits, nCards) < 0) {
-        throw new Error(`Scan done at (${x},${y}) breaks shape rules`);
-      }
-      if (choiceMask(scoreBits, nCards) < 0) {
-        throw new Error(`Scan done at (${x},${y}) breaks score rules`);
-      }
-    }
-    // 3. Not a card at (x,y) - empty or dead, reset line checker
-    // Since we passed by reference, we cannot do `line = []` to clear.
-    line.splice(0, line.length);
-  }
-}
-
-function isWilcardCrossConsistent(hline: number[], vline: number[]) {
-  let hpossible: [number, number, number] = getWildcardMasks(hline);
-  let vpossible: [number, number, number] = getWildcardMasks(vline);
-  if (hpossible[0] < 0 || hpossible[1] < 0 || hpossible[2] < 0) {
-    return false;
-  }
-  if (vpossible[0] < 0 || vpossible[1] < 0 || vpossible[2] < 0) {
-    return false;
-  }
-  const colorsOk = hpossible[0] & vpossible[0];
-  const shapesOk = hpossible[1] & vpossible[1];
-  const scoresOk = hpossible[2] & vpossible[2];
-  return colorsOk && shapesOk && scoresOk;
-}
-
-function isWilcardConsistent(board: BoardObject, spot: Point) {
-  let c: number;
-  const hline: number[] = [];
-  const vline: number[] = [];
-
-  // Create a horizontal line WITHOUT the CENTER CARD.
-  for (let i = 1; ; ++i) {
-    c = board.at(spot.x + i, spot.y);
-    if (isCard(c)) {
-      hline.push(c);
-    } else {
-      break;
-    }
-  }
-  for (let i = 1; ; ++i) {
-    c = board.at(spot.x - i, spot.y);
-    if (isCard(c)) {
-      hline.unshift(c);
-    } else {
-      break;
-    }
-  }
-
-  // Create a vertical line WITHOUT the CENTER CARD.
-  for (let i = 1; ; ++i) {
-    c = board.at(spot.x, spot.y + i);
-    if (isCard(c)) {
-      vline.push(c);
-    } else {
-      break;
-    }
-  }
-  for (let i = 1; ; ++i) {
-    c = board.at(spot.x, spot.y - i);
-    if (isCard(c)) {
-      vline.unshift(c);
-    } else {
-      break;
-    }
-  }
-
-  return isWilcardCrossConsistent(hline, vline);
-}
-
-// Evaluates the board to make sure nothing is illegal.
-export function sanityCheckBoard(board: BoardObject): void {
-  let ulcx = board.bbox.ulc.x;
-  let ulcy = board.bbox.ulc.y;
-  const h = board.bbox.h;
-  const w = board.bbox.w;
-
-  // Skip first card turned over from deck on turn #1.
-  if (board.taken.length < 2) {
-    return;
-  }
-
-  // Horizontal raster
-  for (let y = ulcy; y < ulcy + h; ++y) {
-    const line: number[] = [];
-    for (let x = ulcx; x < w; ++x) {
-      rasterCheck(board, x, y, line);
-    }
-  }
-
-  // Vertical raster
-  for (let x = ulcx; x < w; ++x) {
-    const line: number[] = [];
-    for (let y = ulcy; y < ulcy + h; ++y) {
-      rasterCheck(board, x, y, line);
-    }
-  }
-
-  // Now find both wildcards and make sure they are consistently used
-  board.taken.forEach((spot) => {
-    if (board.atP(spot) === Card.Wild_One) {
-      if (!isWilcardConsistent(board, spot)) {
-        throw new Error(`Wildcard at (${spot.x},${spot.y}) is inconsistent`);
-      }
-    } else if (board.atP(spot) === Card.Wild_Two) {
-      if (!isWilcardConsistent(board, spot)) {
-        throw new Error(`Wildcard at (${spot.x},${spot.y}) is inconsistent`);
-      }
-    }
-  });
-}
-
-// ======================
-
 /**
  *
  * @param board BoardObject (immutable)
@@ -635,12 +466,6 @@ function scoreVerify(
   for (let i = 0; i < line.length; ++i) {
     const _x = x + i * unit1.x;
     const _y = y + i * unit1.y;
-
-    // Don't include cards that are already on the board, they are valid
-    // from the previous scan that placed them there! (optimization)
-    /* BUG? if (isCard(board.board[_x + 48 + (_y + 48) * 97])) {
-      continue;
-    } */
     const wildLines: Array<Array<number>> = [[], []];
     const perpLine = buildPerpendicular(board, _x, _y, unit2, wildLines);
     // The perpendicular scan won't include our card
@@ -650,6 +475,10 @@ function scoreVerify(
 
     // Did we add to a wildcard line? If so, we need to check the cross with
     // that line! But what is that line?
+
+    // This is a different case than sanitizing a play-card cross.
+    // This is a case where we are influencing a previous line that HAS
+    // a wildcard in it.
 
     perpLine.push(line[i]); // don't forget the card that should be there!
 
@@ -663,19 +492,19 @@ function scoreVerify(
     // Are we on a wildcard?
     if ((line[i] & 0xc0) === 0xc0) {
       // Wildcard. Check to see if these two lines are consistent.
-      if (!isWilcardCrossConsistent(line, perpLine)) {
+      if (!checkTwo(line, perpLine)) {
         debug2 && console.log('--- onWild fail');
         return null;
       }
       debug2 && console.log('--- onWild pass');
     }
     if (wildLines[0].length) {
-      if (!isWilcardCrossConsistent(wildLines[0], perpLine)) {
+      if (!checkTwo(wildLines[0], perpLine)) {
         return null;
       }
     }
     if (wildLines[1].length) {
-      if (!isWilcardCrossConsistent(wildLines[1], perpLine)) {
+      if (!checkTwo(wildLines[1], perpLine)) {
         return null;
       }
     }
@@ -699,6 +528,55 @@ function scoreVerify(
         vscore = 0;
       }
       score += vscore;
+    }
+  }
+
+  // Now we have to do a local check on our line for wildcards
+
+  // hline & vline always start with the wildcard, i.e. index zero.
+  let w1: CardCross = { vline: [], hline: [], played: false };
+  let w2: CardCross = { vline: [], hline: [], played: false };
+  let valid = false;
+  for (let i=0; i<line.length; ++i) {
+    const spot: Point = {x, y};
+    spot.x = x + (i * unit1.x);
+    spot.y = y + (i * unit1.y);
+    if (line[i] === Card.Wild_One) {
+      // Build W1's cross
+      w1.hline.push(Card.Wild_One);
+      w1.vline.push(Card.Wild_One);
+      growCrossAt(board, spot, w1);
+      w1.played = true;
+    } else if (line[i] === Card.Wild_Two) {
+      // Build W2's cross
+      w2.hline.push(Card.Wild_Two);
+      w2.vline.push(Card.Wild_Two);
+      growCrossAt(board, spot, w2);
+      w2.played = true;
+    }
+  }
+  if (w1.played) {
+    if (w1.hline.indexOf(Card.Wild_Two) >= 0) {
+      valid = checkThree(w1.hline, w1.vline, w2.vline);
+    } else if (w1.vline.indexOf(Card.Wild_Two) >= 0) {
+      valid = checkThree(w1.vline, w1.hline, w2.hline);
+    } else {
+      valid = checkTwo(w1.hline, w1.vline);
+    }
+    if (!valid) {
+      return null;
+    }
+  }
+  if (w2.played) {
+    if (w2.hline.indexOf(Card.Wild_One) >= 0) {
+      valid = checkThree(w2.hline, w2.vline, w1.vline);
+    } else if (w2.vline.indexOf(Card.Wild_One) >= 0) {
+      valid = checkThree(w2.vline, w2.hline, w1.hline);
+    } else {
+      valid = checkTwo(w2.hline, w2.vline);
+    }
+    if (!valid) {
+      return null;
     }
   }
   score *= scoreMultiplier;

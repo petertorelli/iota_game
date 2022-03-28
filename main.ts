@@ -2,6 +2,7 @@ import { sprintf } from 'sprintf-js';
 import _ from 'lodash';
 import { GameObject } from './lib/GameObject';
 import crypto from 'crypto';
+import { turnOnBetterRandom } from './lib/RandomGenerator';
 
 let p1wins = 0;
 let p2wins = 0;
@@ -10,12 +11,20 @@ let nPlys = 0;
 let msec = 0;
 let check = '';
 const scores: number[] = [];
-const game = new GameObject(1234);
+const game = new GameObject(1);//234);
+turnOnBetterRandom(true);
 
-// for (let i=0; i<100_000; ++i) {
-for (let i=0; i<20; ++i) {
+for (let i=0; i<100_000; ++i) {
+//for (let i=0; i<20; ++i) {
 
-  const res = game.playOneGame();
+  let res;
+  try {
+    res = game.playOneGame();
+  } catch (error) {
+    console.log("Game failed with seed:", game.deck.seed);
+    console.error(error);
+    process.exit();
+  }
 
   const area = res.w * res.h;
   const aspect = res.w / res.h;
@@ -30,7 +39,7 @@ for (let i=0; i<20; ++i) {
   const p1 = (p1wins / (i+1)) * 100;
   const p2 = (p2wins / (i+1)) * 100;
   const ti = (ties   / (i+1)) * 100;
-  console.log(sprintf("%5d %3d %3d %3d %2d %2d %4d %5.3f %6.2f %6.2f %6.2f %9d [%3d] %5.1f",
+  console.log(sprintf("%5d %3d %3d %3d %2d %2d %4d %5.3f %6.2f %6.2f %6.2f %12d %3d %5.1f",
     i+1,
     res.p1score,
     res.p2score,

@@ -82,8 +82,11 @@ export default class PlayerObject {
           `Cannot play a card on a card! [${x}, ${y}] ${name(c)} on ${name(at)}`
         );
       }
-      this.debug && console.log(`${this.name} puts ${name(c)} at ${x}, ${y}`);
-      board.put(x, y, c);
+      // Remember: if the card is already on the board, don't put it.
+      if (at !== c) {
+        this.debug && console.log(`${this.name} puts ${name(c)} at ${x}, ${y}`);
+        board.put(x, y, c);
+      }
       ++i;
     };
     bestPlay.line.forEach(playThisCard);
