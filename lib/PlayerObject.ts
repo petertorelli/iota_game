@@ -4,6 +4,8 @@ import { Card, name } from './CardObject';
 import type { Point } from './BoardObject';
 import { rand } from './RandomGenerator';
 import * as Algs from './AnalysisFunctions';
+import { cardToOneHotMasks } from './SanityCheckBoard';
+import { LoaderOptionsPlugin } from 'webpack';
 
 export default class PlayerObject {
   public hand: number[] = [];
@@ -92,6 +94,31 @@ export default class PlayerObject {
     bestPlay.line.forEach(playThisCard);
     return nDraw;
   }
+  //662749105
+  private reclaimWildcard(board: BoardObject) {
+    if (!board.w1.played && !board.w2.played) {
+      return;
+    }
+    if (board.w1.played) {
+      this.hand.some((card, i) => {
+        if (card === Card.Wild_One || card === Card.Wild_Two) {
+          return false;
+        } else {
+          let [ color, shape, score ] = cardToOneHotMasks(card);
+          if (
+            (board.w1.masks[0] & color) &&
+            (board.w1.masks[1] & shape) &&
+            (board.w1.masks[2] & score)
+          ) {
+            console.log(`Swap W1 with ${name(card)}`);
+            board.replaceWildCard(board.w1, card);
+            this.hand[i] = Card.Wild_One;
+            return true;
+          }
+        }
+      });
+    }
+  }
 
   /**
    * Play one hand according to the rules! The search algorithm is just a
@@ -101,7 +128,12 @@ export default class PlayerObject {
    * @param board A BoardObject, it will change with dead cards and plays
    */
   public playYourHand(deck: DeckObject, board: BoardObject) {
-    // Now create a list of all best plays for each contour spot
+    // Before scanning the board for plays, see if you can reclaim a wildcard.
+    
+    console.log(this.hand.map(x => name(x)));
+    this.reclaimWildcard(board);
+
+    // Create a list of all best plays for each contour spot
     const results: Algs.Outcome[] = [];
     // Name the anon function to make profiling easier
     const considerSpot = (spot: Point) => {

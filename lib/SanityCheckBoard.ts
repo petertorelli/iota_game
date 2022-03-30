@@ -17,7 +17,15 @@ export type CardCross = {
   played: boolean;
 }
 
-function getMasks(line: number[]): [number, number, number] {
+export function cardToOneHotMasks(card: number) {
+  return [
+    1 << ((card >> 4) & 0x3),
+    1 << ((card >> 2) & 0x3),
+    1 << ((card >> 0) & 0x3),
+  ];
+}
+
+export function getMasks(line: number[]): [number, number, number] {
   let colorBits = 0; // YGRB
   let shapeBits = 0; // T+CS
   let scoreBits = 0; // 4321
@@ -38,6 +46,15 @@ function getMasks(line: number[]): [number, number, number] {
   return result;
 }
 
+export function mergeTwo (A: number[], B: number[]): [number, number, number] {
+  const [Ac, Ah, As] = getMasks(A);
+  const [Bc, Bh, Bs] = getMasks(B);
+  return [ Ac & Bc, Ah & Bh, As & Bs ];
+}
+
+// TODO: could replace this with calls to mergeTwo/Three and then add an 
+// extra bit to see if < 0, e.g. mask & 0x10 would only accur if maskbit < 0
+// but the early returns save some math and function calls so no?
 export function checkTwo (A: number[], B: number[]): boolean {
   const [Ac, Ah, As] = getMasks(A);
   if (Ac < 0 || Ah < 0 || As < 0) {
@@ -53,13 +70,20 @@ export function checkTwo (A: number[], B: number[]): boolean {
   return true;
 }
 
+export function mergeThree (A: number[], B: number[], C: number[]): [number, number, number] {
+  const [Ac, Ah, As] = getMasks(A);
+  const [Bc, Bh, Bs] = getMasks(B);
+  const [Cc, Ch, Cs] = getMasks(C);
+  return [ Ac & Bc & Cc, Ah & Bh & Ch, As & Bs & Cs ];
+}
+
 export function checkThree (A: number[], B: number[], C: number[]): boolean {
   const [Ac, Ah, As] = getMasks(A);
-  if (Ac < 0 || Ah < 0 || As << 0) {
+  if (Ac < 0 || Ah < 0 || As < 0) {
     return false;
   }
   const [Bc, Bh, Bs] = getMasks(B);
-  if (Bc < 0 || Bh < 0 || Bs << 0) {
+  if (Bc < 0 || Bh < 0 || Bs < 0) {
     return false;
   }
   const Tc = Ac & Bc;
@@ -69,7 +93,7 @@ export function checkThree (A: number[], B: number[], C: number[]): boolean {
     return false;
   }
   const [Cc, Ch, Cs] = getMasks(C);
-  if (Cc < 0 || Ch < 0 || Cs << 0) {
+  if (Cc < 0 || Ch < 0 || Cs < 0) {
     return false;
   }
   if (((Tc & Cc) === 0) || ((Th & Ch) === 0) || ((Ts & Cs) === 0)) {
@@ -113,7 +137,7 @@ export function choiceMask(bits4: number, nCards: number): number {
   return choices;
 }
 
-function addCrossCards(board: BoardObject, spot: Point, line: number[], dir: Point) {
+export function growCards(board: BoardObject, spot: Point, line: number[], dir: Point) {
   let c: number;
   let i: number = 1;
   while (1) {
@@ -138,12 +162,11 @@ function addCrossCards(board: BoardObject, spot: Point, line: number[], dir: Poi
 }
 
 export function growCrossAt(board: BoardObject, spot: Point, cross: CardCross) {
-  addCrossCards(board, spot, cross.hline, LF);
-  addCrossCards(board, spot, cross.hline, RT);
-  addCrossCards(board, spot, cross.vline, UP);
-  addCrossCards(board, spot, cross.vline, DN);
+  growCards(board, spot, cross.hline, LF);
+  growCards(board, spot, cross.hline, RT);
+  growCards(board, spot, cross.vline, UP);
+  growCards(board, spot, cross.vline, DN);
 }
-
 
 function rasterCheck(board: BoardObject, x: number, y: number, line: number[]) {
   const c = board.at(x, y);
@@ -198,7 +221,6 @@ function rasterCheck(board: BoardObject, x: number, y: number, line: number[]) {
 
 // Evaluates the board to make sure nothing is illegal.
 export function sanityCheckBoard(board: BoardObject): void {
-  console.log("Sanity checking");
   let ulcx = board.bbox.ulc.x;
   let ulcy = board.bbox.ulc.y;
   const h = board.bbox.h;

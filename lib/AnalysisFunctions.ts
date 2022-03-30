@@ -12,15 +12,12 @@ import { rand } from './RandomGenerator';
 import { checkTwo, checkThree, growCrossAt, choiceMask } from './SanityCheckBoard';
 import type { CardCross } from './SanityCheckBoard';
 
-// replaceing this with checkTwo makes a diffrenet game for 459432530...
-function getWildcardMasks(line: number[]): [number, number, number] {
+export function getWildcardMasks(line: number[]): [number, number, number] {
   // TODO: We need to switch to one-hot encoding!
   let nCards = 0;
   let cbits = 0; // YGRB
   let hbits = 0; // T+CS
   let sbits = 0; // 4321
-  let w1 = false;
-  let w2 = false;
 
   line.forEach((card) => {
     if (card !== Card.Wild_One && card !== Card.Wild_Two) {
@@ -28,15 +25,6 @@ function getWildcardMasks(line: number[]): [number, number, number] {
       hbits |= 1 << ((card >> 2) & 0x3);
       sbits |= 1 << ((card >> 0) & 0x3);
       ++nCards;
-    } else {
-      w1 = card === Card.Wild_One ? true : w1;
-      w2 = card === Card.Wild_Two ? true : w2;
-      /*
-      if (w1 && w2) {
-        // Seed 459432530 has two wildcards?!?!?
-        throw new Error('Cannot handle two wildcards, yet');
-      }
-      */
     }
   });
 
@@ -45,21 +33,6 @@ function getWildcardMasks(line: number[]): [number, number, number] {
   const sMask = choiceMask(sbits, nCards);
 
   return [cMask, hMask, sMask];
-}
-
-function isWilcardCrossConsistent(hline: number[], vline: number[]) {
-  let hpossible: [number, number, number] = getWildcardMasks(hline);
-  let vpossible: [number, number, number] = getWildcardMasks(vline);
-  if (hpossible[0] < 0 || hpossible[1] < 0 || hpossible[2] < 0) {
-    return false;
-  }
-  if (vpossible[0] < 0 || vpossible[1] < 0 || vpossible[2] < 0) {
-    return false;
-  }
-  const colorsOk = hpossible[0] & vpossible[0];
-  const shapesOk = hpossible[1] & vpossible[1];
-  const scoresOk = hpossible[2] & vpossible[2];
-  return colorsOk && shapesOk && scoresOk;
 }
 
 

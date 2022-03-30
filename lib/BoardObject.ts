@@ -1,6 +1,7 @@
 import _ from 'lodash';
-import { Card } from './CardObject';
-
+import { Card, name } from './CardObject';
+import { growCards, mergeTwo, mergeThree } from './SanityCheckBoard';
+import * as Algs from './AnalysisFunctions';
 /*
 The largest possible board is derived from the most number of plays in any
 one direction:
@@ -31,11 +32,46 @@ type BoundingBox = {
   h: number;
 };
 
+// It is easier to cache the wildcards than seek them out
+class WildCard {
+  public loc: Point = { x: 0, y: 0 };
+  public played: boolean = false;
+  public hline: number[] = [];
+  public vline: number[] = [];
+  public masks: [number, number, number] = [-1, -1, -1];
+
+  public reset() {
+    this.played = false;
+    this.hline = [];
+    this.vline = [];
+    this.masks = [-1, -1, -1];
+  }
+  public cache(board: BoardObject, x: number, y: number, c: number) {
+    this.played = true;
+    this.loc.x = x; 
+    this.loc.y = y;
+    console.log("Cached card at", x, y);
+    this.masks = [-1, -1, -1];
+    this.regrow(board);
+  }
+
+  public regrow(board: BoardObject) {
+    this.hline = [];
+    this.vline = [];
+    growCards(board, this.loc, this.hline, Algs.LF);
+    growCards(board, this.loc, this.hline, Algs.RT);
+    growCards(board, this.loc, this.vline, Algs.UP);
+    growCards(board, this.loc, this.vline, Algs.DN);
+  }
+};
+
 export const BOARD_DIM = 97; // After 1Million games 25 is the largest width/height
 export const BOARD_HALF = (BOARD_DIM - 1) / 2;
 export default class BoardObject {
   public board: number[];
   public taken: Point[] = [];
+  public w1: WildCard = new WildCard();
+  public w2: WildCard = new WildCard();
   public bbox: BoundingBox = {
     ulc: { x: 0, y: 0 },
     lrc: { x: 0, y: 0 },
@@ -53,10 +89,14 @@ export default class BoardObject {
       this.bbox = JSON.parse(JSON.stringify(initBoard.bbox));
       this.board = [...initBoard.board];
       this.taken = [...initBoard.taken];
+      // Need to restore wildcards
+      throw new Error('Please implement wildcard restore!');
     } else {
       this.bbox = { ulc: { x: 0, y: 0 }, lrc: { x: 0, y: 0 }, w: 0, h: 0 };
       this.board.fill(Card.None);
       this.taken = [];
+      this.w1.reset();
+      this.w2.reset();
     }
   }
 
@@ -81,6 +121,40 @@ export default class BoardObject {
     return card === null ? Card.None : card;
   }
 
+  public replaceWildCard(w: WildCard, card: number) {
+    const x = w.loc.x + BOARD_HALF;
+    const y = w.loc.y + BOARD_HALF;
+    if (x > BOARD_DIM || x < 0 || y > BOARD_DIM || y < 0) {
+      throw new Error("Attempted to replace a wildcard out of bounds");
+    }
+    this.board[x + y * BOARD_DIM] = card;
+    w.played = false;
+  }
+
+  private updateWildCardMasks() {
+    if (this.w1.played) {
+      this.w1.regrow(this);
+      if (this.w1.hline.indexOf(Card.Wild_Two) >= 0) {
+        this.w1.masks = mergeThree(this.w1.hline, this.w1.vline, this.w2.vline);
+      } else if (this.w1.vline.indexOf(Card.Wild_Two) >= 0) {
+        this.w1.masks = mergeThree(this.w1.vline, this.w1.hline, this.w2.hline);
+      } else {
+        this.w1.masks = mergeTwo(this.w1.hline, this.w1.vline);
+      }
+      // console.log(this.w1.masks, this.w1.hline, this.w1.vline);
+    }
+    if (this.w2.played) {
+      this.w1.regrow(this);
+      if (this.w2.hline.indexOf(Card.Wild_One) >= 0) {
+        this.w2.masks = mergeThree(this.w2.hline, this.w2.vline, this.w1.vline);
+      } else if (this.w2.vline.indexOf(Card.Wild_One) >= 0) {
+        this.w2.masks = mergeThree(this.w2.vline, this.w2.hline, this.w1.hline);
+      } else {
+        this.w2.masks = mergeTwo(this.w2.hline, this.w2.vline);
+      }
+    }
+  }
+
   public put(_x: number, _y: number, card: number): boolean {
     const x = _x + BOARD_HALF;
     const y = _y + BOARD_HALF;
@@ -90,6 +164,17 @@ export default class BoardObject {
     this.board[x + y * BOARD_DIM] = card;
     this.taken.push({ x: _x, y: _y });
     this.setBbox();
+    if (card === Card.Wild_One) {
+      console.log("cache WC1");
+      this.w1.cache(this, _x, _y, card);
+    } else if (card === Card.Wild_Two) {
+      console.log("cache WC2");
+      this.w2.cache(this, _x, _y, card);
+    }
+    if (this.w1.played || this.w2.played) {
+      // console.log('putting', name(card))
+      this.updateWildCardMasks();
+    }
     return true;
   }
 
