@@ -148,12 +148,16 @@ export class GameObject {
     this.board.bbox = json.board.bbox;
     this.board.board = json.board.board;
     this.board.taken = json.board.taken;
+    this.board.w1 = json.board.w1; // can't do this
+    this.board.w2 = json.board.w2; // can't do this
     this.player1.hand = json.player1.hand;
     this.player1.name = json.player1.name;
     this.player1.score = json.player1.score;
+    this.player1.wildcardSwaps = json.player1.wildcardSwaps;
     this.player2.hand = json.player2.hand;
     this.player2.name = json.player2.name;
     this.player2.score = json.player2.score;
+    this.player2.wildcardSwaps = json.player2.wildcardSwaps;
     this.ply = json.ply;
   }
 }

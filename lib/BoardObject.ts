@@ -46,15 +46,18 @@ class WildCard {
     this.vline = [];
     this.masks = [-1, -1, -1];
   }
+
   public cache(board: BoardObject, x: number, y: number, c: number) {
     this.played = true;
     this.loc.x = x; 
     this.loc.y = y;
-    console.log("Cached card at", x, y);
+    //console.log("Cached card at", x, y);
     this.masks = [-1, -1, -1];
     this.regrow(board);
   }
 
+  // this needs to recursively check massk
+  
   public regrow(board: BoardObject) {
     this.hline = [];
     this.vline = [];
@@ -79,25 +82,17 @@ export default class BoardObject {
     h: 0,
   };
 
-  constructor(initBoard: BoardObject | undefined = undefined) {
+  constructor() {
     this.board = Array(BOARD_DIM * BOARD_DIM).fill(Card.None);
-    this.init(initBoard);
+    this.init();
   }
 
-  public init(initBoard: BoardObject | undefined = undefined) {
-    if (initBoard !== undefined) {
-      this.bbox = JSON.parse(JSON.stringify(initBoard.bbox));
-      this.board = [...initBoard.board];
-      this.taken = [...initBoard.taken];
-      // Need to restore wildcards
-      throw new Error('Please implement wildcard restore!');
-    } else {
-      this.bbox = { ulc: { x: 0, y: 0 }, lrc: { x: 0, y: 0 }, w: 0, h: 0 };
-      this.board.fill(Card.None);
-      this.taken = [];
-      this.w1.reset();
-      this.w2.reset();
-    }
+  public init() {
+    this.bbox = { ulc: { x: 0, y: 0 }, lrc: { x: 0, y: 0 }, w: 0, h: 0 };
+    this.board.fill(Card.None);
+    this.taken = [];
+    this.w1.reset();
+    this.w2.reset();
   }
 
   public atP(p: Point): number {
@@ -127,6 +122,7 @@ export default class BoardObject {
     if (x > BOARD_DIM || x < 0 || y > BOARD_DIM || y < 0) {
       throw new Error("Attempted to replace a wildcard out of bounds");
     }
+    console.log(`Replacing wildcard at [${w.loc.x}, ${w.loc.y}] with`, name(card));
     this.board[x + y * BOARD_DIM] = card;
     w.played = false;
   }
@@ -165,10 +161,10 @@ export default class BoardObject {
     this.taken.push({ x: _x, y: _y });
     this.setBbox();
     if (card === Card.Wild_One) {
-      console.log("cache WC1");
+      //console.log("cache WC1");
       this.w1.cache(this, _x, _y, card);
     } else if (card === Card.Wild_Two) {
-      console.log("cache WC2");
+      //console.log("cache WC2");
       this.w2.cache(this, _x, _y, card);
     }
     if (this.w1.played || this.w2.played) {

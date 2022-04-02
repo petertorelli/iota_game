@@ -7,6 +7,7 @@ import {
   color as cardColor,
   shape as cardShape,
 } from './CardObject';
+import { sprintf } from 'sprintf-js';
 
 import { UP, DN, LF, RT } from './AnalysisFunctions';
 
@@ -55,7 +56,7 @@ export function mergeTwo (A: number[], B: number[]): [number, number, number] {
 // TODO: could replace this with calls to mergeTwo/Three and then add an 
 // extra bit to see if < 0, e.g. mask & 0x10 would only accur if maskbit < 0
 // but the early returns save some math and function calls so no?
-export function checkTwo (A: number[], B: number[]): boolean {
+export function checkTwo (A: number[], B: number[], debug: boolean=false): boolean {
   const [Ac, Ah, As] = getMasks(A);
   if (Ac < 0 || Ah < 0 || As < 0) {
     return false;
@@ -66,6 +67,12 @@ export function checkTwo (A: number[], B: number[]): boolean {
   }
   if (((Ac & Bc) === 0) || ((Ah & Bh) === 0) || ((As & Bs) === 0)) {
     return false;
+  }
+  if (debug) {
+    console.log('... inside check two');
+    console.log(sprintf('... ... color AvB %04b %04b', Ac, Bc));
+    console.log(sprintf('... ... shape AvB %04b %04b', Ah, Bh));
+    console.log(sprintf('... ... score AvB %04b %04b', As, Bs));
   }
   return true;
 }
@@ -137,6 +144,25 @@ export function choiceMask(bits4: number, nCards: number): number {
   return choices;
 }
 
+export function growCards2(board: BoardObject, spot: Point, line: number[], dir: Point) {
+  let c: number;
+  let i: number = 1;
+  while (1) {
+    let _x = spot.x + (i * dir.x);
+    let _y = spot.y + (i * dir.y);
+    c = board.board[_x + 48 + (_y + 48) * 97];
+    if (isCard(c)) {
+      if ((dir.x > 0) || dir.y > 0) {
+        line.push(c);
+      } else {
+        line.unshift(c);
+      }
+      ++i;
+    } else {
+      break;
+    }
+  }
+}
 export function growCards(board: BoardObject, spot: Point, line: number[], dir: Point) {
   let c: number;
   let i: number = 1;
@@ -203,6 +229,7 @@ function rasterCheck(board: BoardObject, x: number, y: number, line: number[]) {
         }
       });
       if (choiceMask(colorBits, nCards) < 0) {
+        console.log(line.map(name));
         throw new Error(`Scan done at (${x},${y}) breaks color rules.`);
       }
       if (choiceMask(shapeBits, nCards) < 0) {

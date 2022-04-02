@@ -31,11 +31,11 @@ mixin sidebar
       tr
         td Algorithm X
         td.text-right
-          input.border(type='number' v-model='algX' @change='toggleAlgDebug(algX, algY)')
+          input.border(type='number' v-model='algX' @change='setDebugXY(algX, algY)')
       tr
         td Algorithm Y
         td.text-right
-          input.border(type='number' v-model='algY' @change='toggleAlgDebug(algX, algY)')
+          input.border(type='number' v-model='algY' @change='setDebugXY(algX, algY)')
     h2 Settings
     table.w-full
       tr
@@ -50,7 +50,10 @@ mixin sidebar
         td Current turn:
         td.text-right {{ game.ply }}
     h2 Interesting Seeds
-    p 1668437305 is a high score
+    p 1668437305 is a very high score
+    p 133207245 seems to be missing dead cards
+    p 1598795824 fails 2xW check
+    p 727689717 starts with a wildcard
     h2 Game state
       textarea.w-full.border(v-model='compressedGame' rows=10)
       button(@click='exportGame()').mr-2.px-2.py-1.rounded.font-bold.bg-gray-500.text-white Export
@@ -92,10 +95,12 @@ mixin players
       .w-24(:style='{ color: game.ply & 1 ? "black" : "dodgerblue" }') {{ game.player1.name }}
       .w-8.text-right.mr-4 {{ game.player1.score }}
       card-image(v-for='card of cachePlayer1Hand' :card='card' :key='card')
+    small (Wildcard swaps {{ game.player1.wildcardSwaps }})
     .flex.flex-row.items-center.h-12
       .w-24(:style='{ color: game.ply & 1 ? "dodgerblue" : "black" }') {{ game.player2.name }}
       .w-8.text-right.mr-4 {{ game.player2.score }}
       card-image(v-for='card of cachePlayer2Hand' :card='card' :key='card')
+    small (Wildcard swaps {{ game.player2.wildcardSwaps }})
 
 mixin controls
   .mb-4
@@ -169,7 +174,7 @@ export default Vue.extend({
        * I stop trying to update the DOM after EVERY turn during autoplay, it
        * might ... do something? I dunno. Just a thought.
        */
-      userSeed: 1198077725 as number | null,
+      userSeed: 1598795824 as number | null,
       cacheBoard: [] as Array<number | null>,
       cacheRangeX: [] as number[],
       cacheRangeY: [] as number[],
@@ -197,15 +202,18 @@ export default Vue.extend({
       error: '',
       algX: undefined,
       algY: undefined,
-      compressedGame: '789ced9ccf8e9b3010c65fa5f2d92be1bf40ae7d80eea1b728074268236d162a48945d45fbee1d43a03b2e521be580227dfa89d883c7e3f96c4c2e1617b16d8a76275617712c5eaa5aacd617f126568914eff4fb217beb49cd996a34356fd5bcd5f4e653e43dd97ca484f51d2c7db5d48c65c6a87688aa237b1ad50db68d6c13d9537f1fb5fbf9f8ff3bbee2cd6aae3561169f836920c54dcde346737b5da84975124d421ab9fbf949532c3a1fcbb0d096656999a78d92723c29c7074df8444ea661a6e17d0dd767f85c193e57963bdbd989353c699eb3636a79dbd43112afafbe1b29b6dbe62d6cbcd3a10cc5a705a150e2d08e77ed185e9c692c0ab0a782d664dcbaeb4402000000000000000000000000000000000000003c1ecaa752393bd473bd783e37e76fd2b1966574f9a16ea9eed4e2d9dda424339477c8dd4dda4845aa24916ab2f2c573bc498ff17485d2fcb9e7e84a9d543a5b3cbf9bb438cad9ebb01219d5b29caee1e95229a9f4e6aee80b69ca484f6a7a4d9634900e4bef82fc11b54c9a725263488d0b6bb57436776a71b4fbf3f084d9c573b94b073d5fe17fe6b1de5e4c8133fd2fedfa9476887fdcf55036ec747a8359da1f597a773c000000000000000000000000000000000000008005d87c48f1eb50bc57ad0adf85da1775f8f493f29954361c1e0a87a2f28d1475f15a899578ee5dbf7cab2b214557362dddd4e42476d5f6f453ac8eeda99a226a16311c190987aa722ad3bf227e3f379f22aa648af8a3387443c8f091301aa92ceaba393eb74d5955bb6bbb146d55744dfd95b745518255be84a48672ad8c238924d386b386945c4ab23dd93a9c6d493671f7f36bd1f5fdcffd64958349a3eca75a77ad85cf6ae97f3a9157d7679a2799cd73ede9d66fa00fbafb' as string,
+      compressedGame: '789ced9ccf8e9b3010c65fa5f2d991f03f30b9ee03740fbd4539902c6daa64a182a4d9559477ef0c018a69d40b0784f4e99704c61e8fe73376b2d25abe895d99556f627d13e7ec981762bdb9890fb18ea4f8a4cfbb6cac956acc950aed5175571b85cee3b63a6cab83b6ada93bd384b526acb5cf4c13a6a1c33446a60dcdaeedca85915d105987ce3a8cdcf61b87a60b4d1b9a6634d07e6427233b1ed92e1cbebffefa69323e54ed43ef5132261cfcd1f0a661a8f4be95e2aa783e9dca3d5f4255e2d729fbcc69be9dab4b2ec5e1f4b3c869cea93891ca186afbbb2bd15eaa4449e5122a7dcfea634da55e6a69b714e6aac32efaf9da77f03d3bd5831e06a107f128b3e6c52177bbf283a35d4e7ddeaed7284e5557da0f92b88ab5a71e483c5bed42da44120000000000000000000000000000000000c0f250c64b159bd9f398a421d5b2fd0ffcecb94c50614885f6b3e7315545f4d8f7e0d5ecb94c54e26846254b9e519d0e23958d67cf63a20ad241ebc324b3673249454273caa5a463c9cf43794b0ae889d874f65c26a8884945e2e8aa67cf65820a4fabdb9112bddc67a13cff7ed3df219656875df2ef86b2fc1d65f9db2aa155ee97fb4c0000000000000000000000000000000000000000c0ec6cbbd3a4aae63cab4356f0f14e2a89a54a79d30d6f814ab75214d97b2ed6e2b571fdf2b5c88514f5beaca89077728ab77c77f9d11e48d587d4c390d652384f610d8554ff84fc762d0721e3e849483e24cd49b1cf8aa23cbf56e53e1f9c8155e5595d162f61dd280a5bfb2327f5b86e94e32d83949427bd31bdad932ae12d3aac9dee1d959994ca3495b11f6ff7a4ab633f129452fb98fd591495196e136dc7dd5ef92c2eeef7716ad8fe61527687feae6eeffa73bffeeb445e75a350181d9924b2d68bfbfd0fab85a96c' as string,
     };
   },
   mounted() {
     this.reset();
   },
   methods: {
-    toggleAlgDebug(x: number|undefined=undefined, y: number|undefined=undefined) {
+    setDebugXY(x: number|undefined=undefined, y: number|undefined=undefined) {
       toggleDebug(x, y);
+    },
+    toggleAlgDebug(x: number|undefined=undefined, y: number|undefined=undefined) {
+      toggleDebug();
     },
     exportGame() {
       this.compressedGame = this.game.exportGame();
@@ -245,6 +253,7 @@ export default Vue.extend({
       }
     },
     reset(seed: number | undefined = undefined) {
+      this.error = '';
       this.game.init(seed);
       this.update();
     },

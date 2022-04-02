@@ -9,8 +9,9 @@ import {
 } from './CardObject';
 import Permutes from './FasterPermute';
 import { rand } from './RandomGenerator';
-import { checkTwo, checkThree, growCrossAt, choiceMask } from './SanityCheckBoard';
-import type { CardCross } from './SanityCheckBoard';
+import { checkTwo, checkThree, growCards2, growCrossAt, choiceMask } from './SanityCheckBoard';
+import type { CardCross  } from './SanityCheckBoard';
+import { sprintf } from 'sprintf-js';
 
 export function getWildcardMasks(line: number[]): [number, number, number] {
   // TODO: We need to switch to one-hot encoding!
@@ -37,9 +38,9 @@ export function getWildcardMasks(line: number[]): [number, number, number] {
 
 
 // Direction unit vectors and origin.
-export const UP: Point = { x: 0, y: 1 };
+export const UP: Point = { x: 0, y: -1 };
 export const RT: Point = { x: 1, y: 0 };
-export const DN: Point = { x: 0, y: -1 };
+export const DN: Point = { x: 0, y: 1 };
 export const LF: Point = { x: -1, y: 0 };
 export const OR: Point = { x: 0, y: 0 };
 
@@ -56,9 +57,12 @@ export function toggleDebug(
   x: number | undefined = undefined,
   y: number | undefined = undefined
 ) {
-  debugFlag = !debugFlag;
+  if (x===undefined && y===undefined) {
+    debugFlag = !debugFlag;
+  }
   debugX = x !== undefined ? x : debugX;
   debugY = y !== undefined ? y : debugY;
+  console.log("ToggleDebug", { debugFlag, x, y, debugX, debugY });
 }
 
 function debug(
@@ -413,15 +417,131 @@ function buildPerpendicular(
   return line;
 }
 
+export type LineDescriptor = {
+  start: Point,
+  end: Point,
+  cards: number[],
+};
+
+/**
+ * Given a point on a board and a direction: move in the opposite direction
+ * until there is no valid card at that spot. Start at the last valid spot,
+ * begin moving in the given directions, adding cards to a list until there
+ * are no more cards in that direction.
+ * 
+ * @param board Board object.
+ * @param o Origin.
+ * @param dir Direction to search.
+ * @returns A complete description of the line. 
+ */
+export function getLine(board: BoardObject, o: Point, dir: Point): LineDescriptor {
+  const result: LineDescriptor = {
+    start: o,
+    end: o,
+    cards: []
+  };
+  let i = 1;
+  while (1) {
+    let _x = o.x - (i * dir.x);
+    let _y = o.y - (i * dir.y);
+    if (isCard(board.at(_x, _y))) {
+      ++i;
+    } else {
+      break;
+    }
+  }
+  --i;
+  let j = 0;
+  result.start = {
+    x: (o.x - (i * dir.x)) + (j * dir.x),
+    y: (o.y - (i * dir.y)) + (j * dir.y)
+  }
+  while (1) {
+    let _x = (o.x - (i * dir.x)) + (j * dir.x);
+    let _y = (o.y - (i * dir.y)) + (j * dir.y);
+    let c = board.at(_x, _y);
+    if (isCard(c)) {
+      result.cards.push(c);
+      ++j;
+    } else {
+      break;
+    }
+  }
+  --j;
+  result.end = {
+    x: (o.x - (i * dir.x)) + (j * dir.x),
+    y: (o.y - (i * dir.y)) + (j * dir.y)
+  }
+  return result;
+}
+
+export function recurseWildcardLines(board: BoardObject, line: number[], p1: Point, p2: Point, seenMask: number, seenLines: Array<number[]>) {
+  const debug3 = true;
+  debug3 && console.log(`-- Recursing (${seenMask}) at [${p1.x},${p1.y}] to [${p2.x},${p2.y}] : ` + line.map(name).join(' > '));
+
+  seenLines.push(line);
+
+  let pivot: number = Card.None;
+  const dir: Point = (p1.x === p2.x) ? {x:0,y:1} : {x:1,y:0};
+  let _x = p1.x;
+  let _y = p1.y;
+  for (let i=0; i<line.length; ++i) {
+    _x = p1.x + (i * dir.x);
+    _y = p1.y + (i * dir.y);
+    if (line[i] === Card.Wild_One) {
+      if (seenMask & 0x1) {
+        // seen this card, dont' descend
+      } else {
+        seenMask |= 0x1;
+        pivot = Card.Wild_One;
+        break;
+      }
+    } else if (line[i] === Card.Wild_Two) {
+      if (seenMask & 0x2) {
+        // seen this card, dont' descend
+      } else {
+        seenMask |= 0x2;
+        pivot = Card.Wild_Two;
+        break;
+      }
+    } else {
+    }
+  }
+
+  if (pivot !== Card.None) {
+    debug3 && console.log(`---- pivoting at point [${_x},${_y}]`)
+    // Now we need to construct a perpendicular line to this point
+    const perp: Point = { x: dir.y, y: dir.x };
+    const newLine: number[] = [ pivot ];
+    growCards2(board, {x:_x, y:_y}, newLine, perp);
+    const n = newLine.length;
+    growCards2(board, {x:_x, y:_y}, newLine, {x: -perp.x, y: -perp.y});
+    const diff = newLine.length - n;
+    if (diff) {
+      _x = _x - (diff * perp.x);
+      _y = _y - (diff * perp.y);
+      debug3 && console.log(`---- correction: pivoting at point [${_x},${_y}]`)
+    }
+    const np1: Point = {x: _x, y: _y};
+    const np2: Point = {x: _x + (perp.x * (newLine.length - 1)), y: _y + (perp.y * (newLine.length - 1))};
+    recurseWildcardLines(board, newLine, np1, np2, seenMask, seenLines);
+  }
+  debug3 && console.log('<< returning from recursion', p1.x, p1.y);
+}
+
+
 function scoreVerify(
   board: BoardObject,
   line: number[],
-  x: number,
-  y: number,
+  x: number, // slid
+  y: number, // slid
   permutation: number[],
   unit1: Point,
   unit2: Point
 ): Outcome | null {
+
+  let areWePlayingAWildcard = false;
+
   let scoreMultiplier = 1;
   if (line.length > 4) {
     return null;
@@ -439,6 +559,9 @@ function scoreVerify(
   for (let i = 0; i < line.length; ++i) {
     const _x = x + i * unit1.x;
     const _y = y + i * unit1.y;
+
+    areWePlayingAWildcard ||= (line[i] & 0xc0) === 0xc0;
+
     const wildLines: Array<Array<number>> = [[], []];
     const perpLine = buildPerpendicular(board, _x, _y, unit2, wildLines);
     // The perpendicular scan won't include our card
@@ -455,31 +578,34 @@ function scoreVerify(
 
     perpLine.push(line[i]); // don't forget the card that should be there!
 
-    const debug2 = debug(x, y) && unit1.y === 0;
+    const debug2 = false; //x === 2 && unit1.y === 1;
+    /*
     debug2 &&
       console.log(
         `-- scoreVerify(${x},${y}) build perp at ${_x}, ${_y} ->`,
         perpLine.map((x) => name(x))
       );
-
+*/
     // Are we on a wildcard?
     if ((line[i] & 0xc0) === 0xc0) {
       // Wildcard. Check to see if these two lines are consistent.
       if (!checkTwo(line, perpLine)) {
-        debug2 && console.log('--- onWild fail');
+        // debug2 && console.log('--- onWild fail');
         return null;
       }
-      debug2 && console.log('--- onWild pass');
+      debug2 && console.log('--- checkTwoA pass:', line.map(x => name(x)), perpLine.map(x=>name(x)));
     }
     if (wildLines[0].length) {
       if (!checkTwo(wildLines[0], perpLine)) {
         return null;
       }
+      debug2 && console.log('--- checkTwoB pass:', wildLines[0].map(x => name(x)), perpLine.map(x=>name(x)));
     }
     if (wildLines[1].length) {
       if (!checkTwo(wildLines[1], perpLine)) {
         return null;
       }
+      debug2 && console.log('--- checkTwoC pass:', wildLines[1].map(x => name(x)), perpLine.map(x=>name(x)));
     }
 
     let vscore = wildScore(perpLine);
@@ -504,36 +630,75 @@ function scoreVerify(
     }
   }
 
+  // At this point we are proposing to build a line of cards on the board
+  // starting at point (x,y) and extending in the direction of unit1 for
+  // line.length squares.
+  const debug3 = debug(x,y);
+
+  const start: Point = { x, y };
+  const end: Point = { x: x + (unit1.x * (line.length - 1)), y: y + (unit1.y * (line.length - 1)) };
+  debug3 && console.log(`Proposing line from [${start.x},${start.y}] to [${end.x},${end.y}] ` + line.map(name).join(' > '));
+
+
   // Now we have to do a local check on our line for wildcards
 
-  // hline & vline always start with the wildcard, i.e. index zero.
   let w1: CardCross = { vline: [], hline: [], played: false };
   let w2: CardCross = { vline: [], hline: [], played: false };
   let valid = false;
-  for (let i=0; i<line.length; ++i) {
-    const spot: Point = {x, y};
-    spot.x = x + (i * unit1.x);
-    spot.y = y + (i * unit1.y);
-    if (line[i] === Card.Wild_One) {
-      // Build W1's cross
-      w1.hline.push(Card.Wild_One);
-      w1.vline.push(Card.Wild_One);
-      growCrossAt(board, spot, w1);
-      w1.played = true;
-    } else if (line[i] === Card.Wild_Two) {
-      // Build W2's cross
-      w2.hline.push(Card.Wild_Two);
-      w2.vline.push(Card.Wild_Two);
-      growCrossAt(board, spot, w2);
-      w2.played = true;
+
+
+  if (areWePlayingAWildcard) {
+    const seenLines: Array<number[]> = [];
+    debug3 && console.log("] Played a wildcard, need to recurse");
+    recurseWildcardLines(board, line, start, end, 0, seenLines);
+    if (debug3) {
+      for (let i=0; i<seenLines.length; ++i) {
+        console.log('seenLine', i, seenLines[i].map(name).join(' > '));
+      }
     }
+    if (seenLines.length === 2) {
+      if (checkTwo(seenLines[0], seenLines[1]) === false) {
+        debug3 && console.log("checkTwo failed");
+        return null;
+      }
+      debug3 && console.log("checkTwo passed");
+    }
+    if (seenLines.length === 3) {
+      if (checkThree(seenLines[0], seenLines[1], seenLines[2]) === false) {
+        debug3 && console.log("checkThree failed");
+        return null;
+      }
+      debug3 && console.log("checkThree passed");
+    }
+    debug3 && console.log("] recurse check passed");
   }
+  debug3 && console.log(`-> PASSED: Proposing line from [${start.x},${start.y}] to [${end.x},${end.y}] ` + line.map(name).join(' > '));
+
+  /**
+   * growCross has a bug: if the cross it grows in one direction touches
+   * another wildcard (that isn't in this line!) then it doesn't build the
+   * next line. So we need to check the new intersecting line to see if
+   * THAT has a wildcard. It is a recursive process, but we only have two
+   * wildcards so we could unroll it.
+   */
+  /*
+  if (
+    (w1.hline.length === 0) ||
+    (w1.vline.length === 0) ||
+    (w2.hline.length === 0) ||
+    (w2.vline.length === 0))
+    {
+      debug3 && console.log("EMPTY LINE!!!!!!!!!!!!!!!!!!!!");
+    }
   if (w1.played) {
     if (w1.hline.indexOf(Card.Wild_Two) >= 0) {
+      debug3 && console.log(".... HLine had W1 and W2");
       valid = checkThree(w1.hline, w1.vline, w2.vline);
     } else if (w1.vline.indexOf(Card.Wild_Two) >= 0) {
+      debug3 && console.log(".... VLine had W1 and W2");
       valid = checkThree(w1.vline, w1.hline, w2.hline);
     } else {
+      debug3 && console.log(".... Line only had W1");
       valid = checkTwo(w1.hline, w1.vline);
     }
     if (!valid) {
@@ -543,15 +708,24 @@ function scoreVerify(
   if (w2.played) {
     if (w2.hline.indexOf(Card.Wild_One) >= 0) {
       valid = checkThree(w2.hline, w2.vline, w1.vline);
+      debug3 && console.log(".... HLine had W2 and W1");
+      debug3 && console.log("...... valid", valid);
+      debug3 && console.log("...... w2.hline", w2.hline.map(name));
+      debug3 && console.log("...... w2.vline", w2.vline.map(name));
+      debug3 && console.log("...... w1.vline", w1.vline.map(name));
     } else if (w2.vline.indexOf(Card.Wild_One) >= 0) {
+      debug3 && console.log(".... VLine had W2 and W1");
       valid = checkThree(w2.vline, w2.hline, w1.hline);
     } else {
+      debug3 && console.log(".... Line only had W2");
       valid = checkTwo(w2.hline, w2.vline);
     }
+
     if (!valid) {
       return null;
     }
   }
+  */
   score *= scoreMultiplier;
   return {
     score,
@@ -764,10 +938,10 @@ export function considerThisSpot(
     }
     let r;
     // Look right, creep left
-    r = scan(board, pHand, permLen, spot, RT, UP);
+    r = scan(board, pHand, permLen, spot, RT, DN);
     results.splice(0, 0, ...r);
     // Look down, creep up
-    r = scan(board, pHand, permLen, spot, UP, RT);
+    r = scan(board, pHand, permLen, spot, DN, RT);
     results.splice(0, 0, ...r);
   });
   return pickBestPlay(results);
