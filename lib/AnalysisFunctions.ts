@@ -1,4 +1,4 @@
-import BoardObject, { Point } from './BoardObject';
+import { WildcardObject, BoardObject, Point } from './BoardObject';
 import {
   Card,
   score as cardScore,
@@ -16,8 +16,70 @@ import {
   growCrossAt,
   choiceMask,
 } from './SanityCheckBoard';
+import * as San from './SanityCheckBoard';
 import type { CardCross } from './SanityCheckBoard';
 import { sprintf } from 'sprintf-js';
+
+
+export function approveWildcardSwap(
+  wx: number,
+  cx: number,
+  sl: Array<number[]>
+): boolean {
+  let canSwap = true;
+
+  // TODO: Are we always guaranteed to have wx in line0 and line1 and not in line2?
+  const index1 = sl[0].indexOf(wx);
+  if (index1 < 0) {
+    return false;
+  }
+  // WE ARE MODIFYING AN INPUT!
+  sl[0][index1] = cx;
+
+  const index2 = sl[1].indexOf(wx);
+  if (index2 < 0) {
+    return false;
+  }
+  // WE ARE MODIFYING AN INPUT!
+  sl[1][index2] = cx;
+
+  if (sl.length === 2) {
+    if (San.checkTwo(sl[0], sl[1]) === false) {
+      canSwap = false;
+    }
+  }
+  if (sl.length === 3) {
+    if (San.checkThree(sl[0], sl[1], sl[2]) === false) {
+      canSwap = false;
+    }
+  }
+  // WE ARE UN-MODIFYING AN INPUT!
+  sl[0][index1] = wx;
+  sl[1][index2] = wx;
+  return canSwap;
+}
+
+export function reclaimWildcard(board: BoardObject, wc: WildcardObject, hand: number[]) {
+  let success = false;
+  if (wc.played) {
+    let seen: Array<number[]> = getWildcardDeps(board, wc.loc);
+    hand.some((card, i) => {
+      if (card === Card.Wild_One || card === Card.Wild_Two) {
+        return false;
+      } else {
+        if (approveWildcardSwap(wc.card, card, seen)) {
+          board.replaceWildCard(wc, card);
+          hand[i] = wc.card;
+          success = true;
+          return true;
+        } else {
+          return false;
+        }
+      }
+    });
+  }
+  return success;
+}
 
 export function getWildcardMasks(line: number[]): [number, number, number] {
   // TODO: We need to switch to one-hot encoding!
@@ -482,6 +544,26 @@ export function getLine(
     y: o.y - i * dir.y + j * dir.y,
   };
   return result;
+}
+
+export function getWildcardDeps(board: BoardObject, spot: Point) {
+  let line: LineDescriptor = getLine(board, spot, RT);
+  if (line.cards.length === 1) {
+    line = getLine(board, spot, DN);
+    if (line.cards.length === 1 && board.taken.length > 1) {
+      throw new Error('A wildcard was played illegally');
+    }
+  }
+  let seenLines: Array<number[]> = [];
+  recurseWildcardLines(
+    board,
+    line.cards,
+    line.start,
+    line.end,
+    0,
+    seenLines
+  );
+  return seenLines;
 }
 
 export function recurseWildcardLines(

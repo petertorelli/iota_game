@@ -2,7 +2,7 @@ import zlib from 'zlib';
 import * as Algs from './AnalysisFunctions';
 import { Card } from './CardObject';
 import DeckObject from './DeckObject';
-import BoardObject from './BoardObject';
+import { BoardObject } from './BoardObject';
 import PlayerObject from './PlayerObject';
 import { sanityCheckBoard } from './SanityCheckBoard';
 

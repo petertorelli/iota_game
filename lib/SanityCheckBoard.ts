@@ -1,4 +1,4 @@
-import BoardObject, { Point } from './BoardObject';
+import { BoardObject, Point } from './BoardObject';
 import {
   Card,
   score as cardScore,

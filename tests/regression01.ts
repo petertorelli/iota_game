@@ -1,3 +1,8 @@
+/**
+ * This is a checksum regression.
+ */
+
+
 import { sprintf } from 'sprintf-js';
 import { GameObject } from '../lib/GameObject';
 import _ from 'lodash';
@@ -15,7 +20,6 @@ const game = new GameObject(1234);
 
 turnOnBetterRandom(false);
 
-// for (let i=0; i<100_000; ++i) {
 for (let i = 0; i < 1000; ++i) {
   const res = game.playOneGame();
 

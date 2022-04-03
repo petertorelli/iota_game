@@ -1,50 +1,10 @@
-import BoardObject from './BoardObject';
+import { BoardObject, WildcardObject } from './BoardObject';
 import DeckObject from './DeckObject';
 import { Card, name } from './CardObject';
 import type { Point } from './BoardObject';
 import { rand } from './RandomGenerator';
 import * as Algs from './AnalysisFunctions';
-import { cardToOneHotMasks } from './SanityCheckBoard';
-import { LoaderOptionsPlugin } from 'webpack';
-import * as San from './SanityCheckBoard';
 
-function canISwapThisCard(
-  wx: number,
-  cx: number,
-  sl: Array<number[]>
-): boolean {
-  let canSwap = true;
-
-  // TODO: Are we always guaranteed to have wx in line0 and line1 and not in line2?
-  const index1 = sl[0].indexOf(wx);
-  if (index1 < 0) {
-    return false;
-  }
-  // WE ARE MODIFYING AN INPUT!
-  sl[0][index1] = cx;
-
-  const index2 = sl[1].indexOf(wx);
-  if (index2 < 0) {
-    return false;
-  }
-  // WE ARE MODIFYING AN INPUT!
-  sl[1][index2] = cx;
-
-  if (sl.length === 2) {
-    if (San.checkTwo(sl[0], sl[1]) === false) {
-      canSwap = false;
-    }
-  }
-  if (sl.length === 3) {
-    if (San.checkThree(sl[0], sl[1], sl[2]) === false) {
-      canSwap = false;
-    }
-  }
-  // WE ARE UN-MODIFYING AN INPUT!
-  sl[0][index1] = wx;
-  sl[1][index2] = wx;
-  return canSwap;
-}
 
 export default class PlayerObject {
   public hand: number[] = [];
@@ -136,104 +96,13 @@ export default class PlayerObject {
     return nDraw;
   }
 
-  private reclaimWildcard(board: BoardObject) {
-    if (!board.w1.played && !board.w2.played) {
-      return;
+  private reclaimWildcards(board: BoardObject) {
+    if (Algs.reclaimWildcard(board, board.w1, this.hand)) {
+      this.wildcardSwaps++;
     }
-    // 727689717 does an illegal swap at turn 15
-    // recurse isn't catching both lines, just one line and then a wildcard.
-
-    // Need to recursively collect the masks.
-    if (board.w1.played) {
-      let line: Algs.LineDescriptor = Algs.getLine(
-        board,
-        board.w1.loc,
-        Algs.RT
-      );
-      if (line.cards.length === 1) {
-        line = Algs.getLine(board, board.w1.loc, Algs.DN);
-        if (line.cards.length === 1 && board.taken.length > 1) {
-          console.log(board.taken);
-          throw new Error('A wildcard was played illegally');
-        }
-      }
-      let seenLines: Array<number[]> = [];
-      Algs.recurseWildcardLines(
-        board,
-        line.cards,
-        line.start,
-        line.end,
-        0,
-        seenLines
-      );
-
-      this.hand.some((card, i) => {
-        if (card === Card.Wild_One || card === Card.Wild_Two) {
-          return false;
-        } else {
-          if (canISwapThisCard(Card.Wild_One, card, seenLines)) {
-            board.replaceWildCard(board.w1, card);
-            this.hand[i] = Card.Wild_One;
-            this.wildcardSwaps++;
-            return true;
-          } else {
-            return false;
-          }
-        }
-      });
+    if (Algs.reclaimWildcard(board, board.w2, this.hand)) {
+      this.wildcardSwaps++;
     }
-    if (board.w2.played) {
-      let line: Algs.LineDescriptor = Algs.getLine(
-        board,
-        board.w2.loc,
-        Algs.RT
-      );
-      if (line.cards.length === 1) {
-        line = Algs.getLine(board, board.w2.loc, Algs.DN);
-        if (line.cards.length === 1 && board.taken.length > 1) {
-          console.log(board.taken);
-          throw new Error('A wildcard was played illegally');
-        }
-      }
-      let seenLines: Array<number[]> = [];
-      Algs.recurseWildcardLines(
-        board,
-        line.cards,
-        line.start,
-        line.end,
-        0,
-        seenLines
-      );
-
-      this.hand.some((card, i) => {
-        if (card === Card.Wild_One || card === Card.Wild_Two) {
-          return false;
-        } else {
-          if (canISwapThisCard(Card.Wild_Two, card, seenLines)) {
-            board.replaceWildCard(board.w2, card);
-            this.hand[i] = Card.Wild_Two;
-            this.wildcardSwaps++;
-            return true;
-          } else {
-            return false;
-          }
-        }
-      });
-    }
-
-    /*
-          let [ color, shape, score ] = cardToOneHotMasks(card);
-          if (
-            (board.w1.masks[0] & color) &&
-            (board.w1.masks[1] & shape) &&
-            (board.w1.masks[2] & score)
-          ) {
-            console.log(`Swap W1 with ${name(card)}`);
-            board.replaceWildCard(board.w1, card);
-            this.hand[i] = Card.Wild_One;
-            return true;
-          }
-          */
   }
 
   /**
@@ -245,7 +114,7 @@ export default class PlayerObject {
    */
   public playYourHand(deck: DeckObject, board: BoardObject) {
     // Before scanning the board for plays, see if you can reclaim a wildcard.
-    this.reclaimWildcard(board);
+    this.reclaimWildcards(board);
     // Create a list of all best plays for each contour spot
     const results: Algs.Outcome[] = [];
     // Name the anon function to make profiling easier

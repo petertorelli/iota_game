@@ -33,12 +33,17 @@ type BoundingBox = {
 };
 
 // It is easier to cache the wildcards than seek them out
-class WildCard {
+export class WildcardObject {
   public loc: Point = { x: 0, y: 0 };
   public played: boolean = false;
   public hline: number[] = [];
   public vline: number[] = [];
   public masks: [number, number, number] = [-1, -1, -1];
+  public card: number;
+
+  public constructor(card: number) {
+    this.card = card;
+  }
 
   public reset() {
     this.played = false;
@@ -51,30 +56,17 @@ class WildCard {
     this.played = true;
     this.loc.x = x;
     this.loc.y = y;
-    //console.log("Cached card at", x, y);
-    this.masks = [-1, -1, -1];
-    this.regrow(board);
   }
 
-  // this needs to recursively check massk
-
-  public regrow(board: BoardObject) {
-    this.hline = [];
-    this.vline = [];
-    growCards(board, this.loc, this.hline, Algs.LF);
-    growCards(board, this.loc, this.hline, Algs.RT);
-    growCards(board, this.loc, this.vline, Algs.UP);
-    growCards(board, this.loc, this.vline, Algs.DN);
-  }
 }
 
 export const BOARD_DIM = 97; // After 1Million games 25 is the largest width/height
 export const BOARD_HALF = (BOARD_DIM - 1) / 2;
-export default class BoardObject {
+export class BoardObject {
   public board: number[];
   public taken: Point[] = [];
-  public w1: WildCard = new WildCard();
-  public w2: WildCard = new WildCard();
+  public w1: WildcardObject = new WildcardObject(Card.Wild_One);
+  public w2: WildcardObject = new WildcardObject(Card.Wild_Two);
   public bbox: BoundingBox = {
     ulc: { x: 0, y: 0 },
     lrc: { x: 0, y: 0 },
@@ -116,7 +108,7 @@ export default class BoardObject {
     return card === null ? Card.None : card;
   }
 
-  public replaceWildCard(w: WildCard, card: number) {
+  public replaceWildCard(w: WildcardObject, card: number) {
     const x = w.loc.x + BOARD_HALF;
     const y = w.loc.y + BOARD_HALF;
     if (x > BOARD_DIM || x < 0 || y > BOARD_DIM || y < 0) {
@@ -126,29 +118,6 @@ export default class BoardObject {
     w.played = false;
   }
 
-  private updateWildCardMasks() {
-    if (this.w1.played) {
-      this.w1.regrow(this);
-      if (this.w1.hline.indexOf(Card.Wild_Two) >= 0) {
-        this.w1.masks = mergeThree(this.w1.hline, this.w1.vline, this.w2.vline);
-      } else if (this.w1.vline.indexOf(Card.Wild_Two) >= 0) {
-        this.w1.masks = mergeThree(this.w1.vline, this.w1.hline, this.w2.hline);
-      } else {
-        this.w1.masks = mergeTwo(this.w1.hline, this.w1.vline);
-      }
-      // console.log(this.w1.masks, this.w1.hline, this.w1.vline);
-    }
-    if (this.w2.played) {
-      this.w1.regrow(this);
-      if (this.w2.hline.indexOf(Card.Wild_One) >= 0) {
-        this.w2.masks = mergeThree(this.w2.hline, this.w2.vline, this.w1.vline);
-      } else if (this.w2.vline.indexOf(Card.Wild_One) >= 0) {
-        this.w2.masks = mergeThree(this.w2.vline, this.w2.hline, this.w1.hline);
-      } else {
-        this.w2.masks = mergeTwo(this.w2.hline, this.w2.vline);
-      }
-    }
-  }
 
   public put(_x: number, _y: number, card: number): boolean {
     const x = _x + BOARD_HALF;
@@ -165,10 +134,6 @@ export default class BoardObject {
     } else if (card === Card.Wild_Two) {
       //console.log("cache WC2");
       this.w2.cache(this, _x, _y, card);
-    }
-    if (this.w1.played || this.w2.played) {
-      // console.log('putting', name(card))
-      this.updateWildCardMasks();
     }
     return true;
   }
