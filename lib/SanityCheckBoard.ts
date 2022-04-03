@@ -16,7 +16,7 @@ export type CardCross = {
   vline: number[];
   hline: number[];
   played: boolean;
-}
+};
 
 export function cardToOneHotMasks(card: number) {
   return [
@@ -31,7 +31,7 @@ export function getMasks(line: number[]): [number, number, number] {
   let shapeBits = 0; // T+CS
   let scoreBits = 0; // 4321
   let n = 0;
-  for (let i=0; i<line.length; ++i) {
+  for (let i = 0; i < line.length; ++i) {
     // remove the conditional later? TODO: Unroll this loop?
     if (line[i] !== Card.Wild_One && line[i] !== Card.Wild_Two) {
       colorBits |= 1 << ((line[i] >> 4) & 0x3);
@@ -47,16 +47,20 @@ export function getMasks(line: number[]): [number, number, number] {
   return result;
 }
 
-export function mergeTwo (A: number[], B: number[]): [number, number, number] {
+export function mergeTwo(A: number[], B: number[]): [number, number, number] {
   const [Ac, Ah, As] = getMasks(A);
   const [Bc, Bh, Bs] = getMasks(B);
-  return [ Ac & Bc, Ah & Bh, As & Bs ];
+  return [Ac & Bc, Ah & Bh, As & Bs];
 }
 
-// TODO: could replace this with calls to mergeTwo/Three and then add an 
+// TODO: could replace this with calls to mergeTwo/Three and then add an
 // extra bit to see if < 0, e.g. mask & 0x10 would only accur if maskbit < 0
 // but the early returns save some math and function calls so no?
-export function checkTwo (A: number[], B: number[], debug: boolean=false): boolean {
+export function checkTwo(
+  A: number[],
+  B: number[],
+  debug: boolean = false
+): boolean {
   const [Ac, Ah, As] = getMasks(A);
   if (Ac < 0 || Ah < 0 || As < 0) {
     return false;
@@ -65,7 +69,7 @@ export function checkTwo (A: number[], B: number[], debug: boolean=false): boole
   if (Bc < 0 || Bh < 0 || Bs < 0) {
     return false;
   }
-  if (((Ac & Bc) === 0) || ((Ah & Bh) === 0) || ((As & Bs) === 0)) {
+  if ((Ac & Bc) === 0 || (Ah & Bh) === 0 || (As & Bs) === 0) {
     return false;
   }
   if (debug) {
@@ -77,14 +81,18 @@ export function checkTwo (A: number[], B: number[], debug: boolean=false): boole
   return true;
 }
 
-export function mergeThree (A: number[], B: number[], C: number[]): [number, number, number] {
+export function mergeThree(
+  A: number[],
+  B: number[],
+  C: number[]
+): [number, number, number] {
   const [Ac, Ah, As] = getMasks(A);
   const [Bc, Bh, Bs] = getMasks(B);
   const [Cc, Ch, Cs] = getMasks(C);
-  return [ Ac & Bc & Cc, Ah & Bh & Ch, As & Bs & Cs ];
+  return [Ac & Bc & Cc, Ah & Bh & Ch, As & Bs & Cs];
 }
 
-export function checkThree (A: number[], B: number[], C: number[]): boolean {
+export function checkThree(A: number[], B: number[], C: number[]): boolean {
   const [Ac, Ah, As] = getMasks(A);
   if (Ac < 0 || Ah < 0 || As < 0) {
     return false;
@@ -96,19 +104,18 @@ export function checkThree (A: number[], B: number[], C: number[]): boolean {
   const Tc = Ac & Bc;
   const Th = Ah & Bh;
   const Ts = As & Bs;
-  if ((Tc === 0) || (Th === 0) || (Ts === 0)) {
+  if (Tc === 0 || Th === 0 || Ts === 0) {
     return false;
   }
   const [Cc, Ch, Cs] = getMasks(C);
   if (Cc < 0 || Ch < 0 || Cs < 0) {
     return false;
   }
-  if (((Tc & Cc) === 0) || ((Th & Ch) === 0) || ((Ts & Cs) === 0)) {
+  if ((Tc & Cc) === 0 || (Th & Ch) === 0 || (Ts & Cs) === 0) {
     return false;
   }
   return true;
 }
-
 
 function countBits32(int32: number) {
   // Hacker's Delight, Chapter 5-1. Counting 1-Bits
@@ -144,15 +151,20 @@ export function choiceMask(bits4: number, nCards: number): number {
   return choices;
 }
 
-export function growCards2(board: BoardObject, spot: Point, line: number[], dir: Point) {
+export function growCards2(
+  board: BoardObject,
+  spot: Point,
+  line: number[],
+  dir: Point
+) {
   let c: number;
   let i: number = 1;
   while (1) {
-    let _x = spot.x + (i * dir.x);
-    let _y = spot.y + (i * dir.y);
+    let _x = spot.x + i * dir.x;
+    let _y = spot.y + i * dir.y;
     c = board.board[_x + 48 + (_y + 48) * 97];
     if (isCard(c)) {
-      if ((dir.x > 0) || dir.y > 0) {
+      if (dir.x > 0 || dir.y > 0) {
         line.push(c);
       } else {
         line.unshift(c);
@@ -163,12 +175,17 @@ export function growCards2(board: BoardObject, spot: Point, line: number[], dir:
     }
   }
 }
-export function growCards(board: BoardObject, spot: Point, line: number[], dir: Point) {
+export function growCards(
+  board: BoardObject,
+  spot: Point,
+  line: number[],
+  dir: Point
+) {
   let c: number;
   let i: number = 1;
   while (1) {
-    let _x = spot.x + (i * dir.x);
-    let _y = spot.y + (i * dir.y);
+    let _x = spot.x + i * dir.x;
+    let _y = spot.y + i * dir.y;
     c = board.board[_x + 48 + (_y + 48) * 97];
     if (isCard(c)) {
       /* This was for readability, but is sub-optimal
@@ -245,7 +262,6 @@ function rasterCheck(board: BoardObject, x: number, y: number, line: number[]) {
   }
 }
 
-
 // Evaluates the board to make sure nothing is illegal.
 export function sanityCheckBoard(board: BoardObject): void {
   let ulcx = board.bbox.ulc.x;
@@ -305,7 +321,7 @@ export function sanityCheckBoard(board: BoardObject): void {
       valid = checkTwo(w1.hline, w1.vline);
     }
     if (!valid) {
-      throw new Error('Wildcard check failed with W1')
+      throw new Error('Wildcard check failed with W1');
     }
   }
 
@@ -318,7 +334,7 @@ export function sanityCheckBoard(board: BoardObject): void {
       valid = checkTwo(w2.hline, w2.vline);
     }
     if (!valid) {
-      throw new Error('Wildcard check failed with W2')
+      throw new Error('Wildcard check failed with W2');
     }
   }
 }

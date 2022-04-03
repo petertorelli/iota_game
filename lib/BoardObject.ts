@@ -49,7 +49,7 @@ class WildCard {
 
   public cache(board: BoardObject, x: number, y: number, c: number) {
     this.played = true;
-    this.loc.x = x; 
+    this.loc.x = x;
     this.loc.y = y;
     //console.log("Cached card at", x, y);
     this.masks = [-1, -1, -1];
@@ -57,7 +57,7 @@ class WildCard {
   }
 
   // this needs to recursively check massk
-  
+
   public regrow(board: BoardObject) {
     this.hline = [];
     this.vline = [];
@@ -66,7 +66,7 @@ class WildCard {
     growCards(board, this.loc, this.vline, Algs.UP);
     growCards(board, this.loc, this.vline, Algs.DN);
   }
-};
+}
 
 export const BOARD_DIM = 97; // After 1Million games 25 is the largest width/height
 export const BOARD_HALF = (BOARD_DIM - 1) / 2;
@@ -120,7 +120,7 @@ export default class BoardObject {
     const x = w.loc.x + BOARD_HALF;
     const y = w.loc.y + BOARD_HALF;
     if (x > BOARD_DIM || x < 0 || y > BOARD_DIM || y < 0) {
-      throw new Error("Attempted to replace a wildcard out of bounds");
+      throw new Error('Attempted to replace a wildcard out of bounds');
     }
     this.board[x + y * BOARD_DIM] = card;
     w.played = false;

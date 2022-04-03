@@ -8,9 +8,13 @@ import { cardToOneHotMasks } from './SanityCheckBoard';
 import { LoaderOptionsPlugin } from 'webpack';
 import * as San from './SanityCheckBoard';
 
-function canISwapThisCard(wx: number, cx: number, sl: Array<number[]>): boolean {
+function canISwapThisCard(
+  wx: number,
+  cx: number,
+  sl: Array<number[]>
+): boolean {
   let canSwap = true;
-  
+
   // TODO: Are we always guaranteed to have wx in line0 and line1 and not in line2?
   const index1 = sl[0].indexOf(wx);
   if (index1 < 0) {
@@ -18,7 +22,7 @@ function canISwapThisCard(wx: number, cx: number, sl: Array<number[]>): boolean 
   }
   // WE ARE MODIFYING AN INPUT!
   sl[0][index1] = cx;
-  
+
   const index2 = sl[1].indexOf(wx);
   if (index2 < 0) {
     return false;
@@ -41,7 +45,6 @@ function canISwapThisCard(wx: number, cx: number, sl: Array<number[]>): boolean 
   sl[1][index2] = wx;
   return canSwap;
 }
-
 
 export default class PlayerObject {
   public hand: number[] = [];
@@ -142,7 +145,11 @@ export default class PlayerObject {
 
     // Need to recursively collect the masks.
     if (board.w1.played) {
-      let line: Algs.LineDescriptor = Algs.getLine(board, board.w1.loc, Algs.RT);
+      let line: Algs.LineDescriptor = Algs.getLine(
+        board,
+        board.w1.loc,
+        Algs.RT
+      );
       if (line.cards.length === 1) {
         line = Algs.getLine(board, board.w1.loc, Algs.DN);
         if (line.cards.length === 1 && board.taken.length > 1) {
@@ -151,7 +158,14 @@ export default class PlayerObject {
         }
       }
       let seenLines: Array<number[]> = [];
-      Algs.recurseWildcardLines(board, line.cards, line.start, line.end, 0, seenLines);
+      Algs.recurseWildcardLines(
+        board,
+        line.cards,
+        line.start,
+        line.end,
+        0,
+        seenLines
+      );
 
       this.hand.some((card, i) => {
         if (card === Card.Wild_One || card === Card.Wild_Two) {
@@ -169,7 +183,11 @@ export default class PlayerObject {
       });
     }
     if (board.w2.played) {
-      let line: Algs.LineDescriptor = Algs.getLine(board, board.w2.loc, Algs.RT);
+      let line: Algs.LineDescriptor = Algs.getLine(
+        board,
+        board.w2.loc,
+        Algs.RT
+      );
       if (line.cards.length === 1) {
         line = Algs.getLine(board, board.w2.loc, Algs.DN);
         if (line.cards.length === 1 && board.taken.length > 1) {
@@ -178,7 +196,14 @@ export default class PlayerObject {
         }
       }
       let seenLines: Array<number[]> = [];
-        Algs.recurseWildcardLines(board, line.cards, line.start, line.end, 0, seenLines);
+      Algs.recurseWildcardLines(
+        board,
+        line.cards,
+        line.start,
+        line.end,
+        0,
+        seenLines
+      );
 
       this.hand.some((card, i) => {
         if (card === Card.Wild_One || card === Card.Wild_Two) {
@@ -196,7 +221,7 @@ export default class PlayerObject {
       });
     }
 
-          /*
+    /*
           let [ color, shape, score ] = cardToOneHotMasks(card);
           if (
             (board.w1.masks[0] & color) &&
