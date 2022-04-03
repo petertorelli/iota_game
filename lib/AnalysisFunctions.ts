@@ -1,25 +1,9 @@
 import { WildcardObject, BoardObject, Point } from './BoardObject';
-import {
-  Card,
-  score as cardScore,
-  isCard,
-  name,
-  color as cardColor,
-  shape as cardShape,
-} from './CardObject';
+import { Card, score as cardScore, isCard, name } from './CardObject';
 import Permutes from './FasterPermute';
 import { rand } from './RandomGenerator';
-import {
-  checkTwo,
-  checkThree,
-  growCards2,
-  growCrossAt,
-  choiceMask,
-} from './SanityCheckBoard';
+import { checkTwo, checkThree } from './SanityCheckBoard';
 import * as San from './SanityCheckBoard';
-import type { CardCross } from './SanityCheckBoard';
-import { sprintf } from 'sprintf-js';
-
 
 export function approveWildcardSwap(
   wx: number,
@@ -27,7 +11,6 @@ export function approveWildcardSwap(
   sl: Array<number[]>
 ): boolean {
   let canSwap = true;
-
   // TODO: Are we always guaranteed to have wx in line0 and line1 and not in line2?
   const index1 = sl[0].indexOf(wx);
   if (index1 < 0) {
@@ -36,6 +19,26 @@ export function approveWildcardSwap(
   // WE ARE MODIFYING AN INPUT!
   sl[0][index1] = cx;
 
+  /**
+   * There's a neat corner case here: when working in a single line, the
+   * recursive dependencies will contain two lines: the first is the main
+   * line, the second is a single-card line with the wildcard. Normally,
+   * checkTwo and checkThree will be fine with this, but since we are altering
+   * that wildcard to be a proposed card, now the mask expectations for
+   * the check functions are constrained.
+   * 
+   * TODO: optimize checkTwo/Three so that they can handle single-card lines.
+   */
+  if (sl.length === 2 && sl[1].length === 1) {
+    const [cm, hm, sm] = San.getMasks(sl[0]);
+    sl[0][index1] = wx;
+    if ((cm < 0) || (hm < 0) || (sm < 0)) {
+      return false;
+    } else {
+      return true;
+    }
+  }
+  
   const index2 = sl[1].indexOf(wx);
   if (index2 < 0) {
     return false;
@@ -45,12 +48,12 @@ export function approveWildcardSwap(
 
   if (sl.length === 2) {
     if (San.checkTwo(sl[0], sl[1]) === false) {
-      canSwap = false;
+    canSwap = false;
     }
   }
   if (sl.length === 3) {
     if (San.checkThree(sl[0], sl[1], sl[2]) === false) {
-      canSwap = false;
+    canSwap = false;
     }
   }
   // WE ARE UN-MODIFYING AN INPUT!
@@ -59,51 +62,54 @@ export function approveWildcardSwap(
   return canSwap;
 }
 
-export function reclaimWildcard(board: BoardObject, wc: WildcardObject, hand: number[]) {
+export function reclaimWildcard(
+  board: BoardObject,
+  wc: WildcardObject,
+  hand: number[]
+) {
   let success = false;
   if (wc.played) {
-    let seen: Array<number[]> = getWildcardDeps(board, wc.loc);
+    const seen: Array<number[]> = getWildcardDeps(board, wc.loc);
     hand.some((card, i) => {
       if (card === Card.Wild_One || card === Card.Wild_Two) {
         return false;
+      } else if (approveWildcardSwap(wc.card, card, seen)) {
+        board.removeWildcardFromBoard(wc, card);
+        hand[i] = wc.card;
+        success = true;
+        return true;
       } else {
-        if (approveWildcardSwap(wc.card, card, seen)) {
-          board.replaceWildCard(wc, card);
-          hand[i] = wc.card;
-          success = true;
-          return true;
-        } else {
-          return false;
-        }
+        return false;
       }
     });
   }
   return success;
 }
 
-export function getWildcardMasks(line: number[]): [number, number, number] {
-  // TODO: We need to switch to one-hot encoding!
-  let nCards = 0;
-  let cbits = 0; // YGRB
-  let hbits = 0; // T+CS
-  let sbits = 0; // 4321
-
-  line.forEach((card) => {
-    if (card !== Card.Wild_One && card !== Card.Wild_Two) {
-      cbits |= 1 << ((card >> 4) & 0x3);
-      hbits |= 1 << ((card >> 2) & 0x3);
-      sbits |= 1 << ((card >> 0) & 0x3);
-      ++nCards;
+function growCards2(
+  board: BoardObject,
+  spot: Point,
+  line: number[],
+  dir: Point
+) {
+  let c: number;
+  let i: number = 1;
+  while (1) {
+    const _x = spot.x + i * dir.x;
+    const _y = spot.y + i * dir.y;
+    c = board.board[_x + 48 + (_y + 48) * 97];
+    if (isCard(c)) {
+      if (dir.x > 0 || dir.y > 0) {
+        line.push(c);
+      } else {
+        line.unshift(c);
+      }
+      ++i;
+    } else {
+      break;
     }
-  });
-
-  const cMask = choiceMask(cbits, nCards);
-  const hMask = choiceMask(hbits, nCards);
-  const sMask = choiceMask(sbits, nCards);
-
-  return [cMask, hMask, sMask];
+  }
 }
-
 // Direction unit vectors and origin.
 export const UP: Point = { x: 0, y: -1 };
 export const RT: Point = { x: 1, y: 0 };
@@ -111,15 +117,14 @@ export const DN: Point = { x: 0, y: 1 };
 export const LF: Point = { x: -1, y: 0 };
 export const OR: Point = { x: 0, y: 0 };
 
-// The primary search function is called a "parallel" build.
-export type BuildParallelResult = {
+type BuildParallelResult = {
   line: number[];
   slide: number;
 };
 
 let debugFlag: boolean = false;
-let debugX: number | undefined = undefined;
-let debugY: number | undefined = undefined;
+let debugX: number | undefined;
+let debugY: number | undefined;
 export function toggleDebug(
   x: number | undefined = undefined,
   y: number | undefined = undefined
@@ -132,6 +137,7 @@ export function toggleDebug(
   console.log('ToggleDebug', { debugFlag, x, y, debugX, debugY });
 }
 
+/*
 function debug(
   x: number | undefined = undefined,
   y: number | undefined = undefined
@@ -142,6 +148,7 @@ function debug(
     debugFlag
   );
 }
+*/
 
 // The result of a play is an outcome.
 export type Outcome = {
@@ -181,7 +188,7 @@ export function pickBestPlay(options: Outcome[]): Outcome {
  * @param y Board Y-coordinate
  * @returns Boolean, true if this spot is "dead" (see above).
  */
-function checkDead(board: BoardObject, x: number, y: number) {
+function isSquareDead(board: BoardObject, x: number, y: number): boolean {
   let count = 0;
   let i = 1;
   while (i) {
@@ -275,7 +282,7 @@ export function findContour(board: BoardObject): Point[] {
   const contour: Point[] = [];
   seen.forEach(function filterContours(v, _k) {
     // Banish spaces that may never be plaid again in this game.
-    if (checkDead(board, v.x, v.y)) {
+    if (isSquareDead(board, v.x, v.y)) {
       board.put(v.x, v.y, Card.Dead);
     } else {
       contour.push(v);
@@ -513,8 +520,8 @@ export function getLine(
   };
   let i = 1;
   while (1) {
-    let _x = o.x - i * dir.x;
-    let _y = o.y - i * dir.y;
+    const _x = o.x - i * dir.x;
+    const _y = o.y - i * dir.y;
     if (isCard(board.at(_x, _y))) {
       ++i;
     } else {
@@ -528,9 +535,9 @@ export function getLine(
     y: o.y - i * dir.y + j * dir.y,
   };
   while (1) {
-    let _x = o.x - i * dir.x + j * dir.x;
-    let _y = o.y - i * dir.y + j * dir.y;
-    let c = board.at(_x, _y);
+    const _x = o.x - i * dir.x + j * dir.x;
+    const _y = o.y - i * dir.y + j * dir.y;
+    const c = board.at(_x, _y);
     if (isCard(c)) {
       result.cards.push(c);
       ++j;
@@ -554,15 +561,8 @@ export function getWildcardDeps(board: BoardObject, spot: Point) {
       throw new Error('A wildcard was played illegally');
     }
   }
-  let seenLines: Array<number[]> = [];
-  recurseWildcardLines(
-    board,
-    line.cards,
-    line.start,
-    line.end,
-    0,
-    seenLines
-  );
+  const seenLines: Array<number[]> = [];
+  recurseWildcardLines(board, line.cards, line.start, line.end, 0, seenLines);
   return seenLines;
 }
 
@@ -572,10 +572,10 @@ export function recurseWildcardLines(
   p1: Point,
   p2: Point,
   seenMask: number,
-  seenLines: Array<number[]>
+  seenLines: Array<number[]>,
+  debug: boolean = false,
 ) {
-  const debug3 = false; //true;
-  debug3 &&
+  debug &&
     console.log(
       `-- Recursing (${seenMask}) at [${p1.x},${p1.y}] to [${p2.x},${p2.y}] : ` +
         line.map(name).join(' > ')
@@ -583,38 +583,11 @@ export function recurseWildcardLines(
 
   seenLines.push(line);
 
-  let pivot: number = Card.None;
-  const dir: Point = p1.x === p2.x ? { x: 0, y: 1 } : { x: 1, y: 0 };
-  let _x = p1.x;
-  let _y = p1.y;
-  for (let i = 0; i < line.length; ++i) {
-    _x = p1.x + i * dir.x;
-    _y = p1.y + i * dir.y;
-    if (line[i] === Card.Wild_One) {
-      if (seenMask & 0x1) {
-        // seen this card, dont' descend
-      } else {
-        seenMask |= 0x1;
-        pivot = Card.Wild_One;
-        break;
-      }
-    } else if (line[i] === Card.Wild_Two) {
-      if (seenMask & 0x2) {
-        // seen this card, dont' descend
-      } else {
-        seenMask |= 0x2;
-        pivot = Card.Wild_Two;
-        break;
-      }
-    } else {
-    }
-  }
-
-  if (pivot !== Card.None) {
-    debug3 && console.log(`---- pivoting at point [${_x},${_y}]`);
+  function prepForPivot(wc: number) {
+    debug && console.log(`---- pivoting at point [${_x},${_y}]`);
     // Now we need to construct a perpendicular line to this point
     const perp: Point = { x: dir.y, y: dir.x };
-    const newLine: number[] = [pivot];
+    const newLine: number[] = [wc];
     growCards2(board, { x: _x, y: _y }, newLine, perp);
     const n = newLine.length;
     growCards2(board, { x: _x, y: _y }, newLine, { x: -perp.x, y: -perp.y });
@@ -622,16 +595,41 @@ export function recurseWildcardLines(
     if (diff) {
       _x = _x - diff * perp.x;
       _y = _y - diff * perp.y;
-      debug3 && console.log(`---- correction: pivoting at point [${_x},${_y}]`);
+      debug && console.log(`---- correction: pivoting at point [${_x},${_y}]`);
     }
     const np1: Point = { x: _x, y: _y };
     const np2: Point = {
       x: _x + perp.x * (newLine.length - 1),
       y: _y + perp.y * (newLine.length - 1),
     };
-    recurseWildcardLines(board, newLine, np1, np2, seenMask, seenLines);
+    recurseWildcardLines(board, newLine, np1, np2, seenMask, seenLines, debug);
   }
-  debug3 && console.log('<< returning from recursion', p1.x, p1.y);
+  const dir: Point = p1.x === p2.x ? { x: 0, y: 1 } : { x: 1, y: 0 };
+  let _x = p1.x;
+  let _y = p1.y;
+  for (let i = 0; i < line.length; ++i) {
+    _x = p1.x + i * dir.x;
+    _y = p1.y + i * dir.y;
+    debug && console.log(`      | c=${name(line[i])} @ [${_x},${_y}]`);
+    if (line[i] === Card.Wild_One) {
+      if (seenMask & 0x1) {
+        // seen this card, dont' descend
+      } else {
+        seenMask |= 0x1;
+        prepForPivot(Card.Wild_One);
+      }
+    } else if (line[i] === Card.Wild_Two) {
+      if (seenMask & 0x2) {
+        // seen this card, dont' descend
+      } else {
+        seenMask |= 0x2;
+        prepForPivot(Card.Wild_Two);
+      }
+    }
+  }
+
+
+  debug && console.log('<< returning from recursion', p1.x, p1.y);
 }
 
 function scoreVerify(
@@ -643,8 +641,9 @@ function scoreVerify(
   unit1: Point,
   unit2: Point
 ): Outcome | null {
-  let areWePlayingAWildcard = false;
 
+
+  let areWePlayingAWildcard = false;
   let scoreMultiplier = 1;
   if (line.length > 4) {
     return null;
@@ -672,24 +671,20 @@ function scoreVerify(
       continue;
     }
 
-    // Did we add to a wildcard line? If so, we need to check the cross with
-    // that line! But what is that line?
+    // Now add our card.
+    perpLine.push(line[i]);
 
     // This is a different case than sanitizing a play-card cross.
     // This is a case where we are influencing a previous line that HAS
     // a wildcard in it.
 
-    perpLine.push(line[i]); // don't forget the card that should be there!
-
-    const debug2 = false; //x === 2 && unit1.y === 1;
-    /*
-    debug2 &&
-      console.log(
-        `-- scoreVerify(${x},${y}) build perp at ${_x}, ${_y} ->`,
-        perpLine.map((x) => name(x))
-      );
-*/
     // Are we on a wildcard?
+    // weird ... comment this out alters determinism. need to check
+    
+    // 504206880
+
+    /*
+    const debug2 = false;
     if ((line[i] & 0xc0) === 0xc0) {
       // Wildcard. Check to see if these two lines are consistent.
       if (!checkTwo(line, perpLine)) {
@@ -703,27 +698,16 @@ function scoreVerify(
           perpLine.map((x) => name(x))
         );
     }
+    */
     if (wildLines[0].length) {
       if (!checkTwo(wildLines[0], perpLine)) {
         return null;
       }
-      debug2 &&
-        console.log(
-          '--- checkTwoB pass:',
-          wildLines[0].map((x) => name(x)),
-          perpLine.map((x) => name(x))
-        );
     }
     if (wildLines[1].length) {
       if (!checkTwo(wildLines[1], perpLine)) {
         return null;
       }
-      debug2 &&
-        console.log(
-          '--- checkTwoC pass:',
-          wildLines[1].map((x) => name(x)),
-          perpLine.map((x) => name(x))
-        );
     }
 
     let vscore = wildScore(perpLine);
@@ -748,112 +732,34 @@ function scoreVerify(
     }
   }
 
-  // At this point we are proposing to build a line of cards on the board
-  // starting at point (x,y) and extending in the direction of unit1 for
-  // line.length squares.
-  const debug3 = debug(x, y);
-
-  const start: Point = { x, y };
-  const end: Point = {
-    x: x + unit1.x * (line.length - 1),
-    y: y + unit1.y * (line.length - 1),
-  };
-  debug3 &&
-    console.log(
-      `Proposing line from [${start.x},${start.y}] to [${end.x},${end.y}] ` +
-        line.map(name).join(' > ')
-    );
-
   // Now we have to do a local check on our line for wildcards
-
-  let w1: CardCross = { vline: [], hline: [], played: false };
-  let w2: CardCross = { vline: [], hline: [], played: false };
-  let valid = false;
-
   if (areWePlayingAWildcard) {
+    const debug = false;
+    debug && console.log(`Trying to play line at [${x},${y}] ` + line.map(name).join(' -> '));
+    const start: Point = { x, y };
+    const end: Point = {
+      x: x + unit1.x * (line.length - 1),
+      y: y + unit1.y * (line.length - 1),
+    };
     const seenLines: Array<number[]> = [];
-    debug3 && console.log('] Played a wildcard, need to recurse');
-    recurseWildcardLines(board, line, start, end, 0, seenLines);
-    if (debug3) {
-      for (let i = 0; i < seenLines.length; ++i) {
-        console.log('seenLine', i, seenLines[i].map(name).join(' > '));
-      }
-    }
+    recurseWildcardLines(board, line, start, end, 0, seenLines, debug);
+    debug && console.log(' .. . .  seen length', seenLines.length);
     if (seenLines.length === 2) {
-      if (checkTwo(seenLines[0], seenLines[1]) === false) {
-        debug3 && console.log('checkTwo failed');
+      if (checkTwo(seenLines[0], seenLines[1], debug) === false) {
+        debug && console.log("^^ failed try on checkTwo");
         return null;
       }
-      debug3 && console.log('checkTwo passed');
     }
     if (seenLines.length === 3) {
-      if (checkThree(seenLines[0], seenLines[1], seenLines[2]) === false) {
-        debug3 && console.log('checkThree failed');
+      if (checkThree(seenLines[0], seenLines[1], seenLines[2], debug) === false) {
+        debug &&  console.log("^^ failed try on checkThree");
         return null;
       }
-      debug3 && console.log('checkThree passed');
     }
-    debug3 && console.log('] recurse check passed');
+    debug && console.log("^^ Passed checkTwo and checkThree");
   }
-  debug3 &&
-    console.log(
-      `-> PASSED: Proposing line from [${start.x},${start.y}] to [${end.x},${end.y}] ` +
-        line.map(name).join(' > ')
-    );
-
-  /**
-   * growCross has a bug: if the cross it grows in one direction touches
-   * another wildcard (that isn't in this line!) then it doesn't build the
-   * next line. So we need to check the new intersecting line to see if
-   * THAT has a wildcard. It is a recursive process, but we only have two
-   * wildcards so we could unroll it.
-   */
-  /*
-  if (
-    (w1.hline.length === 0) ||
-    (w1.vline.length === 0) ||
-    (w2.hline.length === 0) ||
-    (w2.vline.length === 0))
-    {
-      debug3 && console.log("EMPTY LINE!!!!!!!!!!!!!!!!!!!!");
-    }
-  if (w1.played) {
-    if (w1.hline.indexOf(Card.Wild_Two) >= 0) {
-      debug3 && console.log(".... HLine had W1 and W2");
-      valid = checkThree(w1.hline, w1.vline, w2.vline);
-    } else if (w1.vline.indexOf(Card.Wild_Two) >= 0) {
-      debug3 && console.log(".... VLine had W1 and W2");
-      valid = checkThree(w1.vline, w1.hline, w2.hline);
-    } else {
-      debug3 && console.log(".... Line only had W1");
-      valid = checkTwo(w1.hline, w1.vline);
-    }
-    if (!valid) {
-      return null;
-    }
-  }
-  if (w2.played) {
-    if (w2.hline.indexOf(Card.Wild_One) >= 0) {
-      valid = checkThree(w2.hline, w2.vline, w1.vline);
-      debug3 && console.log(".... HLine had W2 and W1");
-      debug3 && console.log("...... valid", valid);
-      debug3 && console.log("...... w2.hline", w2.hline.map(name));
-      debug3 && console.log("...... w2.vline", w2.vline.map(name));
-      debug3 && console.log("...... w1.vline", w1.vline.map(name));
-    } else if (w2.vline.indexOf(Card.Wild_One) >= 0) {
-      debug3 && console.log(".... VLine had W2 and W1");
-      valid = checkThree(w2.vline, w2.hline, w1.hline);
-    } else {
-      debug3 && console.log(".... Line only had W2");
-      valid = checkTwo(w2.hline, w2.vline);
-    }
-
-    if (!valid) {
-      return null;
-    }
-  }
-  */
   score *= scoreMultiplier;
+  const tag = Math.floor(rand() * 1024);
   return {
     score,
     line,
@@ -862,7 +768,7 @@ function scoreVerify(
     orgx: x,
     orgy: y,
     dir: null,
-    tag: Math.floor(rand() * 1024),
+    tag
   };
 }
 

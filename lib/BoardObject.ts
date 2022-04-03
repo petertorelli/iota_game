@@ -1,7 +1,5 @@
 import _ from 'lodash';
-import { Card, name } from './CardObject';
-import { growCards, mergeTwo, mergeThree } from './SanityCheckBoard';
-import * as Algs from './AnalysisFunctions';
+import { Card } from './CardObject';
 /*
 The largest possible board is derived from the most number of plays in any
 one direction:
@@ -36,28 +34,17 @@ type BoundingBox = {
 export class WildcardObject {
   public loc: Point = { x: 0, y: 0 };
   public played: boolean = false;
-  public hline: number[] = [];
-  public vline: number[] = [];
-  public masks: [number, number, number] = [-1, -1, -1];
   public card: number;
 
   public constructor(card: number) {
     this.card = card;
   }
 
-  public reset() {
-    this.played = false;
-    this.hline = [];
-    this.vline = [];
-    this.masks = [-1, -1, -1];
-  }
-
-  public cache(board: BoardObject, x: number, y: number, c: number) {
+  public cache(x: number, y: number) {
     this.played = true;
     this.loc.x = x;
     this.loc.y = y;
   }
-
 }
 
 export const BOARD_DIM = 97; // After 1Million games 25 is the largest width/height
@@ -83,21 +70,15 @@ export class BoardObject {
     this.bbox = { ulc: { x: 0, y: 0 }, lrc: { x: 0, y: 0 }, w: 0, h: 0 };
     this.board.fill(Card.None);
     this.taken = [];
-    this.w1.reset();
-    this.w2.reset();
+    this.w1.played = false;
+    this.w2.played = false;
   }
 
   public atP(p: Point): number {
-    const x = p.x + BOARD_HALF;
-    const y = p.y + BOARD_HALF;
-    if (x > BOARD_DIM || x < 0 || y > BOARD_DIM || y < 0) {
-      return Card.None;
-    }
-    const card = this.board[x + y * BOARD_DIM];
-    return card === null ? Card.None : card;
+    return this.at(p.x, p.y);
   }
 
-  // TODO: Doing the [] lookup directly is a 10~15% perf increase over this!
+  // TODO: Doing the [] lookup directly is a 10~15% perf increase over this!!!
   public at(_x: number, _y: number): number {
     const x = _x + BOARD_HALF;
     const y = _y + BOARD_HALF;
@@ -108,7 +89,7 @@ export class BoardObject {
     return card === null ? Card.None : card;
   }
 
-  public replaceWildCard(w: WildcardObject, card: number) {
+  public removeWildcardFromBoard(w: WildcardObject, card: number) {
     const x = w.loc.x + BOARD_HALF;
     const y = w.loc.y + BOARD_HALF;
     if (x > BOARD_DIM || x < 0 || y > BOARD_DIM || y < 0) {
@@ -118,7 +99,7 @@ export class BoardObject {
     w.played = false;
   }
 
-
+  // TODO: Should add a check to make sure not putting a card on a card?
   public put(_x: number, _y: number, card: number): boolean {
     const x = _x + BOARD_HALF;
     const y = _y + BOARD_HALF;
@@ -129,11 +110,9 @@ export class BoardObject {
     this.taken.push({ x: _x, y: _y });
     this.setBbox();
     if (card === Card.Wild_One) {
-      //console.log("cache WC1");
-      this.w1.cache(this, _x, _y, card);
+      this.w1.cache(_x, _y);
     } else if (card === Card.Wild_Two) {
-      //console.log("cache WC2");
-      this.w2.cache(this, _x, _y, card);
+      this.w2.cache(_x, _y);
     }
     return true;
   }

@@ -15,8 +15,8 @@ export default Vue.component('CardImage', {
   },
   computed: {
     color() {
-      if (this.card === card.Card.Wild_One) return 'white'
-      if (this.card === card.Card.Wild_Two) return 'white'
+      if (this.card === card.Card.Wild_One) return 'white';
+      if (this.card === card.Card.Wild_Two) return 'white';
       return card.htmlColor(this.card);
     },
     html() {
@@ -27,8 +27,8 @@ export default Vue.component('CardImage', {
     },
     background() {
       if (this.card === card.Card.Dead) return '#f2f2f2';
-      if (this.card === card.Card.Wild_One) return 'magenta'
-      if (this.card === card.Card.Wild_Two) return 'magenta'
+      if (this.card === card.Card.Wild_One) return 'magenta';
+      if (this.card === card.Card.Wild_Two) return 'magenta';
       return this.card === card.Card.Dead ? '#f2f2f2' : 'white';
     },
   },

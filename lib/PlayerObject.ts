@@ -1,10 +1,9 @@
-import { BoardObject, WildcardObject } from './BoardObject';
+import { BoardObject } from './BoardObject';
 import DeckObject from './DeckObject';
 import { Card, name } from './CardObject';
 import type { Point } from './BoardObject';
 import { rand } from './RandomGenerator';
 import * as Algs from './AnalysisFunctions';
-
 
 export default class PlayerObject {
   public hand: number[] = [];
@@ -29,7 +28,6 @@ export default class PlayerObject {
     const r: number = rand();
     const n: number = this.hand.length;
     let nSwap = Math.max(1, Math.floor(r * n));
-
     if (nSwap > deck.deck.length) {
       nSwap = deck.deck.length;
     }
@@ -85,7 +83,7 @@ export default class PlayerObject {
           `Cannot play a card on a card! [${x}, ${y}] ${name(c)} on ${name(at)}`
         );
       }
-      // Remember: if the card is already on the board, don't put it.
+      // Remember: if the card is already on the board, don't `put()` it!
       if (at !== c) {
         this.debug && console.log(`${this.name} puts ${name(c)} at ${x}, ${y}`);
         board.put(x, y, c);
@@ -113,7 +111,7 @@ export default class PlayerObject {
    * @param board A BoardObject, it will change with dead cards and plays
    */
   public playYourHand(deck: DeckObject, board: BoardObject) {
-    // Before scanning the board for plays, see if you can reclaim a wildcard.
+    // TODO: What kind of strategy is associated with reclaiming a wildcard?
     this.reclaimWildcards(board);
     // Create a list of all best plays for each contour spot
     const results: Algs.Outcome[] = [];
@@ -131,7 +129,7 @@ export default class PlayerObject {
     } else {
       const bestPlay = Algs.pickBestPlay(results);
       this.debug && console.log(`${this.name} plays`, bestPlay);
-      let ndraw = this.layEmDown(board, bestPlay);
+      const ndraw = this.layEmDown(board, bestPlay);
       if (deck.deck.length === 0 && this.hand.length === 0) {
         this.score += bestPlay.score * 2;
         // Game over.

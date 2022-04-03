@@ -6,7 +6,6 @@ import { turnOnBetterRandom } from '../lib/RandomGenerator';
 const gamePlyOutcomes: Array<string[]> = [];
 turnOnBetterRandom(true);
 
-
 const game = new GameObject();
 for (let i = 0; i < 1000; ++i) {
   let outcome;

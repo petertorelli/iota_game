@@ -2,11 +2,10 @@
  * This is a checksum regression.
  */
 
-
+import crypto from 'crypto';
+import _ from 'lodash';
 import { sprintf } from 'sprintf-js';
 import { GameObject } from '../lib/GameObject';
-import _ from 'lodash';
-import crypto from 'crypto';
 import { turnOnBetterRandom } from '../lib/RandomGenerator';
 
 let p1wins = 0;

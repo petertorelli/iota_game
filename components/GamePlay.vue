@@ -50,7 +50,7 @@ mixin sidebar
         td Current turn:
         td.text-right {{ game.ply }}
     h2 Interesting Seeds
-    p 1668437305 is a very high score
+    p 151785470 is a very high score
     p 133207245 seems to be missing dead cards
     p 1598795824 fails 2xW check
     p 727689717 starts with a wildcard
@@ -142,7 +142,7 @@ mixin deck
   .flex.flex-col
     h1 Iota Auto-Player
     p Based on the game "IOTA" by Gamewrite (c) www.gamewrite.com
-    p This app plays the game by itself (wildcard rules are still in progress). It's a fun study in 1-ply gameplay.
+    p This app plays the game by itself. It's a fun study in 1-ply gameplay.
     p It is extremely slow on Safari for some reason, recommend Chrome or Firefox.
     +players
     .mb-4(v-if='game.cannotProceed')
@@ -174,7 +174,7 @@ export default Vue.extend({
        * I stop trying to update the DOM after EVERY turn during autoplay, it
        * might ... do something? I dunno. Just a thought.
        */
-      userSeed: 1598795824 as number | null,
+      userSeed: 1204242315 as number | null,
       cacheBoard: [] as Array<number | null>,
       cacheRangeX: [] as number[],
       cacheRangeY: [] as number[],
@@ -202,17 +202,21 @@ export default Vue.extend({
       error: '',
       algX: undefined,
       algY: undefined,
-      compressedGame: '789ced9ccf8e9b3010c65fa5f2d991f03f30b9ee03740fbd4539902c6daa64a182a4d9559477ef0c018a69d40b0784f4e99704c61e8fe73376b2d25abe895d99556f627d13e7ec981762bdb9890fb18ea4f8a4cfbb6cac956acc950aed5175571b85cee3b63a6cab83b6ada93bd384b526acb5cf4c13a6a1c33446a60dcdaeedca85915d105987ce3a8cdcf61b87a60b4d1b9a6634d07e6427233b1ed92e1cbebffefa69323e54ed43ef5132261cfcd1f0a661a8f4be95e2aa783e9dca3d5f4255e2d729fbcc69be9dab4b2ec5e1f4b3c869cea93891ca186afbbb2bd15eaa4449e5122a7dcfea634da55e6a69b714e6aac32efaf9da77f03d3bd5831e06a107f128b3e6c52177bbf283a35d4e7ddeaed7284e5557da0f92b88ab5a71e483c5bed42da44120000000000000000000000000000000000c0f250c64b159bd9f398a421d5b2fd0ffcecb94c50614885f6b3e7315545f4d8f7e0d5ecb94c54e26846254b9e519d0e23958d67cf63a20ad241ebc324b3673249454273caa5a463c9cf43794b0ae889d874f65c26a8884945e2e8aa67cf65820a4fabdb9112bddc67a13cff7ed3df219656875df2ef86b2fc1d65f9db2aa155ee97fb4c0000000000000000000000000000000000000000c0ec6cbbd3a4aae63cab4356f0f14e2a89a54a79d30d6f814ab75214d97b2ed6e2b571fdf2b5c88514f5beaca89077728ab77c77f9d11e48d587d4c390d652384f610d8554ff84fc762d0721e3e849483e24cd49b1cf8aa23cbf56e53e1f9c8155e5595d162f61dd280a5bfb2327f5b86e94e32d83949427bd31bdad932ae12d3aac9dee1d959994ca3495b11f6ff7a4ab633f129452fb98fd591495196e136dc7dd5ef92c2eeef7716ad8fe61527687feae6eeffa73bffeeb445e75a350181d9924b2d68bfbfd0fab85a96c' as string,
+      compressedGame:
+        '789ced9ccf8e9b3010c65fa5f2d991f03f30b9ee03740fbd4539902c6daa64a182a4d9559477ef0c018a69d40b0784f4e99704c61e8fe73376b2d25abe895d99556f627d13e7ec981762bdb9890fb18ea4f8a4cfbb6cac956acc950aed5175571b85cee3b63a6cab83b6ada93bd384b526acb5cf4c13a6a1c33446a60dcdaeedca85915d105987ce3a8cdcf61b87a60b4d1b9a6634d07e6427233b1ed92e1cbebffefa69323e54ed43ef5132261cfcd1f0a661a8f4be95e2aa783e9dca3d5f4255e2d729fbcc69be9dab4b2ec5e1f4b3c869cea93891ca186afbbb2bd15eaa4449e5122a7dcfea634da55e6a69b714e6aac32efaf9da77f03d3bd5831e06a107f128b3e6c52177bbf283a35d4e7ddeaed7284e5557da0f92b88ab5a71e483c5bed42da44120000000000000000000000000000000000c0f250c64b159bd9f398a421d5b2fd0ffcecb94c50614885f6b3e7315545f4d8f7e0d5ecb94c54e26846254b9e519d0e23958d67cf63a20ad241ebc324b3673249454273caa5a463c9cf43794b0ae889d874f65c26a8884945e2e8aa67cf65820a4fabdb9112bddc67a13cff7ed3df219656875df2ef86b2fc1d65f9db2aa155ee97fb4c0000000000000000000000000000000000000000c0ec6cbbd3a4aae63cab4356f0f14e2a89a54a79d30d6f814ab75214d97b2ed6e2b571fdf2b5c88514f5beaca89077728ab77c77f9d11e48d587d4c390d652384f610d8554ff84fc762d0721e3e849483e24cd49b1cf8aa23cbf56e53e1f9c8155e5595d162f61dd280a5bfb2327f5b86e94e32d83949427bd31bdad932ae12d3aac9dee1d959994ca3495b11f6ff7a4ab633f129452fb98fd591495196e136dc7dd5ef92c2eeef7716ad8fe61527687feae6eeffa73bffeeb445e75a350181d9924b2d68bfbfd0fab85a96c' as string,
     };
   },
   mounted() {
     this.reset();
   },
   methods: {
-    setDebugXY(x: number|undefined=undefined, y: number|undefined=undefined) {
+    setDebugXY(
+      x: number | undefined = undefined,
+      y: number | undefined = undefined
+    ) {
       toggleDebug(x, y);
     },
-    toggleAlgDebug(x: number|undefined=undefined, y: number|undefined=undefined) {
+    toggleAlgDebug() {
       toggleDebug();
     },
     exportGame() {
@@ -333,7 +337,7 @@ export default Vue.extend({
             this.stopAutoPlay();
             this.update();
           }
-        }
+        };
         this.autoPlayTimer = window.setInterval(intervalPlayLauncher, 150);
         resolve();
       });
@@ -406,5 +410,4 @@ td {
 tr:hover {
   background: #eee;
 }
-
 </style>

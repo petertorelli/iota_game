@@ -5,18 +5,6 @@ export default class DeckObject {
   public deck: number[] = Array<number>(64 + 2); // 66 with wildcards
   public seed: number;
   public debug: boolean = false;
-  public wmask = {
-    w1: {
-      cmask: 0,
-      hmask: 0,
-      smask: 0,
-    },
-    w2: {
-      cmask: 0,
-      hmask: 0,
-      smask: 0,
-    },
-  };
   constructor(seed: number | undefined = undefined) {
     if (seed) {
       reseed(seed);
@@ -27,9 +15,6 @@ export default class DeckObject {
     this.init();
   }
 
-  // Interesting seed: 939263 -> player 1 start bingo
-  // this.seed = 1034914; 4034;258991
-  // If we re-seed on init, it makes debugging easier
   public init(seed: number | undefined = undefined) {
     if (seed) {
       reseed(seed);
