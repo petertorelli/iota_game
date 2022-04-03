@@ -476,7 +476,7 @@ export function getLine(board: BoardObject, o: Point, dir: Point): LineDescripto
 }
 
 export function recurseWildcardLines(board: BoardObject, line: number[], p1: Point, p2: Point, seenMask: number, seenLines: Array<number[]>) {
-  const debug3 = true;
+  const debug3 = false; //true;
   debug3 && console.log(`-- Recursing (${seenMask}) at [${p1.x},${p1.y}] to [${p2.x},${p2.y}] : ` + line.map(name).join(' > '));
 
   seenLines.push(line);

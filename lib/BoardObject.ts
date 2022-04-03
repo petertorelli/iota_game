@@ -122,7 +122,6 @@ export default class BoardObject {
     if (x > BOARD_DIM || x < 0 || y > BOARD_DIM || y < 0) {
       throw new Error("Attempted to replace a wildcard out of bounds");
     }
-    console.log(`Replacing wildcard at [${w.loc.x}, ${w.loc.y}] with`, name(card));
     this.board[x + y * BOARD_DIM] = card;
     w.played = false;
   }

@@ -151,7 +151,6 @@ export default class PlayerObject {
         }
       }
       let seenLines: Array<number[]> = [];
-      console.log("check recursion on w1");
       Algs.recurseWildcardLines(board, line.cards, line.start, line.end, 0, seenLines);
 
       this.hand.some((card, i) => {
@@ -159,7 +158,6 @@ export default class PlayerObject {
           return false;
         } else {
           if (canISwapThisCard(Card.Wild_One, card, seenLines)) {
-            console.log(`Swap W1 with ${name(card)}`);
             board.replaceWildCard(board.w1, card);
             this.hand[i] = Card.Wild_One;
             this.wildcardSwaps++;
@@ -180,15 +178,13 @@ export default class PlayerObject {
         }
       }
       let seenLines: Array<number[]> = [];
-      console.log("check recursion on w2");
-      Algs.recurseWildcardLines(board, line.cards, line.start, line.end, 0, seenLines);
+        Algs.recurseWildcardLines(board, line.cards, line.start, line.end, 0, seenLines);
 
       this.hand.some((card, i) => {
         if (card === Card.Wild_One || card === Card.Wild_Two) {
           return false;
         } else {
           if (canISwapThisCard(Card.Wild_Two, card, seenLines)) {
-            console.log(`Swap W2 with ${name(card)}`);
             board.replaceWildCard(board.w2, card);
             this.hand[i] = Card.Wild_Two;
             this.wildcardSwaps++;

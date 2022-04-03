@@ -12,7 +12,9 @@ let msec = 0;
 let check = '';
 const scores: number[] = [];
 const game = new GameObject(1);//234);
-turnOnBetterRandom(true);
+
+//Seeds are useless with this on
+//turnOnBetterRandom(true);
 
 for (let i=0; i<100_000; ++i) {
 //for (let i=0; i<20; ++i) {
