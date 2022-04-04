@@ -1,5 +1,5 @@
 yarn run v1.22.15
-$ /Users/ptorelli/git/iota_01/node_modules/.bin/ts-node -T tests/regression02.ts
+$ /Users/ptorelli/git/iota_01/node_modules/.bin/ts-node tests/regression02.ts
 Game # 1
 Game # 2
 Game # 3
@@ -1000,29 +1000,29 @@ Game # 997
 Game # 998
 Game # 999
 Game # 1000
-Accuracy at ply     1 =  48.0 %
+Accuracy at ply     1 =  46.7 %
 Accuracy at ply     2 =  50.2 %
 Accuracy at ply     3 =  49.5 %
-Accuracy at ply     4 =  55.4 %
-Accuracy at ply     5 =  55.1 %
-Accuracy at ply     6 =  58.5 %
-Accuracy at ply     7 =  58.9 %
-Accuracy at ply     8 =  61.5 %
+Accuracy at ply     4 =  56.2 %
+Accuracy at ply     5 =  56.2 %
+Accuracy at ply     6 =  59.1 %
+Accuracy at ply     7 =  59.6 %
+Accuracy at ply     8 =  62.3 %
 Accuracy at ply     9 =  61.8 %
-Accuracy at ply    10 =  64.2 %
-Accuracy at ply    11 =  65.9 %
-Accuracy at ply    12 =  67.3 %
-Accuracy at ply    13 =  67.6 %
-Accuracy at ply    14 =  73.1 %
-Accuracy at ply    15 =  70.7 %
-Accuracy at ply    16 =  74.9 %
-Accuracy at ply    17 =  72.7 %
-Accuracy at ply    18 =  77.0 %
-Accuracy at ply    19 =  75.7 %
-Accuracy at ply    20 =  79.4 %
-Accuracy at ply    21 =  78.2 %
-Accuracy at ply    22 =  82.2 %
-Accuracy at ply    23 =  81.5 %
-Accuracy at ply    24 =  85.2 %
-Accuracy at ply    25 =  83.8 %
-Done in 33.30s.
+Accuracy at ply    10 =  64.7 %
+Accuracy at ply    11 =  66.2 %
+Accuracy at ply    12 =  69.4 %
+Accuracy at ply    13 =  68.7 %
+Accuracy at ply    14 =  71.8 %
+Accuracy at ply    15 =  71.0 %
+Accuracy at ply    16 =  72.6 %
+Accuracy at ply    17 =  73.4 %
+Accuracy at ply    18 =  75.1 %
+Accuracy at ply    19 =  75.1 %
+Accuracy at ply    20 =  77.4 %
+Accuracy at ply    21 =  76.7 %
+Accuracy at ply    22 =  78.9 %
+Accuracy at ply    23 =  79.7 %
+Accuracy at ply    24 =  83.3 %
+Accuracy at ply    25 =  83.7 %
+Done in 41.40s.
