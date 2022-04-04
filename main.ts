@@ -15,7 +15,7 @@ const game = new GameObject(1);
 // Seeds are useless with this on
 // turnOnBetterRandom(true);
 
-for (let i = 0; i < 100_000; ++i) {
+for (let i = 0; i < 100; ++i) {
   let res;
   try {
     res = game.playOneGame();

@@ -2,6 +2,7 @@ import { BoardObject, Point } from './BoardObject';
 import { Card, name, isCard } from './CardObject';
 
 import { UP, DN, LF, RT } from './AnalysisFunctions';
+import * as Algs from './AnalysisFunctions';
 
 type CardCross = {
   vline: number[];
@@ -90,6 +91,7 @@ export function checkThree(A: number[], B: number[], C: number[], debug: boolean
 function countBits32(int32: number) {
   // Hacker's Delight, Chapter 5-1. Counting 1-Bits
   let x = int32;
+  // TODO: we never count more than 4 bits, don't need all this!
   x = (x & 0x5555_5555) + ((x >> 1) & 0x5555_5555);
   x = (x & 0x3333_3333) + ((x >> 2) & 0x3333_3333);
   x = (x & 0x0f0f_0f0f) + ((x >> 4) & 0x0f0f_0f0f);
@@ -113,40 +115,11 @@ function choiceMask(bits4: number, nCards: number): number {
   return choices;
 }
 
-function growCards(
-  board: BoardObject,
-  spot: Point,
-  line: number[],
-  dir: Point
-) {
-  let c: number;
-  let i: number = 1;
-  while (1) {
-    const _x = spot.x + i * dir.x;
-    const _y = spot.y + i * dir.y;
-    c = board.board[_x + 48 + (_y + 48) * 97];
-    if (isCard(c)) {
-      /* This was for readability, but is sub-optimal
-      if ((dir.x > 0) || dir.y > 0) {
-        line.push(c);
-      } else {
-        line.unshift(c);
-      }
-      */
-      // Always PUSH so that the first line[0] is the wildcard
-      line.push(c);
-      ++i;
-    } else {
-      break;
-    }
-  }
-}
-
 function growCrossAt(board: BoardObject, spot: Point, cross: CardCross) {
-  growCards(board, spot, cross.hline, LF);
-  growCards(board, spot, cross.hline, RT);
-  growCards(board, spot, cross.vline, UP);
-  growCards(board, spot, cross.vline, DN);
+  Algs.addCardsTowardDir(board, spot, cross.hline, LF);
+  Algs.addCardsTowardDir(board, spot, cross.hline, RT);
+  Algs.addCardsTowardDir(board, spot, cross.vline, UP);
+  Algs.addCardsTowardDir(board, spot, cross.vline, DN);
 }
 
 function rasterCheck(board: BoardObject, x: number, y: number, line: number[]) {

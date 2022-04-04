@@ -5,7 +5,67 @@ import { rand } from './RandomGenerator';
 import { checkTwo, checkThree } from './SanityCheckBoard';
 import * as San from './SanityCheckBoard';
 
-export function approveWildcardSwap(
+
+// Direction unit vectors and origin.
+export const UP: Point = { x: 0, y: -1 };
+export const RT: Point = { x: 1, y: 0 };
+export const DN: Point = { x: 0, y: 1 };
+export const LF: Point = { x: -1, y: 0 };
+export const OR: Point = { x: 0, y: 0 };
+
+type BuildParallelResult = {
+  line: number[];
+  backup: number;
+};
+
+// The result of a play is an outcome.
+export type Outcome = {
+  score: number;
+  line: number[];
+  x: number;
+  y: number;
+  dir: Point | null;
+  tag: number;
+  orgx: number;
+  orgy: number;
+};
+
+type LineDescriptor = {
+  start: Point;
+  end: Point;
+  cards: number[];
+};
+
+let debugFlag: boolean = false;
+let debugX: number | undefined;
+let debugY: number | undefined;
+
+export function toggleDebug(
+  x: number | undefined = undefined,
+  y: number | undefined = undefined
+) {
+  if (x === undefined && y === undefined) {
+    debugFlag = !debugFlag;
+  }
+  debugX = x !== undefined ? x : debugX;
+  debugY = y !== undefined ? y : debugY;
+  console.log('ToggleDebug', { debugFlag, x, y, debugX, debugY });
+}
+
+/*
+function debug(
+  x: number | undefined = undefined,
+  y: number | undefined = undefined
+) {
+  // use '==' since it's text from the form control.
+  return (
+    (x !== undefined && x == debugX && y !== undefined && y == debugY) ||
+    debugFlag
+  );
+}
+*/
+
+function approveWildcardSwap(
   wx: number,
   cx: number,
   sl: Array<number[]>
@@ -62,6 +122,19 @@ export function approveWildcardSwap(
   return canSwap;
 }
 
+function getWildcardDeps(board: BoardObject, spot: Point) {
+  let line: LineDescriptor = getLine(board, spot, RT);
+  if (line.cards.length === 1) {
+    line = getLine(board, spot, DN);
+    if (line.cards.length === 1 && board.taken.length > 1) {
+      throw new Error('A wildcard was played illegally');
+    }
+  }
+  const seenLines: Array<number[]> = [];
+  recurseWildcardLines(board, line.cards, line.start, line.end, 0, seenLines);
+  return seenLines;
+}
+
 export function reclaimWildcard(
   board: BoardObject,
   wc: WildcardObject,
@@ -86,7 +159,81 @@ export function reclaimWildcard(
   return success;
 }
 
-function growCards2(
+/*
+
+
+
+these three functions are very similar: can we reduce them?
+
+getLine
+addCardsTowardDir
+grabOrthoLine
+buildPerpendicular
+buildParallel
+
+The all do kinda the same thing....
+
+*/
+
+
+
+/**
+ * Given a point on a board and a direction: move in the opposite direction
+ * until there is no valid card at that spot. Start at the last valid spot,
+ * begin moving in the given directions, adding cards to a list until there
+ * are no more cards in that direction.
+ *
+ * @param board Board object.
+ * @param o Origin.
+ * @param dir Direction to search.
+ * @returns A complete description of the line.
+ */
+ function getLine(
+  board: BoardObject,
+  o: Point,
+  dir: Point
+): LineDescriptor {
+  const result: LineDescriptor = {
+    start: o,
+    end: o,
+    cards: [],
+  };
+  let i = 1;
+  while (1) {
+    const _x = o.x - i * dir.x;
+    const _y = o.y - i * dir.y;
+    if (isCard(board.at(_x, _y))) {
+      ++i;
+    } else {
+      break;
+    }
+  }
+  --i;
+  let j = 0;
+  result.start = {
+    x: o.x - i * dir.x + j * dir.x,
+    y: o.y - i * dir.y + j * dir.y,
+  };
+  while (1) {
+    const _x = o.x - i * dir.x + j * dir.x;
+    const _y = o.y - i * dir.y + j * dir.y;
+    const c = board.at(_x, _y);
+    if (isCard(c)) {
+      result.cards.push(c);
+      ++j;
+    } else {
+      break;
+    }
+  }
+  --j;
+  result.end = {
+    x: o.x - i * dir.x + j * dir.x,
+    y: o.y - i * dir.y + j * dir.y,
+  };
+  return result;
+}
+
+export function addCardsTowardDir(
   board: BoardObject,
   spot: Point,
   line: number[],
@@ -110,57 +257,40 @@ function growCards2(
     }
   }
 }
-// Direction unit vectors and origin.
-export const UP: Point = { x: 0, y: -1 };
-export const RT: Point = { x: 1, y: 0 };
-export const DN: Point = { x: 0, y: 1 };
-export const LF: Point = { x: -1, y: 0 };
-export const OR: Point = { x: 0, y: 0 };
 
-type BuildParallelResult = {
-  line: number[];
-  slide: number;
-};
-
-let debugFlag: boolean = false;
-let debugX: number | undefined;
-let debugY: number | undefined;
-export function toggleDebug(
-  x: number | undefined = undefined,
-  y: number | undefined = undefined
-) {
-  if (x === undefined && y === undefined) {
-    debugFlag = !debugFlag;
+function grabOrthoLine(board: BoardObject, x: number, y: number, unit: Point) {
+  /* why isn't this the same?
+  const ortho1: Point = { x:  unit.y, y:  unit.x };
+  const ortho2: Point = { x: -unit.y, y: -unit.x };
+  const line: number[] = [];
+  addCardsTowardDir(board, {x,y}, line, ortho2);
+  addCardsTowardDir(board, {x,y}, line, ortho1);
+  */
+  const ortho: Point = { x: unit.y, y: unit.x };
+  const line: number[] = [];
+  for (let i = 1; i < 6; ++i) {
+    const _x = x - ortho.x * i;
+    const _y = y - ortho.y * i;
+    const c = board.board[_x + 48 + (_y + 48) * 97];
+    if (c === Card.None) {
+      break;
+    } else {
+      line.unshift(c);
+    }
   }
-  debugX = x !== undefined ? x : debugX;
-  debugY = y !== undefined ? y : debugY;
-  console.log('ToggleDebug', { debugFlag, x, y, debugX, debugY });
+  for (let i = 1; i < 6; ++i) {
+    const _x = x + ortho.x * i;
+    const _y = y + ortho.y * i;
+    const c = board.board[_x + 48 + (_y + 48) * 97];
+    if (c === Card.None) {
+      break;
+    } else {
+      line.push(c);
+    }
+  }
+  return line;
 }
 
-/*
-function debug(
-  x: number | undefined = undefined,
-  y: number | undefined = undefined
-) {
-  // use '==' since it's text from the form control.
-  return (
-    (x !== undefined && x == debugX && y !== undefined && y == debugY) ||
-    debugFlag
-  );
-}
-*/
-
-// The result of a play is an outcome.
-export type Outcome = {
-  score: number;
-  line: number[];
-  x: number;
-  y: number;
-  dir: Point | null;
-  tag: number;
-  orgx: number;
-  orgy: number;
-};
 
 // Note: Picking largest play increases avg score by ~2.5pts!
 export function pickBestPlay(options: Outcome[]): Outcome {
@@ -191,6 +321,7 @@ export function pickBestPlay(options: Outcome[]): Outcome {
 function isSquareDead(board: BoardObject, x: number, y: number): boolean {
   let count = 0;
   let i = 1;
+  // Count cards left and right
   while (i) {
     if (isCard(board.at(x + i, y))) {
       ++count;
@@ -212,6 +343,7 @@ function isSquareDead(board: BoardObject, x: number, y: number): boolean {
   }
   count = 0;
   i = 1;
+  // Count cards up and down
   while (i) {
     if (isCard(board.at(x, y + i))) {
       ++count;
@@ -254,17 +386,13 @@ export function findContour(board: BoardObject): Point[] {
   function check(p: Point, set: Point[]) {
     set.forEach((search) => {
       if (board.atP(p) === Card.Dead) {
-        // console.log("check contour at ", p.x, p.y, "dead");
         return;
       }
       const newp = { x: p.x + search.x, y: p.y + search.y };
       if (board.atP(newp) === Card.None) {
         const key = JSON.stringify(newp);
         if (!seen.has(key)) {
-          // console.log("check contour at ", newp.x, newp.y, "new");
           seen.set(key, newp);
-        } else {
-          // console.log("check contour at ", newp.x, newp.y, "seen");
         }
       }
     });
@@ -281,7 +409,7 @@ export function findContour(board: BoardObject): Point[] {
 
   const contour: Point[] = [];
   seen.forEach(function filterContours(v, _k) {
-    // Banish spaces that may never be plaid again in this game.
+    // Banish spaces that may never be played again in this game.
     if (isSquareDead(board, v.x, v.y)) {
       board.put(v.x, v.y, Card.Dead);
     } else {
@@ -291,16 +419,24 @@ export function findContour(board: BoardObject): Point[] {
   return contour;
 }
 
+/**
+ * Seems a little ridiculous to build a new line just to remove wildcards.
+ * 
+ * @param line Input line, possibly with wildcards
+ * @returns Score of line without wilcards
+ */
 // Note: this added 20% more time (990us to 1120us). Dammmit.
 function wildScore(line: number[]): number {
   // Note: Putting the length check up here is ~5% faster for some reason,
   //       compared to having a `default` case for non {2,3,4} values.
   if (line.length > 4 || line.length < 2) {
+    // All lines must be between 2 and 4 cards to count toward the score.
     return 0;
   }
   // We can ignore wildcards: if the hand without wildcards is valid, then
   // return just the baseScore of that smaller hand subset.
   const newLine: number[] = [];
+  // TODO: I think we can do this with .map()...
   line.forEach((card) => {
     if (card === Card.Wild_One || card === Card.Wild_Two) {
       // do nothing
@@ -411,34 +547,11 @@ function baseScore(line: number[]) {
   return pass ? score : 0;
 }
 
-function grabOrthoLine(board: BoardObject, x: number, y: number, unit: Point) {
-  const ortho: Point = { x: unit.y, y: unit.x };
-  const line: number[] = [];
-  for (let i = 1; i < 6; ++i) {
-    const _x = x - ortho.x * i;
-    const _y = y - ortho.y * i;
-    const c = board.board[_x + 48 + (_y + 48) * 97];
-    if (c === Card.None) {
-      break;
-    } else {
-      line.unshift(c);
-    }
-  }
-  for (let i = 1; i < 6; ++i) {
-    const _x = x + ortho.x * i;
-    const _y = y + ortho.y * i;
-    const c = board.board[_x + 48 + (_y + 48) * 97];
-    if (c === Card.None) {
-      break;
-    } else {
-      line.push(c);
-    }
-  }
-  return line;
-}
-
 /**
- *
+ * Construct a line from a point in a direction, and if it touches wildcards
+ * construct the line orthogonal that contains the wildcard. This is
+ * necessary to check consistency if we modify an adjacent line.
+ * 
  * @param board BoardObject (immutable)
  * @param x Point at which to scan, x-coord
  * @param y Point at which to scan, y-coord
@@ -491,81 +604,6 @@ function buildPerpendicular(
   return line;
 }
 
-export type LineDescriptor = {
-  start: Point;
-  end: Point;
-  cards: number[];
-};
-
-/**
- * Given a point on a board and a direction: move in the opposite direction
- * until there is no valid card at that spot. Start at the last valid spot,
- * begin moving in the given directions, adding cards to a list until there
- * are no more cards in that direction.
- *
- * @param board Board object.
- * @param o Origin.
- * @param dir Direction to search.
- * @returns A complete description of the line.
- */
-export function getLine(
-  board: BoardObject,
-  o: Point,
-  dir: Point
-): LineDescriptor {
-  const result: LineDescriptor = {
-    start: o,
-    end: o,
-    cards: [],
-  };
-  let i = 1;
-  while (1) {
-    const _x = o.x - i * dir.x;
-    const _y = o.y - i * dir.y;
-    if (isCard(board.at(_x, _y))) {
-      ++i;
-    } else {
-      break;
-    }
-  }
-  --i;
-  let j = 0;
-  result.start = {
-    x: o.x - i * dir.x + j * dir.x,
-    y: o.y - i * dir.y + j * dir.y,
-  };
-  while (1) {
-    const _x = o.x - i * dir.x + j * dir.x;
-    const _y = o.y - i * dir.y + j * dir.y;
-    const c = board.at(_x, _y);
-    if (isCard(c)) {
-      result.cards.push(c);
-      ++j;
-    } else {
-      break;
-    }
-  }
-  --j;
-  result.end = {
-    x: o.x - i * dir.x + j * dir.x,
-    y: o.y - i * dir.y + j * dir.y,
-  };
-  return result;
-}
-
-export function getWildcardDeps(board: BoardObject, spot: Point) {
-  let line: LineDescriptor = getLine(board, spot, RT);
-  if (line.cards.length === 1) {
-    line = getLine(board, spot, DN);
-    if (line.cards.length === 1 && board.taken.length > 1) {
-      throw new Error('A wildcard was played illegally');
-    }
-  }
-  const seenLines: Array<number[]> = [];
-  recurseWildcardLines(board, line.cards, line.start, line.end, 0, seenLines);
-  return seenLines;
-}
-
 export function recurseWildcardLines(
   board: BoardObject,
   line: number[],
@@ -575,27 +613,19 @@ export function recurseWildcardLines(
   seenLines: Array<number[]>,
   debug: boolean = false,
 ) {
-  debug &&
-    console.log(
-      `-- Recursing (${seenMask}) at [${p1.x},${p1.y}] to [${p2.x},${p2.y}] : ` +
-        line.map(name).join(' > ')
-    );
-
   seenLines.push(line);
 
-  function prepForPivot(wc: number) {
-    debug && console.log(`---- pivoting at point [${_x},${_y}]`);
+  function pivot(wc: number) {
     // Now we need to construct a perpendicular line to this point
     const perp: Point = { x: dir.y, y: dir.x };
     const newLine: number[] = [wc];
-    growCards2(board, { x: _x, y: _y }, newLine, perp);
+    addCardsTowardDir(board, { x: _x, y: _y }, newLine, perp);
     const n = newLine.length;
-    growCards2(board, { x: _x, y: _y }, newLine, { x: -perp.x, y: -perp.y });
+    addCardsTowardDir(board, { x: _x, y: _y }, newLine, { x: -perp.x, y: -perp.y });
     const diff = newLine.length - n;
     if (diff) {
       _x = _x - diff * perp.x;
       _y = _y - diff * perp.y;
-      debug && console.log(`---- correction: pivoting at point [${_x},${_y}]`);
     }
     const np1: Point = { x: _x, y: _y };
     const np2: Point = {
@@ -610,26 +640,18 @@ export function recurseWildcardLines(
   for (let i = 0; i < line.length; ++i) {
     _x = p1.x + i * dir.x;
     _y = p1.y + i * dir.y;
-    debug && console.log(`      | c=${name(line[i])} @ [${_x},${_y}]`);
     if (line[i] === Card.Wild_One) {
-      if (seenMask & 0x1) {
-        // seen this card, dont' descend
-      } else {
+      if ((seenMask & 0x1) === 0) {
         seenMask |= 0x1;
-        prepForPivot(Card.Wild_One);
+        pivot(Card.Wild_One);
       }
     } else if (line[i] === Card.Wild_Two) {
-      if (seenMask & 0x2) {
-        // seen this card, dont' descend
-      } else {
+      if ((seenMask & 0x2) === 0) {
         seenMask |= 0x2;
-        prepForPivot(Card.Wild_Two);
+        pivot(Card.Wild_Two);
       }
     }
   }
-
-
-  debug && console.log('<< returning from recursion', p1.x, p1.y);
 }
 
 function scoreVerify(
@@ -641,8 +663,6 @@ function scoreVerify(
   unit1: Point,
   unit2: Point
 ): Outcome | null {
-
-
   let areWePlayingAWildcard = false;
   let scoreMultiplier = 1;
   if (line.length > 4) {
@@ -659,46 +679,19 @@ function scoreVerify(
   }
   // Now walk the perpendiculars
   for (let i = 0; i < line.length; ++i) {
+    areWePlayingAWildcard ||= (line[i] & 0xc0) === 0xc0;
     const _x = x + i * unit1.x;
     const _y = y + i * unit1.y;
-
-    areWePlayingAWildcard ||= (line[i] & 0xc0) === 0xc0;
-
     const wildLines: Array<Array<number>> = [[], []];
-    const perpLine = buildPerpendicular(board, _x, _y, unit2, wildLines);
     // The perpendicular scan won't include our card
+    const perpLine = buildPerpendicular(board, _x, _y, unit2, wildLines);
     if (perpLine.length === 0) {
+      // If there are no perpendicular lines to this card, continue
       continue;
     }
-
-    // Now add our card.
+    // Now add our card to the perp line.
     perpLine.push(line[i]);
-
-    // This is a different case than sanitizing a play-card cross.
-    // This is a case where we are influencing a previous line that HAS
-    // a wildcard in it.
-
-    // Are we on a wildcard?
-    // weird ... comment this out alters determinism. need to check
-    
-    // 504206880
-
-    /*
-    const debug2 = false;
-    if ((line[i] & 0xc0) === 0xc0) {
-      // Wildcard. Check to see if these two lines are consistent.
-      if (!checkTwo(line, perpLine)) {
-        // debug2 && console.log('--- onWild fail');
-        return null;
-      }
-      debug2 &&
-        console.log(
-          '--- checkTwoA pass:',
-          line.map((x) => name(x)),
-          perpLine.map((x) => name(x))
-        );
-    }
-    */
+    // If we add a card to a wildcard line, make sure it is still consistent!
     if (wildLines[0].length) {
       if (!checkTwo(wildLines[0], perpLine)) {
         return null;
@@ -709,10 +702,10 @@ function scoreVerify(
         return null;
       }
     }
-
+    // Now check to see if this line is valid, and if so, what is its score?
     let vscore = wildScore(perpLine);
     if (vscore === cardScore(line[i])) {
-      // If the total score is the score of the card, it just the card.
+      // If the total score is the score of the card, it is just the card!
     } else if (vscore === 0) {
       // If this play creates a bad vertical line, the whole play fails.
       return null;
@@ -730,7 +723,7 @@ function scoreVerify(
       }
       score += vscore;
     }
-  }
+  } /* "Add perpendiculars' scores on each card" loop */
 
   // Now we have to do a local check on our line for wildcards
   if (areWePlayingAWildcard) {
@@ -759,6 +752,7 @@ function scoreVerify(
     debug && console.log("^^ Passed checkTwo and checkThree");
   }
   score *= scoreMultiplier;
+  // This is a handy debug feature
   const tag = Math.floor(rand() * 1024);
   return {
     score,
@@ -767,7 +761,7 @@ function scoreVerify(
     y,
     orgx: x,
     orgy: y,
-    dir: null,
+    dir: unit1,
     tag
   };
 }
@@ -804,68 +798,67 @@ function buildParallelLine(
   unit: Point
 ): BuildParallelResult | null {
   const line: number[] = [];
-  let slide = 0;
+  let ptr = 0;
   let c: number;
   let _x;
   let _y;
 
   // First, built to the +ve.
-  for (let i = 0; i < validLen /* increment on play! */; ) {
-    _x = x + slide * unit.x;
-    _y = y + slide * unit.y;
-    // c = board.at(_x, _y);
+  for (let i = 0; i < validLen;  /* increment on play! */) {
+    _x = x + ptr * unit.x;
+    _y = y + ptr * unit.y;
     c = board.board[_x + 48 + (_y + 48) * 97];
     // If we still have valid cards to play and we hit a dead card, fail!
     if (c === Card.Dead) {
       return null;
     }
+    // Add either a line card or a board card...
     if (c === Card.None) {
-      // If the spot is empty, add the next card.
       line.push(cards[i]);
       ++i;
     } else {
-      // If it is not empty, and there are still cards to add, add one!
       line.push(c);
     }
-    ++slide;
+    ++ptr;
   }
 
-  // We've played all cards, but the next spot to the +ve might have a card.
-  // `slide` is already at the next square after exiting the for-loop.
+  // We've played the line, but the next spot to the +ve might have a card.
+  // `ptr` is already at the next square after exiting the for-loop.
   do {
-    _x = x + slide * unit.x;
-    _y = y + slide * unit.y;
-    // c = board.at(_x, _y);
+    _x = x + ptr * unit.x;
+    _y = y + ptr * unit.y;
     c = board.board[_x + 48 + (_y + 48) * 97];
     if (isCard(c)) {
       // Add the cards that are touching to the +ve until an empty square.
       line.push(c);
     }
-    ++slide;
+    ++ptr;
   } while (isCard(c));
 
   // Now we have to prepend any cards we are touching to the -ve
-  slide = 0;
+  let backup = 0;
   do {
-    _x = x - (slide + 1) * unit.x;
-    _y = y - (slide + 1) * unit.y;
+    _x = x - (backup + 1) * unit.x;
+    _y = y - (backup + 1) * unit.y;
     // We already did the current spot so start one over.
-    // c = board.at(_x, _y);
     c = board.board[_x + 48 + (_y + 48) * 97];
     if (isCard(c)) {
       // Add the cards that are touching to the -ve until an empty square.
       line.unshift(c);
     }
-    ++slide;
+    ++backup;
   } while (isCard(c));
+  --backup;
 
-  // Now we have a contiguous line of cards. This line could be huge, but it
-  // isn't up to this function to resolve it.
-  // If we've added cards to the -ve, let the caller know that with `slide`.
-  // TODO: optimize: return null on len > 4 ASAP
+  // 5~10 ms speedup doing this.
+  if (line.length > 4) {
+    return null;
+  }
+
+  // If we've added cards to the -ve, let the caller know that with `backup`.
   return {
     line,
-    slide: slide - 1,
+    backup,
   };
 }
 
@@ -911,25 +904,26 @@ function scan(
       const br = buildParallelLine(board, _x, _y, pHand, permLen, parallel);
       // If the hand we're playing is illegal, don't bother
       if (br !== null) {
+        // Now check the perpendiculars to this parallel line.
         const outcome = scoreVerify(
           board,
           br.line,
-          _x - br.slide * parallel.x,
-          _y - br.slide * parallel.y,
+          // The parallel line may actual start back a few spots in the -ve dir.
+          _x - br.backup * parallel.x,
+          _y - br.backup * parallel.y,
           pHand,
           parallel,
           perpendicular
         );
         if (outcome) {
-          // All four cards played, doubles score
+          // All four cards played, double score
           if (permLen === 4) {
             outcome.score *= 2;
           }
           // The outcome needs to know if the builder added to the -ve. If
-          // so, then the placement square needs to slide -ve.
-          outcome.x = _x - br.slide * parallel.x;
-          outcome.y = _y - br.slide * parallel.y;
-          outcome.dir = parallel;
+          // so, then the placement square needs to backup -ve.
+          outcome.x = _x - br.backup * parallel.x;
+          outcome.y = _y - br.backup * parallel.y;
           results.push(outcome);
         }
       }
@@ -940,7 +934,7 @@ function scan(
       // of this 'blockage'.
       break;
     }
-  }
+  } /* Creep in -ve direction loop */
   return results;
 }
 
