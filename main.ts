@@ -15,7 +15,7 @@ const game = new GameObject(1);
 // Seeds are useless with this on
 // turnOnBetterRandom(true);
 
-for (let i = 0; i < 100; ++i) {
+for (let i = 0; i < 300; ++i) {
   let res;
   try {
     res = game.playOneGame();
@@ -38,6 +38,7 @@ for (let i = 0; i < 100; ++i) {
   const p1 = (p1wins / (i + 1)) * 100;
   const p2 = (p2wins / (i + 1)) * 100;
   const ti = (ties / (i + 1)) * 100;
+  /*
   console.log(
     sprintf(
       '%5d %3d %3d %3d %2d %2d %4d %5.3f %6.2f %6.2f %6.2f %12d %3d %5.1f',
@@ -57,6 +58,7 @@ for (let i = 0; i < 100; ++i) {
       res.playTime
     )
   );
+  */
   if (res.nply !== 100) {
     nPlys += res.nply;
     msec += res.playTime;

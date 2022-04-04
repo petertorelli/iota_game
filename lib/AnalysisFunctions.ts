@@ -202,7 +202,7 @@ The all do kinda the same thing....
   while (1) {
     const _x = o.x - i * dir.x;
     const _y = o.y - i * dir.y;
-    if (isCard(board.at(_x, _y))) {
+    if (isCard(board.board[_x + 48 + (_y + 48) * 97])) {
       ++i;
     } else {
       break;
@@ -217,7 +217,7 @@ The all do kinda the same thing....
   while (1) {
     const _x = o.x - i * dir.x + j * dir.x;
     const _y = o.y - i * dir.y + j * dir.y;
-    const c = board.at(_x, _y);
+    const c = board.board[_x + 48 + (_y + 48) * 97];
     if (isCard(c)) {
       result.cards.push(c);
       ++j;
@@ -654,43 +654,54 @@ export function recurseWildcardLines(
   }
 }
 
+/**
+ * 
+ * @param board The board object.
+ * @param preLine The proposed parallel line to score.
+ * @param permHand The permuted hand used to construct the preLine
+ * @param x Start of the pre-line x-coord
+ * @param y Start of the pre-line y-coord
+ * @param parallel Parallel direction vector
+ * @param perpendicular Perpendicular direction vector
+ * @returns 
+ */
 function scoreVerify(
   board: BoardObject,
-  line: number[],
+  preLine: number[],
+  permHand: number[],
   x: number, // slid
   y: number, // slid
-  permutation: number[],
-  unit1: Point,
-  unit2: Point
+  parallel: Point,
+  perpendicular: Point
 ): Outcome | null {
   let areWePlayingAWildcard = false;
   let scoreMultiplier = 1;
-  if (line.length > 4) {
+  if (preLine.length > 4) {
     return null;
   }
   // Score the parallel line first
-  let score = wildScore(line);
-  if (score === 0 && line.length > 1) {
+  let score = wildScore(preLine);
+  if (score === 0 && preLine.length > 1) {
     return null;
   }
   // Completed a horizontal lot
-  if (line.length === 4) {
+  if (preLine.length === 4) {
     scoreMultiplier *= 2;
   }
-  // Now walk the perpendiculars
-  for (let i = 0; i < line.length; ++i) {
-    areWePlayingAWildcard ||= (line[i] & 0xc0) === 0xc0;
-    const _x = x + i * unit1.x;
-    const _y = y + i * unit1.y;
+  // Now walk the parallel and check the perpendiculars
+  for (let i = 0; i < preLine.length; ++i) {
+    areWePlayingAWildcard ||= (preLine[i] & 0xc0) === 0xc0;
+    const _x = x + i * parallel.x;
+    const _y = y + i * parallel.y;
     const wildLines: Array<Array<number>> = [[], []];
     // The perpendicular scan won't include our card
-    const perpLine = buildPerpendicular(board, _x, _y, unit2, wildLines);
+    const perpLine = buildPerpendicular(board, _x, _y, perpendicular, wildLines);
     if (perpLine.length === 0) {
       // If there are no perpendicular lines to this card, continue
       continue;
     }
     // Now add our card to the perp line.
-    perpLine.push(line[i]);
+    perpLine.push(preLine[i]);
     // If we add a card to a wildcard line, make sure it is still consistent!
     if (wildLines[0].length) {
       if (!checkTwo(wildLines[0], perpLine)) {
@@ -703,39 +714,39 @@ function scoreVerify(
       }
     }
     // Now check to see if this line is valid, and if so, what is its score?
-    let vscore = wildScore(perpLine);
-    if (vscore === cardScore(line[i])) {
+    let perpScore = wildScore(perpLine);
+    if (perpScore === cardScore(preLine[i])) {
       // If the total score is the score of the card, it is just the card!
-    } else if (vscore === 0) {
+    } else if (perpScore === 0) {
       // If this play creates a bad vertical line, the whole play fails.
       return null;
     } else {
       if (perpLine.length === 4) {
         // Did we play a card that completed a vertical lot?
         // or was there already a completed veritcal lot?
-        if (board.at(_x, _y) === Card.None) {
+        if (board.board[_x + 48 + (_y + 48) * 97] === Card.None) {
           scoreMultiplier *= 2;
         }
       }
       // Is the card we're scoring off of in the original permutation?
-      if (permutation.includes(line[i]) === false) {
-        vscore = 0;
+      if (permHand.includes(preLine[i]) === false) {
+        perpScore = 0;
       }
-      score += vscore;
+      score += perpScore;
     }
-  } /* "Add perpendiculars' scores on each card" loop */
+  } // "Add perpendiculars' scores on each card" loop
 
   // Now we have to do a local check on our line for wildcards
   if (areWePlayingAWildcard) {
     const debug = false;
-    debug && console.log(`Trying to play line at [${x},${y}] ` + line.map(name).join(' -> '));
+    debug && console.log(`Trying to play line at [${x},${y}] ` + preLine.map(name).join(' -> '));
     const start: Point = { x, y };
     const end: Point = {
-      x: x + unit1.x * (line.length - 1),
-      y: y + unit1.y * (line.length - 1),
+      x: x + parallel.x * (preLine.length - 1),
+      y: y + parallel.y * (preLine.length - 1),
     };
     const seenLines: Array<number[]> = [];
-    recurseWildcardLines(board, line, start, end, 0, seenLines, debug);
+    recurseWildcardLines(board, preLine, start, end, 0, seenLines, debug);
     debug && console.log(' .. . .  seen length', seenLines.length);
     if (seenLines.length === 2) {
       if (checkTwo(seenLines[0], seenLines[1], debug) === false) {
@@ -756,12 +767,12 @@ function scoreVerify(
   const tag = Math.floor(rand() * 1024);
   return {
     score,
-    line,
+    line: preLine,
     x,
     y,
     orgx: x,
     orgy: y,
-    dir: unit1,
+    dir: parallel,
     tag
   };
 }
@@ -784,18 +795,16 @@ function scoreVerify(
  * @param board A BoardObject (immutable)
  * @param x Current x location on the board
  * @param y Current y location on the board
- * @param cards Cards to play.
- * @param validLen How many cards from 0..validLen are valid?
- * @param unit The direction vector.
+ * @param permHand Permuted hand to play.
+ * @param dir The direction vector.
  * @returns BuildLateralResult type.
  */
 function buildParallelLine(
   board: BoardObject,
   x: number,
   y: number,
-  cards: number[],
-  validLen: number,
-  unit: Point
+  permHand: number[],
+  dir: Point
 ): BuildParallelResult | null {
   const line: number[] = [];
   let ptr = 0;
@@ -804,9 +813,9 @@ function buildParallelLine(
   let _y;
 
   // First, built to the +ve.
-  for (let i = 0; i < validLen;  /* increment on play! */) {
-    _x = x + ptr * unit.x;
-    _y = y + ptr * unit.y;
+  for (let i = 0; i < permHand.length;  /* increment on play! */) {
+    _x = x + ptr * dir.x;
+    _y = y + ptr * dir.y;
     c = board.board[_x + 48 + (_y + 48) * 97];
     // If we still have valid cards to play and we hit a dead card, fail!
     if (c === Card.Dead) {
@@ -814,7 +823,7 @@ function buildParallelLine(
     }
     // Add either a line card or a board card...
     if (c === Card.None) {
-      line.push(cards[i]);
+      line.push(permHand[i]);
       ++i;
     } else {
       line.push(c);
@@ -822,11 +831,16 @@ function buildParallelLine(
     ++ptr;
   }
 
+  // 5~10 ms speedup doing this compared to doing it in the above for loop.
+  if (line.length > 4) {
+    return null;
+  }
+  
   // We've played the line, but the next spot to the +ve might have a card.
   // `ptr` is already at the next square after exiting the for-loop.
   do {
-    _x = x + ptr * unit.x;
-    _y = y + ptr * unit.y;
+    _x = x + ptr * dir.x;
+    _y = y + ptr * dir.y;
     c = board.board[_x + 48 + (_y + 48) * 97];
     if (isCard(c)) {
       // Add the cards that are touching to the +ve until an empty square.
@@ -835,11 +849,16 @@ function buildParallelLine(
     ++ptr;
   } while (isCard(c));
 
+  // 5~10 ms speedup doing this.
+  if (line.length > 4) {
+    return null;
+  }
+  
   // Now we have to prepend any cards we are touching to the -ve
   let backup = 0;
   do {
-    _x = x - (backup + 1) * unit.x;
-    _y = y - (backup + 1) * unit.y;
+    _x = x - (backup + 1) * dir.x;
+    _y = y - (backup + 1) * dir.y;
     // We already did the current spot so start one over.
     c = board.board[_x + 48 + (_y + 48) * 97];
     if (isCard(c)) {
@@ -879,8 +898,7 @@ function buildParallelLine(
  * We're going to creep to the -ve and build to the +ve.
  *
  * @param board BoardObject
- * @param pHand Hand to analyze
- * @param permLen How many cards in the pHand are valid (can't use .length)
+ * @param permHand Permuted hand to analyze
  * @param spot Where we are on the board
  * @param parallel Parallel direction vector to line of play.
  * @param perpendicular Perpendicular direction vector to line of play.
@@ -888,30 +906,30 @@ function buildParallelLine(
  */
 function scan(
   board: BoardObject,
-  pHand: number[],
-  permLen: number,
+  permHand: number[],
   spot: Point,
   parallel: Point,
   perpendicular: Point
 ): Outcome[] {
   const results: Outcome[] = [];
+  const permLen = permHand.length;
   for (let i = 0; i < permLen; ++i) {
     const _x = spot.x - i * parallel.x;
     const _y = spot.y - i * parallel.y;
     const c = board.board[_x + 48 + (_y + 48) * 97];
     if (c === Card.None) {
       // Now we have a completed line that needs scoring.
-      const br = buildParallelLine(board, _x, _y, pHand, permLen, parallel);
+      const br = buildParallelLine(board, _x, _y, permHand, parallel);
       // If the hand we're playing is illegal, don't bother
       if (br !== null) {
         // Now check the perpendiculars to this parallel line.
         const outcome = scoreVerify(
           board,
           br.line,
+          permHand,
           // The parallel line may actual start back a few spots in the -ve dir.
           _x - br.backup * parallel.x,
           _y - br.backup * parallel.y,
-          pHand,
           parallel,
           perpendicular
         );
@@ -934,7 +952,7 @@ function scan(
       // of this 'blockage'.
       break;
     }
-  } /* Creep in -ve direction loop */
+  } // Creep in -ve direction loop
   return results;
 }
 
@@ -954,21 +972,18 @@ export function considerThisSpot(
   hand: number[]
 ): Outcome | undefined {
   const results: Outcome[] = [];
-  const pHand: number[] = Array(4);
-  // Name the anon function to make profiling easier
   Permutes[hand.length - 1].forEach(function playPermute(permuteIndices) {
-    const permLen = permuteIndices.length;
     // Using the permutation indices, construct a permuted hand from N=1 to 4
-    pHand.fill(Card.None);
-    for (let i = 0; i < permLen; ++i) {
-      pHand[i] = hand[permuteIndices[i]];
+    const permHand: number[] = [];
+    for (let i = 0; i < permuteIndices.length; ++i) {
+      permHand.push(hand[permuteIndices[i]]);
     }
     let r;
     // Look right, creep left
-    r = scan(board, pHand, permLen, spot, RT, DN);
+    r = scan(board, permHand, spot, RT, DN);
     results.splice(0, 0, ...r);
     // Look down, creep up
-    r = scan(board, pHand, permLen, spot, DN, RT);
+    r = scan(board, permHand, spot, DN, RT);
     results.splice(0, 0, ...r);
   });
   return pickBestPlay(results);
