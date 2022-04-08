@@ -123,9 +123,9 @@ function approveWildcardSwap(
 }
 
 function getWildcardDeps(board: BoardObject, spot: Point) {
-  let line: LineDescriptor = getLine(board, spot, RT);
+  let line: LineDescriptor = grabRealLine(board, spot, RT);
   if (line.cards.length === 1) {
-    line = getLine(board, spot, DN);
+    line = grabRealLine(board, spot, DN);
     if (line.cards.length === 1 && board.taken.length > 1) {
       throw new Error('A wildcard was played illegally');
     }
@@ -160,19 +160,12 @@ export function reclaimWildcard(
 }
 
 /*
-
-
-
 these three functions are very similar: can we reduce them?
-
-getLine
-addCardsTowardDir
-grabOrthoLine
-buildPerpendicular
-buildParallel
-
+grabRealLine : rewinds to start of line at point and adds real cards
+addCardsTowardDir : adds cards to given line (might not even be on board)
+buildPerpendicular : one-step BFS in case it builds on a wildcard
+buildParallel : constructs a real/hypothetical line: hand + board + spot
 The all do kinda the same thing....
-
 */
 
 
@@ -188,7 +181,7 @@ The all do kinda the same thing....
  * @param dir Direction to search.
  * @returns A complete description of the line.
  */
- function getLine(
+ function grabRealLine(
   board: BoardObject,
   o: Point,
   dir: Point
@@ -257,40 +250,6 @@ export function addCardsTowardDir(
     }
   }
 }
-
-function grabOrthoLine(board: BoardObject, x: number, y: number, unit: Point) {
-  /* why isn't this the same?
-  const ortho1: Point = { x:  unit.y, y:  unit.x };
-  const ortho2: Point = { x: -unit.y, y: -unit.x };
-  const line: number[] = [];
-  addCardsTowardDir(board, {x,y}, line, ortho2);
-  addCardsTowardDir(board, {x,y}, line, ortho1);
-  */
-  const ortho: Point = { x: unit.y, y: unit.x };
-  const line: number[] = [];
-  for (let i = 1; i < 6; ++i) {
-    const _x = x - ortho.x * i;
-    const _y = y - ortho.y * i;
-    const c = board.board[_x + 48 + (_y + 48) * 97];
-    if (c === Card.None) {
-      break;
-    } else {
-      line.unshift(c);
-    }
-  }
-  for (let i = 1; i < 6; ++i) {
-    const _x = x + ortho.x * i;
-    const _y = y + ortho.y * i;
-    const c = board.board[_x + 48 + (_y + 48) * 97];
-    if (c === Card.None) {
-      break;
-    } else {
-      line.push(c);
-    }
-  }
-  return line;
-}
-
 
 // Note: Picking largest play increases avg score by ~2.5pts!
 export function pickBestPlay(options: Outcome[]): Outcome {
@@ -555,55 +514,71 @@ function baseScore(line: number[]) {
  * @param board BoardObject (immutable)
  * @param x Point at which to scan, x-coord
  * @param y Point at which to scan, y-coord
- * @param unit
+ * @param dir
  * @returns
  */
-function buildPerpendicular(
+function buildPerpendicular( // this is really a grabRealLine with 1 recursion?
   board: BoardObject,
   x: number,
   y: number,
-  unit: Point,
-  wildLines: Array<Array<number>>
+  dir: Point,
+  wildLines: Array<LineDescriptor>
 ) {
+  const ortho: Point = { x: dir.y, y: dir.x };
   // Order does NOT matter
   const line: number[] = [];
   // -ve direction
   for (let i = 1; i < 6; ++i) {
-    const _x = x - unit.x * i;
-    const _y = y - unit.y * i;
+    const _x = x - dir.x * i;
+    const _y = y - dir.y * i;
     const c = board.board[_x + 48 + (_y + 48) * 97];
-    // const c = board.at(x - unit.x * i, y - unit.y * i);
     if (!isCard(c)) {
       break;
     } else {
       line.unshift(c);
       if (c === Card.Wild_One) {
-        wildLines[0] = grabOrthoLine(board, _x, _y, unit);
+        wildLines[0] = grabRealLine(board, { x: _x, y: _y}, ortho);
       } else if (c === Card.Wild_Two) {
-        wildLines[1] = grabOrthoLine(board, _x, _y, unit);
+        wildLines[1] = grabRealLine(board, { x: _x, y: _y}, ortho);
       }
     }
   }
   // +ve direction
   for (let i = 1; i < 6; ++i) {
-    const _x = x + unit.x * i;
-    const _y = y + unit.y * i;
+    const _x = x + dir.x * i;
+    const _y = y + dir.y * i;
     const c = board.board[_x + 48 + (_y + 48) * 97];
-    // const c = board.at(x + unit.x * i, y + unit.y * i);
     if (!isCard(c)) {
       break;
     } else {
       line.push(c);
       if (c === Card.Wild_One) {
-        wildLines[0] = grabOrthoLine(board, _x, _y, unit);
+        wildLines[0] = grabRealLine(board, { x: _x, y: _y}, ortho);
       } else if (c === Card.Wild_Two) {
-        wildLines[1] = grabOrthoLine(board, _x, _y, unit);
+        wildLines[1] = grabRealLine(board, { x: _x, y: _y}, ortho);
       }
     }
   }
   return line;
 }
 
+/**
+ * Start with a line, it may be a proposed unplayed line, or an actual line on
+ * the board. Then Step through that line checking for a wildcard. If a wild-
+ * card is seen, DFS pivot into that new line, and check it. The goal is to
+ * return either two or three lines. If only one wildcard is used, there will
+ * be at most two lines: and the second line might be just a single card (the
+ * wildcard itself). It is always possible for line two or three to be just
+ * one card (the wildcard).
+ * 
+ * @param board The BoardObject.
+ * @param line A real line on the board or an unplayed pre-check permutation!
+ * @param p1 Start point
+ * @param p2 End point
+ * @param seenMask Mask of wildcards seen
+ * @param seenLines Accumulating associated/dependent lines
+ * @param debug Turn on debug messages from above.
+ */
 export function recurseWildcardLines(
   board: BoardObject,
   line: number[],
@@ -618,11 +593,15 @@ export function recurseWildcardLines(
   function pivot(wc: number) {
     // Now we need to construct a perpendicular line to this point
     const perp: Point = { x: dir.y, y: dir.x };
+    // Note: this line may be PRE-CHECK line which means the cards may not
+    // be on the board. This is why we use `addCardsTowardDir` rather than
+    // `getLine`, the latter expects all the cards to be on the board.
     const newLine: number[] = [wc];
     addCardsTowardDir(board, { x: _x, y: _y }, newLine, perp);
     const n = newLine.length;
     addCardsTowardDir(board, { x: _x, y: _y }, newLine, { x: -perp.x, y: -perp.y });
     const diff = newLine.length - n;
+    // If we added cards going in the opposite direction, backup the start
     if (diff) {
       _x = _x - diff * perp.x;
       _y = _y - diff * perp.y;
@@ -634,6 +613,7 @@ export function recurseWildcardLines(
     };
     recurseWildcardLines(board, newLine, np1, np2, seenMask, seenLines, debug);
   }
+  
   const dir: Point = p1.x === p2.x ? { x: 0, y: 1 } : { x: 1, y: 0 };
   let _x = p1.x;
   let _y = p1.y;
@@ -693,7 +673,7 @@ function scoreVerify(
     areWePlayingAWildcard ||= (preLine[i] & 0xc0) === 0xc0;
     const _x = x + i * parallel.x;
     const _y = y + i * parallel.y;
-    const wildLines: Array<Array<number>> = [[], []];
+    const wildLines: Array<LineDescriptor> = [];
     // The perpendicular scan won't include our card
     const perpLine = buildPerpendicular(board, _x, _y, perpendicular, wildLines);
     if (perpLine.length === 0) {
@@ -703,13 +683,13 @@ function scoreVerify(
     // Now add our card to the perp line.
     perpLine.push(preLine[i]);
     // If we add a card to a wildcard line, make sure it is still consistent!
-    if (wildLines[0].length) {
-      if (!checkTwo(wildLines[0], perpLine)) {
+    if (wildLines[0] && wildLines[0].cards.length) {
+      if (!checkTwo(wildLines[0].cards, perpLine)) {
         return null;
       }
     }
-    if (wildLines[1].length) {
-      if (!checkTwo(wildLines[1], perpLine)) {
+    if (wildLines[1] && wildLines[1].cards.length) {
+      if (!checkTwo(wildLines[1].cards, perpLine)) {
         return null;
       }
     }
