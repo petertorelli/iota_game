@@ -662,8 +662,8 @@ function scoreVerify(
     return null;
   }
   // Score the parallel line first
-//  let score = baseScore(br.shadowLine);
-  let score = wildScore(preLine);
+  let score = baseScore(br.shadowLine);
+  // let score = wildScore(preLine);
   if (score === 0 && preLine.length > 1) {
     return null;
   }
@@ -686,12 +686,10 @@ function scoreVerify(
       // If there are no perpendicular lines to this card, continue
       continue;
     }
-    /*
     // This parallel line creates an invalid line, abort.
-    if (perpLine.length > 4) {
+    if (perpLine.length > 3) {
       return null;
     }
-    */
 
     // Now add our card to the perp line.
     perpLine.push(preLine[i]);
@@ -711,14 +709,8 @@ function scoreVerify(
       }
     }
     // Now check to see if this line is valid, and if so, what is its score?
-//    let perpScore = baseScore(shadowPerpLine);
-    let perpScore = wildScore(perpLine);
-    /*
-    if (perpScore === cardScore(preLine[i])) {
-      // If the total score is the score of the card, it is just the card!
-      debug && console.log("v Continue, just a lone card with no perps");
-    } else
-    */
+    let perpScore = baseScore(shadowPerpLine);
+    // let perpScore = wildScore(perpLine);
     if (perpScore === 0) {
       debug && console.log("x Abort on score zero of perpline");
       // If this play creates a bad vertical line, the whole play fails.
