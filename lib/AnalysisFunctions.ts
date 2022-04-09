@@ -4,6 +4,7 @@ import Permutes from './FasterPermute';
 import { rand } from './RandomGenerator';
 import { checkTwo, checkThree } from './SanityCheckBoard';
 import * as San from './SanityCheckBoard';
+// import { portableMsecTimer } from './GameObject';
 
 
 // Direction unit vectors and origin.
@@ -386,13 +387,15 @@ export function findContour(board: BoardObject): Point[] {
  * @param line Input line, possibly with wildcards
  * @returns Score of line without wilcards, zero if bad line.
  */
-// Note: this added 20% more time (990us to 1120us). Dammmit.
+// Having to do this TRIPLES the call time to baseScore().
 function wildScore(line: number[]): number {
   if (line.length > 4 || line.length < 2) {
     return 0;
   }
-  // Wow: filter is 10% slower than for() for small arrays. Huh.
-  // const newLine = line.filter(x => (x & Masks.isWildcard) === 0);
+  // Wow: filter is almost 2x slower than for() for small arrays. Huh.
+  /*
+  const newLine = line.filter(x => (x & Masks.isWildcard) === 0);
+  */
   const newLine: number[] = [];
   line.forEach((card) => {
     if ((card & Masks.isWildcard) !== 0) {
@@ -907,6 +910,30 @@ function scan(
       const br = buildParallelLine(board, _x, _y, permHand, parallel);
       // If the hand we're playing is illegal, don't bother
       if (br !== null) {
+        /*
+        let LOOP = 1;
+        if (br.line.length === 4) {
+          LOOP = 140000000;
+        }
+        if (LOOP > 1) {
+          const t0 = portableMsecTimer();
+          while (LOOP-- > 0) {
+            scoreVerify(
+              board,
+              br.line,
+              permHand,
+              // The parallel line may actual start back a few spots in the -ve dir.
+              _x - br.backup * parallel.x,
+              _y - br.backup * parallel.y,
+              parallel,
+              perpendicular
+            );
+          }
+          const t1 = portableMsecTimer();
+          console.log("PERFTEST", t1, t0, t1 - t0);
+          throw new Error(`Performance abort, msec: ${t1-t0}`);
+        }
+        */
         // Now check the perpendiculars to this parallel line.
         const outcome = scoreVerify(
           board,
@@ -918,7 +945,7 @@ function scan(
           parallel,
           perpendicular
         );
-        if (outcome) {
+      if (outcome) {
           // All four cards played, double score
           if (permLen === 4) {
             outcome.score *= 2;

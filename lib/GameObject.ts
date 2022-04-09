@@ -7,22 +7,10 @@ import { sanityCheckBoard } from './SanityCheckBoard';
 
 export function portableMsecTimer() {
   if (process.hrtime) {
-    // TODO: Does this save time, defering conversion? Probably not.
-    // return Number(process.hrtime.bigint()) / 1e6;
-    return process.hrtime.bigint();
+    return Number(process.hrtime.bigint()) / 1e6;
   } else {
     return window.performance.now();
   }
-}
-
-function timeDiff(t1: number | bigint, t0: number | bigint): number {
-  if (typeof t1 === "bigint") {
-    t1 = Number(t1) / 1e6;
-  }
-  if (typeof t0 === "bigint") {
-    t0 = Number(t0) / 1e6;
-  }
-  return t1 - t0;
 }
 
 export enum DoneReason {
@@ -130,7 +118,7 @@ export class GameObject {
       p1score: this.player1.score,
       p2score: this.player2.score,
       tie: this.player1.score === this.player2.score,
-      playTime: timeDiff(t1, t0),
+      playTime: t1 - t0,
       // TODO: cannotProceed is redundant with reasonCannotProceed
       done: this.cannotProceed,
       reason: this.reasonCannotProceed,

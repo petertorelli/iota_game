@@ -228,6 +228,7 @@ export default Vue.extend({
       }
       this.game.importGame(this.compressedGame);
       this.update();
+      this.error = '';
     },
     update() {
       this.cacheRangeX = this.game.board.getXRangeA();
