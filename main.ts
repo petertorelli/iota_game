@@ -15,7 +15,9 @@ const game = new GameObject(1);
 // Seeds are useless with this on
 // turnOnBetterRandom(true);
 
-for (let i = 0; i < 300; ++i) {
+const n = 600;
+console.log("Playing", n, "games without PRNG.");
+for (let i = 0; i < n; ++i) {
   let res;
   try {
     res = game.playOneGame();

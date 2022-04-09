@@ -4,7 +4,6 @@ import DeckObject from './DeckObject';
 import { BoardObject } from './BoardObject';
 import PlayerObject from './PlayerObject';
 import { sanityCheckBoard } from './SanityCheckBoard';
-import { difference } from 'lodash';
 
 export function portableMsecTimer() {
   if (process.hrtime) {
@@ -160,8 +159,12 @@ export class GameObject {
     this.board.bbox = json.board.bbox;
     this.board.board = json.board.board;
     this.board.taken = json.board.taken;
-    this.board.w1 = json.board.w1; // can't do this
-    this.board.w2 = json.board.w2; // can't do this
+    this.board.w1.loc = json.board.w1.loc;
+    this.board.w1.played = json.board.w1.played;
+    this.board.w1.card = json.board.w1.card;
+    this.board.w2.loc = json.board.w2.loc;
+    this.board.w2.played = json.board.w2.played;
+    this.board.w2.card = json.board.w2.card;
     this.player1.hand = json.player1.hand;
     this.player1.name = json.player1.name;
     this.player1.score = json.player1.score;

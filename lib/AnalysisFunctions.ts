@@ -391,7 +391,16 @@ function wildScore(line: number[]): number {
   if (line.length > 4 || line.length < 2) {
     return 0;
   }
-  const newLine = line.filter(x => (x & Masks.isWildcard) === 0);
+  // Wow: filter is 10% slower than for() for small arrays. Huh.
+  // const newLine = line.filter(x => (x & Masks.isWildcard) === 0);
+  const newLine: number[] = [];
+  line.forEach((card) => {
+    if ((card & Masks.isWildcard) !== 0) {
+      // do nothing
+    } else {
+      newLine.push(card);
+    }
+  });
   return baseScore(newLine);
 }
 
