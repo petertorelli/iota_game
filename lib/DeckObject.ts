@@ -20,7 +20,7 @@ export default class DeckObject {
       reseed(seed);
       this.seed = seed;
     } else {
-      this.seed = rand() * 2147483647;
+      this.seed = Math.floor(rand() * 2147483647);
     }
     let a = 0x1;
     let b = 0x10;

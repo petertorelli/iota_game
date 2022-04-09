@@ -6,6 +6,67 @@ mixin sidebar
     h2 Game log
     .h-48.overflow-y-scroll.border
       .font-mono.text-xs(v-for='res in results') {{ res }}
+    h2 Score outcomes
+    .mb-4
+      table(style='width: 100%;')
+        tr
+          td Games Played:
+          td.text-right {{ nGames }}
+        tr
+          td Player 1:
+          td.text-right {{ pct(player1, nGames) }} %
+        tr
+          td Player 2:
+          td.text-right {{ pct(player2, nGames) }} %
+        tr
+          td Tie:
+          td.text-right {{ pct(ties, nGames) }} %
+        tr
+          td Average Speed (ms):
+          td.text-right {{ meanMs.toFixed(1) }}
+        tr
+          td Average score:
+          td.text-right {{ meanScore.toFixed(1) }}
+        tr
+          td Highest score:
+          td.text-right {{ maxScore }}
+        tr
+          td Lowest score:
+          td.text-right {{ minScore }}
+        tr
+          td Average spread:
+          td.text-right {{ meanSpread.toFixed(1) }}
+        tr
+          td Average area:
+          td.text-right {{ meanArea.toFixed(1) }}
+        tr
+          td Average aspect ratio:
+          td.text-right {{ meanAspect.toFixed(3) }}
+    h2 Settings
+    table.w-full
+      tr
+        td Use Math.random()?
+        td.text-right
+          input(type='checkbox' v-model='useRng' @change='toggleRng()')
+      tr(v-if='!useRng')
+        td Deck seed
+        td.text-right {{ game.deck.seed }}
+      tr(v-if='!useRng')
+        td
+          input(type='number' v-model='userSeed').w-40.border.rounded
+        td.text-right
+          button(@click='reset(userSeed)').px-1.py-1.text-xs.rounded.bg-gray-500.text-white Set Seed
+      tr
+        td Current turn:
+        td.text-right {{ game.ply }}
+    h2 Interesting Seeds
+    p 151785470 is a very high score
+    p 133207245 seems to be missing dead cards
+    p 727689717 starts with a wildcard
+    h2 Game state
+      textarea.w-full.border(v-model='compressedGame' rows=10)
+      button(@click='exportGame()').mr-2.px-2.py-1.rounded.font-bold.bg-gray-500.text-white Export
+      button(@click='importGame()').px-2.py-1.rounded.font-bold.bg-gray-500.text-white Import
     h2 Debug Settings (see Dev Console)
     table.w-full
       tr
@@ -36,61 +97,9 @@ mixin sidebar
         td Algorithm Y
         td.text-right
           input.border(type='number' v-model='algY' @change='setDebugXY(algX, algY)')
-    h2 Settings
-    table.w-full
-      tr
-        td Deck seed:
-        td.text-right {{ game.deck.seed }}
-      tr
-        td
-          input(type='number' v-model='userSeed').w-40.border.rounded
-        td.text-right
-          button(@click='reset(userSeed)').px-1.py-1.text-xs.rounded.bg-gray-500.text-white Set Seed
-      tr
-        td Current turn:
-        td.text-right {{ game.ply }}
-    h2 Interesting Seeds
-    p 151785470 is a very high score
-    p 133207245 seems to be missing dead cards
-    p 1598795824 fails 2xW check
-    p 727689717 starts with a wildcard
-    h2 Game state
-      textarea.w-full.border(v-model='compressedGame' rows=10)
-      button(@click='exportGame()').mr-2.px-2.py-1.rounded.font-bold.bg-gray-500.text-white Export
-      button(@click='importGame()').px-2.py-1.rounded.font-bold.bg-gray-500.text-white Import
-    h2 Score outcomes
-    .mb-4
-      table(style='width: 100%;')
-        tr
-          td Games Played:
-          td.text-right {{ nGames }}
-        tr
-          td Player 1:
-          td.text-right {{ pct(player1, nGames) }} %
-        tr
-          td Player 2:
-          td.text-right {{ pct(player2, nGames) }} %
-        tr
-          td Tie:
-          td.text-right {{ pct(ties, nGames) }} %
-        tr
-          td Average Speed (ms):
-          td.text-right {{ meanMs.toFixed(1) }}
-        tr
-          td Average score:
-          td.text-right {{ meanScore.toFixed(1) }}
-        tr
-          td Average spread:
-          td.text-right {{ meanSpread.toFixed(1) }}
-        tr
-          td Average area:
-          td.text-right {{ meanArea.toFixed(1) }}
-        tr
-          td Average aspect ratio:
-          td.text-right {{ meanAspect.toFixed(3) }}
 
 mixin players
-  .mt-8.mb-4
+  .mb-4(v-if="autoPlayTimer===0")
     .flex.flex-row.items-center.h-12
       .w-24(:style='{ color: game.ply & 1 ? "black" : "dodgerblue" }') {{ game.player1.name }}
       .w-8.text-right.mr-4 {{ game.player1.score }}
@@ -103,7 +112,7 @@ mixin players
     small (Wildcard swaps {{ game.player2.wildcardSwaps }})
 
 mixin controls
-  .mb-4
+  .mb-4(v-if='autoPlayTimer===0')
     button.btn.btn-blue.mb-1.mr-2(@click='turn()'
       ) Play One Turn
     button.btn.btn-blue.mb-1.mr-2(@click='reset()'
@@ -112,27 +121,34 @@ mixin controls
       ) Autoplay Once
     button.btn.btn-blue.mb-1.mr-2(@click='autoPlay()'
       ) Autoplay Forever
-    button.btn.btn-blue.mb-1(@click='stopAutoPlay()'
-      ) stop
 
 mixin board
-  .mb-4
+  .mb-4(v-if='autoPlayTimer===0')
     table(style='border: 1px solid #ddd')
       tr
         td
-        td.text-sm.text-center.font-mono(v-for='xx in game.board.getXRange()') {{ xx }}
+        td.text-sm.text-center.font-mono(
+          v-for='xx in cacheRangeX') {{ xx - boardHalf }}
       tr(v-for='yy in cacheRangeY')
-        td.text-sm.text-center.font-mono {{ yy - boardHalf }}
+        td.text-sm.text-right.font-mono {{ yy - boardHalf }}
         td(v-for='xx in cacheRangeX')
           card-image(v-if='cacheBoard[xx + yy * boardDim] !== 0'
             :card='cacheBoard[xx + yy * boardDim]'
             :key='0xf000000 + [xx + yy * boardDim]'
             )
           .dummy-card(v-else) &nbsp;
+    +deck
+  .mb-4(v-else).text-gray-500
+    i Autoplay in progress...
+    button.btn.btn-blue.ml-3(@click='stopAutoPlay()'
+      v-if='autoPlayTimer!==0') Stop
 
 mixin deck
-  .mb-4.max-w-md
-    .flex.flex-row.flex-wrap
+  .mt-4.max-w-md
+    .flex.flex-row.mb-2
+      label.mr-2.ml-1 Show deck?
+      input(type='checkbox' v-model='showDeck')
+    .flex.flex-row.flex-wrap(v-if='showDeck')
       card-image(v-for='card of cacheDeck' :card='card' :key='card')
 
 //- Main!
@@ -144,8 +160,9 @@ mixin deck
     p Based on the game "IOTA" by Gamewrite (c) www.gamewrite.com
     p This app plays the game by itself. It's a fun study in 1-ply gameplay.
     p It is extremely slow on Safari for some reason, recommend Chrome or Firefox.
+    .mb-2
     +players
-    .mb-4(v-if='game.cannotProceed')
+    .mb-4(v-if='game.cannotProceed && autoPlayTimer === 0')
       div(v-if='game.player1.score === game.player2.score')
         b Tie!
       div(v-else)
@@ -153,7 +170,6 @@ mixin deck
     +controls
     .mb-4.error-message(v-if='error') <button @click="error=''">&times;</button> {{ error }}
     +board
-    +deck
 </template>
 
 <script lang="ts">
@@ -162,6 +178,7 @@ import Vue from 'vue';
 import { DoneReason, GameObject } from '../lib/GameObject';
 import { BOARD_DIM, BOARD_HALF } from '../lib/BoardObject';
 import { toggleDebug } from '../lib/AnalysisFunctions';
+import { turnOnBetterRandom } from '../lib/RandomGenerator';
 
 export default Vue.extend({
   name: 'GamePlay',
@@ -202,11 +219,16 @@ export default Vue.extend({
       error: '',
       algX: undefined,
       algY: undefined,
+      useRng: true,
+      showDeck: true,
+      maxScore: 0,
+      minScore: 0,
       compressedGame:
         '789ced9ccf6ae33010c65f65d1590169248fa45cf701b6b07b2b393889f70fcddac569494bc9bbaf9cd692e56661c96143e1e30789c6335266468a4f1f7a11ebaeeeb762f9221eeabba615cbdb17f124964a8ae7f87994276ba14fe64297f6cc3df32ee8cd56a5b9a0f3f638bd5c9b0a6b96c76ca62a4d539af6ac39665195269ff59ad23b9aae0c76e50fb9a2025f3afd1967d988b2d6d10ac5bc70c637ebbe293b688e2b290e7ad8f75db719be261be78f52dcefeae7269e8beff56edf44fb40656c6e6e0a7de81f87c8f5ba7b1a821e77695d4a39885d3f3e4d698a434c2b86fc8c8d1de6bf1ec85b25010000000000000000000000000000000000000000b8840569eb2c7360ff3676c684b9572b9bbdce5e3debcbaa74cad3582507b2a92665d42c522b9fbcd6308fe3a0941b57a894bf765d97f581d9691a2bf23654522b17b7557bb2a938ed38859366695ce5556093fac2ec1d4d570d3499c21fb737e98cb8b8f5219d11caff814ac71351ce8bb1dee51313d21aca69be38a7ebf5c155ca4dad78367245fe4c7c3c40557e9bf88ff78ef84b1fbc6573f55c000000000000000000000000000000000000000000f82facc63bb2fad37d5b3feb76b8de2ac9a25412110572218beac824e994d77625455bff6ec452dc9c96faf4a56d8414fb4dd7c787da04290ebf76db4ddd6fbf1eeafbfde9e2af6db37efc91eff07a4d82de27e183d649db53a53173309cd54ee67d12df0edd240972ff94c4705599916253b76df770d3779b265d342645dfd4fbaefd5cfa66ab0cd6e66e28e3f5fb36c9cd5c2a236876b9af9c7a69c865191a6581a7f259fea782a3dcfb1c1fc8e82cec0b3926e8894892b39c527b258df5815985acb2ac749eaa55eeb0b53aa9e9bc0921ed02a989ea9427ebd88902d5528a894139354a631f921acd29a37935efeafed46c6d0c2947b63a1eff00556dd96b' as string,
     };
   },
   mounted() {
+    turnOnBetterRandom(this.useRng);
     this.reset();
   },
   methods: {
@@ -218,6 +240,9 @@ export default Vue.extend({
     },
     toggleAlgDebug() {
       toggleDebug();
+    },
+    toggleRng() {
+      turnOnBetterRandom(this.useRng);
     },
     exportGame() {
       this.compressedGame = this.game.exportGame();
@@ -317,14 +342,21 @@ export default Vue.extend({
           this.meanAspect = _.mean(this.aspects);
           this.meanArea = _.mean(this.areas);
           this.meanSpread = _.mean(this.spreads);
+          this.maxScore = _.max(this.scores) || 0;
+          this.minScore = _.min(this.scores) || 0;
           let msec = -1;
           msec = gameRes.playTime;
           this.ms.push(msec);
           this.meanMs = _.mean(this.ms);
-          const res =
+          let res =
             `${this.game.player1.score}-${this.game.player2.score} ` +
             `${this.game.ply} ${winner} ` +
-            `${msec.toString().padStart(4, '.')} ms ${this.game.deck.seed} `;
+            `${msec.toString().padStart(4, '.')} ms`;
+          if (!this.useRng) {
+            res += ` ${this.game.deck.seed} `;
+          } else {
+            res += ' (no seed)';
+          }
           this.results.unshift(res);
 
           // this.update();
@@ -363,7 +395,7 @@ textarea {
   @apply bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative;
 }
 .btn {
-  @apply font-bold py-2 px-4 rounded;
+  @apply py-1 px-3 rounded;
 }
 
 .btn-blue {
