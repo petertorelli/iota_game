@@ -1,4 +1,4 @@
-import { Card } from './CardObject';
+import { Masks } from './CardObject';
 import { rand, reseed } from './RandomGenerator';
 
 export default class DeckObject {
@@ -22,13 +22,27 @@ export default class DeckObject {
     } else {
       this.seed = rand() * 2147483647;
     }
+    let a = 0x1;
+    let b = 0x10;
+    let c = 0x100;
+    let s;
     // See note about MSB in CardObject.ts
-    for (let i = 0x80; i < 0xc0; ++i) {
-      this.deck[i - 0x80] = i;
+    for (let i = 0; i < 64; ++i) {
+      s = (i % 4) + 1;
+      this.deck[i] = a | b | c | (s << 12) | Masks.card;
+      a <<= 1;
+      if (a === 0x10) {
+        a = 1;
+        b <<= 1;
+        if (b === 0x100) {
+          b = 0x10;
+          c <<= 1;
+        }
+      }
     }
     // Two wildcards
-    this.deck[64] = Card.Wild_One;
-    this.deck[65] = Card.Wild_Two;
+    this.deck[64] = Masks.wildcard_one;
+    this.deck[65] = Masks.wildcard_two;
     this.shuffleDeck();
   }
 

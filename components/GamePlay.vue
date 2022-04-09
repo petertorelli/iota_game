@@ -174,7 +174,7 @@ export default Vue.extend({
        * I stop trying to update the DOM after EVERY turn during autoplay, it
        * might ... do something? I dunno. Just a thought.
        */
-      userSeed: 1204242315 as number | null,
+      userSeed: 133207245 as number | null,
       cacheBoard: [] as Array<number | null>,
       cacheRangeX: [] as number[],
       cacheRangeY: [] as number[],

@@ -1,5 +1,5 @@
 import _ from 'lodash';
-import { Card } from './CardObject';
+import { Masks } from './CardObject';
 /*
 The largest possible board is derived from the most number of plays in any
 one direction:
@@ -52,8 +52,8 @@ export const BOARD_HALF = (BOARD_DIM - 1) / 2;
 export class BoardObject {
   public board: number[];
   public taken: Point[] = [];
-  public w1: WildcardObject = new WildcardObject(Card.Wild_One);
-  public w2: WildcardObject = new WildcardObject(Card.Wild_Two);
+  public w1: WildcardObject = new WildcardObject(Masks.wildcard_one);
+  public w2: WildcardObject = new WildcardObject(Masks.wildcard_two);
   public bbox: BoundingBox = {
     ulc: { x: 0, y: 0 },
     lrc: { x: 0, y: 0 },
@@ -62,13 +62,13 @@ export class BoardObject {
   };
 
   constructor() {
-    this.board = Array(BOARD_DIM * BOARD_DIM).fill(Card.None);
+    this.board = Array(BOARD_DIM * BOARD_DIM).fill(Masks.none);
     this.init();
   }
 
   public init() {
     this.bbox = { ulc: { x: 0, y: 0 }, lrc: { x: 0, y: 0 }, w: 0, h: 0 };
-    this.board.fill(Card.None);
+    this.board.fill(Masks.none);
     this.taken = [];
     this.w1.played = false;
     this.w2.played = false;
@@ -83,10 +83,10 @@ export class BoardObject {
     const x = _x + BOARD_HALF;
     const y = _y + BOARD_HALF;
     if (x > BOARD_DIM || x < 0 || y > BOARD_DIM || y < 0) {
-      return Card.None;
+      return Masks.none;
     }
     const card = this.board[x + y * BOARD_DIM];
-    return card === null ? Card.None : card;
+    return card === null ? Masks.none : card;
   }
 
   public removeWildcardFromBoard(w: WildcardObject, card: number) {
@@ -109,9 +109,9 @@ export class BoardObject {
     this.board[x + y * BOARD_DIM] = card;
     this.taken.push({ x: _x, y: _y });
     this.setBbox();
-    if (card === Card.Wild_One) {
+    if (card === Masks.wildcard_one) {
       this.w1.cache(_x, _y);
-    } else if (card === Card.Wild_Two) {
+    } else if (card === Masks.wildcard_two) {
       this.w2.cache(_x, _y);
     }
     return true;

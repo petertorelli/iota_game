@@ -1,5 +1,5 @@
 import zlib from 'zlib';
-import { Card } from './CardObject';
+import { Masks } from './CardObject';
 import DeckObject from './DeckObject';
 import { BoardObject } from './BoardObject';
 import PlayerObject from './PlayerObject';
@@ -127,7 +127,7 @@ export class GameObject {
       nply: this.ply,
       seed: this.deck.seed,
       nDead: this.board.board.reduce((acc, item) => {
-        return acc + (item === Card.Dead ? 1 : 0);
+        return acc + (item === Masks.dead ? 1 : 0);
       }, 0),
     };
   }

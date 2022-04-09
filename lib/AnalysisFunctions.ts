@@ -1,5 +1,5 @@
 import { WildcardObject, BoardObject, Point } from './BoardObject';
-import { Card, score as cardScore, isCard, name } from './CardObject';
+import { Masks, name } from './CardObject';
 import Permutes from './FasterPermute';
 import { rand } from './RandomGenerator';
 import { checkTwo, checkThree } from './SanityCheckBoard';
@@ -144,7 +144,7 @@ export function reclaimWildcard(
   if (wc.played) {
     const seen: Array<number[]> = getWildcardDeps(board, wc.loc);
     hand.some((card, i) => {
-      if (card === Card.Wild_One || card === Card.Wild_Two) {
+      if (card & Masks.wildcard & ~Masks.card) {
         return false;
       } else if (approveWildcardSwap(wc.card, card, seen)) {
         board.removeWildcardFromBoard(wc, card);
@@ -195,7 +195,7 @@ The all do kinda the same thing....
   while (1) {
     const _x = o.x - i * dir.x;
     const _y = o.y - i * dir.y;
-    if (isCard(board.board[_x + 48 + (_y + 48) * 97])) {
+    if (board.board[_x + 48 + (_y + 48) * 97] & Masks.card) {
       ++i;
     } else {
       break;
@@ -211,7 +211,7 @@ The all do kinda the same thing....
     const _x = o.x - i * dir.x + j * dir.x;
     const _y = o.y - i * dir.y + j * dir.y;
     const c = board.board[_x + 48 + (_y + 48) * 97];
-    if (isCard(c)) {
+    if (c & Masks.card) {
       result.cards.push(c);
       ++j;
     } else {
@@ -238,7 +238,7 @@ export function addCardsTowardDir(
     const _x = spot.x + i * dir.x;
     const _y = spot.y + i * dir.y;
     c = board.board[_x + 48 + (_y + 48) * 97];
-    if (isCard(c)) {
+    if (c & Masks.card) {
       if (dir.x > 0 || dir.y > 0) {
         line.push(c);
       } else {
@@ -282,7 +282,7 @@ function isSquareDead(board: BoardObject, x: number, y: number): boolean {
   let i = 1;
   // Count cards left and right
   while (i) {
-    if (isCard(board.at(x + i, y))) {
+    if (board.at(x + i, y) & Masks.card) {
       ++count;
       if (count > 3) {
         return true;
@@ -290,7 +290,7 @@ function isSquareDead(board: BoardObject, x: number, y: number): boolean {
     } else {
       break;
     }
-    if (isCard(board.at(x - i, y))) {
+    if (board.at(x - i, y) & Masks.card) {
       ++count;
       if (count > 3) {
         return true;
@@ -304,7 +304,7 @@ function isSquareDead(board: BoardObject, x: number, y: number): boolean {
   i = 1;
   // Count cards up and down
   while (i) {
-    if (isCard(board.at(x, y + i))) {
+    if (board.at(x, y + i) & Masks.card) {
       ++count;
       if (count > 3) {
         return true;
@@ -312,7 +312,7 @@ function isSquareDead(board: BoardObject, x: number, y: number): boolean {
     } else {
       break;
     }
-    if (isCard(board.at(x, y - i))) {
+    if (board.at(x, y - i) & Masks.card) {
       ++count;
       if (count > 3) {
         return true;
@@ -344,11 +344,11 @@ export function findContour(board: BoardObject): Point[] {
   // Helper function to reduce redundant code.
   function check(p: Point, set: Point[]) {
     set.forEach((search) => {
-      if (board.atP(p) === Card.Dead) {
+      if (board.atP(p) === Masks.dead) {
         return;
       }
       const newp = { x: p.x + search.x, y: p.y + search.y };
-      if (board.atP(newp) === Card.None) {
+      if (board.atP(newp) === Masks.none) {
         const key = JSON.stringify(newp);
         if (!seen.has(key)) {
           seen.set(key, newp);
@@ -370,7 +370,7 @@ export function findContour(board: BoardObject): Point[] {
   seen.forEach(function filterContours(v, _k) {
     // Banish spaces that may never be played again in this game.
     if (isSquareDead(board, v.x, v.y)) {
-      board.put(v.x, v.y, Card.Dead);
+      board.put(v.x, v.y, Masks.dead);
     } else {
       contour.push(v);
     }
@@ -396,8 +396,9 @@ function wildScore(line: number[]): number {
   // return just the baseScore of that smaller hand subset.
   const newLine: number[] = [];
   // TODO: I think we can do this with .map()...
+
   line.forEach((card) => {
-    if (card === Card.Wild_One || card === Card.Wild_Two) {
+    if ((card & Masks.wildcard & ~Masks.card) !== 0) {
       // do nothing
     } else {
       newLine.push(card);
@@ -410,9 +411,6 @@ function wildScore(line: number[]): number {
  * An loop-unrolled comparison that checks to see if all properties are the
  * same, or if all properties are different. Can be used for validation as
  * well as basic scoring. "Basic" means no bonuses are computed.
- *
- * Note: This is a 20x performance improvement over using Set()s and
- *       creating dynamic arrays.
  *
  * @param line An array of cards (64 values from 0x00-0x3f)
  * @returns 0 = invalid line or score (sum of card values without bonuses)
@@ -428,78 +426,77 @@ function baseScore(line: number[]) {
 
   switch (line.length) {
     case 2:
-      aSame = (line[0] & 0x03) === (line[1] & 0x03);
-      aDiff = (line[0] & 0x03) !== (line[1] & 0x03);
-      bSame = (line[0] & 0x0c) === (line[1] & 0x0c);
-      bDiff = (line[0] & 0x0c) !== (line[1] & 0x0c);
-      cSame = (line[0] & 0x30) === (line[1] & 0x30);
-      cDiff = (line[0] & 0x30) !== (line[1] & 0x30);
-      score = (line[0] & 0x3) + (line[1] & 0x3) + 2;
+      aSame = (line[0] & 0x0f) === (line[1] & 0x0f);
+      aDiff = (line[0] & 0x0f) !== (line[1] & 0x0f);
+      bSame = (line[0] & 0xf0) === (line[1] & 0xf0);
+      bDiff = (line[0] & 0xf0) !== (line[1] & 0xf0);
+      cSame = (line[0] & 0xf00) === (line[1] & 0xf00);
+      cDiff = (line[0] & 0xf00) !== (line[1] & 0xf00);
+      score = ((line[0] >> 12) & 0x7) + ((line[1] >> 12) & 0x7);
       break;
     case 3:
       aSame =
-        (line[0] & 0x03) === (line[1] & 0x03) &&
-        (line[1] & 0x03) === (line[2] & 0x03);
+        (line[0] & 0x0f) === (line[1] & 0x0f) &&
+        (line[1] & 0x0f) === (line[2] & 0x0f);
       aDiff =
-        (line[0] & 0x03) !== (line[1] & 0x03) &&
-        (line[1] & 0x03) !== (line[2] & 0x03) &&
-        (line[0] & 0x03) !== (line[2] & 0x03);
+        (line[0] & 0x0f) !== (line[1] & 0x0f) &&
+        (line[1] & 0x0f) !== (line[2] & 0x0f) &&
+        (line[0] & 0x0f) !== (line[2] & 0x0f);
       bSame =
-        (line[0] & 0x0c) === (line[1] & 0x0c) &&
-        (line[1] & 0x0c) === (line[2] & 0x0c);
+        (line[0] & 0xf0) === (line[1] & 0xf0) &&
+        (line[1] & 0xf0) === (line[2] & 0xf0);
       bDiff =
-        (line[0] & 0x0c) !== (line[1] & 0x0c) &&
-        (line[1] & 0x0c) !== (line[2] & 0x0c) &&
-        (line[0] & 0x0c) !== (line[2] & 0x0c);
+        (line[0] & 0xf0) !== (line[1] & 0xf0) &&
+        (line[1] & 0xf0) !== (line[2] & 0xf0) &&
+        (line[0] & 0xf0) !== (line[2] & 0xf0);
       cSame =
-        (line[0] & 0x30) === (line[1] & 0x30) &&
-        (line[1] & 0x30) === (line[2] & 0x30);
+        (line[0] & 0xf00) === (line[1] & 0xf00) &&
+        (line[1] & 0xf00) === (line[2] & 0xf00);
       cDiff =
-        (line[0] & 0x30) !== (line[1] & 0x30) &&
-        (line[1] & 0x30) !== (line[2] & 0x30) &&
-        (line[0] & 0x30) !== (line[2] & 0x30);
-      score = (line[0] & 0x3) + (line[1] & 0x3) + (line[2] & 0x3) + 3;
+        (line[0] & 0xf00) !== (line[1] & 0xf00) &&
+        (line[1] & 0xf00) !== (line[2] & 0xf00) &&
+        (line[0] & 0xf00) !== (line[2] & 0xf00);
+      score = ((line[0] >> 12) & 0x7) + ((line[1] >> 12) & 0x7) + ((line[2] >> 12) & 0x7);
       break;
     case 4:
       aSame =
-        (line[0] & 0x03) === (line[1] & 0x03) &&
-        (line[1] & 0x03) === (line[2] & 0x03) &&
-        (line[2] & 0x03) === (line[3] & 0x03);
+        (line[0] & 0x0f) === (line[1] & 0x0f) &&
+        (line[1] & 0x0f) === (line[2] & 0x0f) &&
+        (line[2] & 0x0f) === (line[3] & 0x0f);
       aDiff =
-        (line[0] & 0x03) !== (line[1] & 0x03) &&
-        (line[0] & 0x03) !== (line[2] & 0x03) &&
-        (line[0] & 0x03) !== (line[3] & 0x03) &&
-        (line[1] & 0x03) !== (line[2] & 0x03) &&
-        (line[1] & 0x03) !== (line[3] & 0x03) &&
-        (line[2] & 0x03) !== (line[3] & 0x03);
+        (line[0] & 0x0f) !== (line[1] & 0x0f) &&
+        (line[0] & 0x0f) !== (line[2] & 0x0f) &&
+        (line[0] & 0x0f) !== (line[3] & 0x0f) &&
+        (line[1] & 0x0f) !== (line[2] & 0x0f) &&
+        (line[1] & 0x0f) !== (line[3] & 0x0f) &&
+        (line[2] & 0x0f) !== (line[3] & 0x0f);
       bSame =
-        (line[0] & 0x0c) === (line[1] & 0x0c) &&
-        (line[1] & 0x0c) === (line[2] & 0x0c) &&
-        (line[2] & 0x0c) === (line[3] & 0x0c);
+        (line[0] & 0xf0) === (line[1] & 0xf0) &&
+        (line[1] & 0xf0) === (line[2] & 0xf0) &&
+        (line[2] & 0xf0) === (line[3] & 0xf0);
       bDiff =
-        (line[0] & 0x0c) !== (line[1] & 0x0c) &&
-        (line[0] & 0x0c) !== (line[2] & 0x0c) &&
-        (line[0] & 0x0c) !== (line[3] & 0x0c) &&
-        (line[1] & 0x0c) !== (line[2] & 0x0c) &&
-        (line[1] & 0x0c) !== (line[3] & 0x0c) &&
-        (line[2] & 0x0c) !== (line[3] & 0x0c);
+        (line[0] & 0xf0) !== (line[1] & 0xf0) &&
+        (line[0] & 0xf0) !== (line[2] & 0xf0) &&
+        (line[0] & 0xf0) !== (line[3] & 0xf0) &&
+        (line[1] & 0xf0) !== (line[2] & 0xf0) &&
+        (line[1] & 0xf0) !== (line[3] & 0xf0) &&
+        (line[2] & 0xf0) !== (line[3] & 0xf0);
       cSame =
-        (line[0] & 0x30) === (line[1] & 0x30) &&
-        (line[1] & 0x30) === (line[2] & 0x30) &&
-        (line[2] & 0x30) === (line[3] & 0x30);
+        (line[0] & 0xf00) === (line[1] & 0xf00) &&
+        (line[1] & 0xf00) === (line[2] & 0xf00) &&
+        (line[2] & 0xf00) === (line[3] & 0xf00);
       cDiff =
-        (line[0] & 0x30) !== (line[1] & 0x30) &&
-        (line[0] & 0x30) !== (line[2] & 0x30) &&
-        (line[0] & 0x30) !== (line[3] & 0x30) &&
-        (line[1] & 0x30) !== (line[2] & 0x30) &&
-        (line[1] & 0x30) !== (line[3] & 0x30) &&
-        (line[2] & 0x30) !== (line[3] & 0x30);
+        (line[0] & 0xf00) !== (line[1] & 0xf00) &&
+        (line[0] & 0xf00) !== (line[2] & 0xf00) &&
+        (line[0] & 0xf00) !== (line[3] & 0xf00) &&
+        (line[1] & 0xf00) !== (line[2] & 0xf00) &&
+        (line[1] & 0xf00) !== (line[3] & 0xf00) &&
+        (line[2] & 0xf00) !== (line[3] & 0xf00);
       score =
-        (line[0] & 0x3) +
-        (line[1] & 0x3) +
-        (line[2] & 0x3) +
-        (line[3] & 0x3) +
-        4;
+        ((line[0] >> 12) & 0x7) +
+        ((line[1] >> 12) & 0x7) +
+        ((line[2] >> 12) & 0x7) +
+        ((line[3] >> 12) & 0x7);
       break;
   }
   const pass = (aSame || aDiff) && (bSame || bDiff) && (cSame || cDiff);
@@ -532,13 +529,13 @@ function buildPerpendicular( // this is really a grabRealLine with 1 recursion?
     const _x = x - dir.x * i;
     const _y = y - dir.y * i;
     const c = board.board[_x + 48 + (_y + 48) * 97];
-    if (!isCard(c)) {
+    if (!(c & Masks.card)) {
       break;
     } else {
       line.unshift(c);
-      if (c === Card.Wild_One) {
+      if (c === Masks.wildcard_one) {
         wildLines[0] = grabRealLine(board, { x: _x, y: _y}, ortho);
-      } else if (c === Card.Wild_Two) {
+      } else if (c === Masks.wildcard_two) {
         wildLines[1] = grabRealLine(board, { x: _x, y: _y}, ortho);
       }
     }
@@ -548,13 +545,13 @@ function buildPerpendicular( // this is really a grabRealLine with 1 recursion?
     const _x = x + dir.x * i;
     const _y = y + dir.y * i;
     const c = board.board[_x + 48 + (_y + 48) * 97];
-    if (!isCard(c)) {
+    if (!(c & Masks.card)) {
       break;
     } else {
       line.push(c);
-      if (c === Card.Wild_One) {
+      if (c === Masks.wildcard_one) {
         wildLines[0] = grabRealLine(board, { x: _x, y: _y}, ortho);
-      } else if (c === Card.Wild_Two) {
+      } else if (c === Masks.wildcard_two) {
         wildLines[1] = grabRealLine(board, { x: _x, y: _y}, ortho);
       }
     }
@@ -620,15 +617,15 @@ export function recurseWildcardLines(
   for (let i = 0; i < line.length; ++i) {
     _x = p1.x + i * dir.x;
     _y = p1.y + i * dir.y;
-    if (line[i] === Card.Wild_One) {
+    if (line[i] === Masks.wildcard_one) {
       if ((seenMask & 0x1) === 0) {
         seenMask |= 0x1;
-        pivot(Card.Wild_One);
+        pivot(Masks.wildcard_one);
       }
-    } else if (line[i] === Card.Wild_Two) {
+    } else if (line[i] === Masks.wildcard_two) {
       if ((seenMask & 0x2) === 0) {
         seenMask |= 0x2;
-        pivot(Card.Wild_Two);
+        pivot(Masks.wildcard_two);
       }
     }
   }
@@ -669,13 +666,16 @@ function scoreVerify(
     scoreMultiplier *= 2;
   }
   // Now walk the parallel and check the perpendiculars
+  const debug = false; // (x===-2) && (y===-2);
+  debug && console.log("PARALLEL", preLine.map(name).join('-->'));
   for (let i = 0; i < preLine.length; ++i) {
-    areWePlayingAWildcard ||= (preLine[i] & 0xc0) === 0xc0;
+    areWePlayingAWildcard ||= (preLine[i] & Masks.wildcard & ~Masks.card) !== 0;
     const _x = x + i * parallel.x;
     const _y = y + i * parallel.y;
     const wildLines: Array<LineDescriptor> = [];
     // The perpendicular scan won't include our card
     const perpLine = buildPerpendicular(board, _x, _y, perpendicular, wildLines);
+    debug && console.log("- branchCard", name(preLine[i]), "line size", perpLine.length);
     if (perpLine.length === 0) {
       // If there are no perpendicular lines to this card, continue
       continue;
@@ -685,26 +685,34 @@ function scoreVerify(
     // If we add a card to a wildcard line, make sure it is still consistent!
     if (wildLines[0] && wildLines[0].cards.length) {
       if (!checkTwo(wildLines[0].cards, perpLine)) {
+        debug && console.log("x Abort on wildcard check 1");
         return null;
       }
     }
     if (wildLines[1] && wildLines[1].cards.length) {
       if (!checkTwo(wildLines[1].cards, perpLine)) {
+        debug && console.log("x Abort on wildcard check 2");
         return null;
       }
     }
     // Now check to see if this line is valid, and if so, what is its score?
     let perpScore = wildScore(perpLine);
+    /*
     if (perpScore === cardScore(preLine[i])) {
       // If the total score is the score of the card, it is just the card!
-    } else if (perpScore === 0) {
+      debug && console.log("v Continue, just a lone card with no perps");
+    } else
+    */
+    if (perpScore === 0) {
+      debug && console.log("x Abort on score zero of perpline");
       // If this play creates a bad vertical line, the whole play fails.
       return null;
     } else {
+      debug && console.log(". PERP", {x, y, _x, _y}, parallel, perpLine.map(name).join(' --> '));
       if (perpLine.length === 4) {
         // Did we play a card that completed a vertical lot?
         // or was there already a completed veritcal lot?
-        if (board.board[_x + 48 + (_y + 48) * 97] === Card.None) {
+        if (board.board[_x + 48 + (_y + 48) * 97] === Masks.none) {
           scoreMultiplier *= 2;
         }
       }
@@ -798,11 +806,11 @@ function buildParallelLine(
     _y = y + ptr * dir.y;
     c = board.board[_x + 48 + (_y + 48) * 97];
     // If we still have valid cards to play and we hit a dead card, fail!
-    if (c === Card.Dead) {
+    if (c === Masks.dead) {
       return null;
     }
     // Add either a line card or a board card...
-    if (c === Card.None) {
+    if (c === Masks.none) {
       line.push(permHand[i]);
       ++i;
     } else {
@@ -822,12 +830,12 @@ function buildParallelLine(
     _x = x + ptr * dir.x;
     _y = y + ptr * dir.y;
     c = board.board[_x + 48 + (_y + 48) * 97];
-    if (isCard(c)) {
+    if (c & Masks.card) {
       // Add the cards that are touching to the +ve until an empty square.
       line.push(c);
     }
     ++ptr;
-  } while (isCard(c));
+  } while (c & Masks.card);
 
   // 5~10 ms speedup doing this.
   if (line.length > 4) {
@@ -841,12 +849,12 @@ function buildParallelLine(
     _y = y - (backup + 1) * dir.y;
     // We already did the current spot so start one over.
     c = board.board[_x + 48 + (_y + 48) * 97];
-    if (isCard(c)) {
+    if (c & Masks.card) {
       // Add the cards that are touching to the -ve until an empty square.
       line.unshift(c);
     }
     ++backup;
-  } while (isCard(c));
+  } while (c & Masks.card);
   --backup;
 
   // 5~10 ms speedup doing this.
@@ -897,7 +905,7 @@ function scan(
     const _x = spot.x - i * parallel.x;
     const _y = spot.y - i * parallel.y;
     const c = board.board[_x + 48 + (_y + 48) * 97];
-    if (c === Card.None) {
+    if (c === Masks.none) {
       // Now we have a completed line that needs scoring.
       const br = buildParallelLine(board, _x, _y, permHand, parallel);
       // If the hand we're playing is illegal, don't bother

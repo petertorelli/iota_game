@@ -1,6 +1,6 @@
 import { BoardObject } from './BoardObject';
 import DeckObject from './DeckObject';
-import { Card, name } from './CardObject';
+import { Masks, name } from './CardObject';
 import type { Point } from './BoardObject';
 import { rand } from './RandomGenerator';
 import * as Algs from './AnalysisFunctions';
@@ -78,7 +78,7 @@ export default class PlayerObject {
       const y = bestPlay.y + i * unitVector.y;
       const at = board.at(x, y);
       // Sanity check, doesn't cost a lot.
-      if (at !== c && at !== Card.None) {
+      if (at !== c && at !== Masks.none) {
         throw new Error(
           `Cannot play a card on a card! [${x}, ${y}] ${name(c)} on ${name(at)}`
         );
