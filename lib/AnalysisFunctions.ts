@@ -4,7 +4,7 @@ import Permutes from './FasterPermute';
 import { rand } from './RandomGenerator';
 import { checkTwo, checkThree } from './SanityCheckBoard';
 import * as San from './SanityCheckBoard';
-// import { portableMsecTimer } from './GameObject';
+import { portableMsecTimer } from './GameObject';
 
 
 // Direction unit vectors and origin.
@@ -17,6 +17,7 @@ export const OR: Point = { x: 0, y: 0 };
 type BuildParallelResult = {
   line: number[];
   backup: number;
+  shadowLine: number[]; // line, but without wildcards; speeds up scoring
 };
 
 // The result of a play is an outcome.
@@ -520,10 +521,11 @@ function buildPerpendicular( // this is really a grabRealLine with 1 recursion?
   y: number,
   dir: Point,
   wildLines: Array<LineDescriptor>
-) {
+): [ number[], number[] ] {
   const ortho: Point = { x: dir.y, y: dir.x };
   // Order does NOT matter
   const line: number[] = [];
+  const shadowLine: number[] = [];
   // -ve direction
   for (let i = 1; i < 6; ++i) {
     const _x = x - dir.x * i;
@@ -533,6 +535,7 @@ function buildPerpendicular( // this is really a grabRealLine with 1 recursion?
       break;
     } else {
       line.unshift(c);
+      ((c & Masks.isWildcard) === 0) && shadowLine.unshift(c);
       if (c === Masks.wildcard_one) {
         wildLines[0] = grabRealLine(board, { x: _x, y: _y}, ortho);
       } else if (c === Masks.wildcard_two) {
@@ -549,6 +552,7 @@ function buildPerpendicular( // this is really a grabRealLine with 1 recursion?
       break;
     } else {
       line.push(c);
+      ((c & Masks.isWildcard) === 0) && shadowLine.push(c);
       if (c === Masks.wildcard_one) {
         wildLines[0] = grabRealLine(board, { x: _x, y: _y}, ortho);
       } else if (c === Masks.wildcard_two) {
@@ -556,7 +560,7 @@ function buildPerpendicular( // this is really a grabRealLine with 1 recursion?
       }
     }
   }
-  return line;
+  return [line, shadowLine];
 }
 
 /**
@@ -644,7 +648,7 @@ export function recurseWildcardLines(
  */
 function scoreVerify(
   board: BoardObject,
-  preLine: number[],
+  br: BuildParallelResult,
   permHand: number[],
   x: number, // slid
   y: number, // slid
@@ -653,10 +657,12 @@ function scoreVerify(
 ): Outcome | null {
   let areWePlayingAWildcard = false;
   let scoreMultiplier = 1;
+  const preLine = br.line;
   if (preLine.length > 4) {
     return null;
   }
   // Score the parallel line first
+//  let score = baseScore(br.shadowLine);
   let score = wildScore(preLine);
   if (score === 0 && preLine.length > 1) {
     return null;
@@ -674,14 +680,23 @@ function scoreVerify(
     const _y = y + i * parallel.y;
     const wildLines: Array<LineDescriptor> = [];
     // The perpendicular scan won't include our card
-    const perpLine = buildPerpendicular(board, _x, _y, perpendicular, wildLines);
+    const [perpLine, shadowPerpLine] = buildPerpendicular(board, _x, _y, perpendicular, wildLines);
     debug && console.log("- branchCard", name(preLine[i]), "line size", perpLine.length);
     if (perpLine.length === 0) {
       // If there are no perpendicular lines to this card, continue
       continue;
     }
+    /*
+    // This parallel line creates an invalid line, abort.
+    if (perpLine.length > 4) {
+      return null;
+    }
+    */
+
     // Now add our card to the perp line.
     perpLine.push(preLine[i]);
+    ((preLine[i] & Masks.isWildcard) === 0) && shadowPerpLine.push(preLine[i]);
+
     // If we add a card to a wildcard line, make sure it is still consistent!
     if (wildLines[0] && wildLines[0].cards.length) {
       if (!checkTwo(wildLines[0].cards, perpLine)) {
@@ -696,6 +711,7 @@ function scoreVerify(
       }
     }
     // Now check to see if this line is valid, and if so, what is its score?
+//    let perpScore = baseScore(shadowPerpLine);
     let perpScore = wildScore(perpLine);
     /*
     if (perpScore === cardScore(preLine[i])) {
@@ -795,6 +811,7 @@ function buildParallelLine(
   dir: Point
 ): BuildParallelResult | null {
   const line: number[] = [];
+  const shadowLine: number[] = [];
   let ptr = 0;
   let c: number;
   let _x;
@@ -812,9 +829,11 @@ function buildParallelLine(
     // Add either a line card or a board card...
     if (c === Masks.none) {
       line.push(permHand[i]);
+      ((permHand[i] & Masks.isWildcard) === 0) && shadowLine.push(permHand[i]);
       ++i;
     } else {
       line.push(c);
+      ((c & Masks.isWildcard) === 0) && shadowLine.push(c);
     }
     ++ptr;
   }
@@ -833,6 +852,7 @@ function buildParallelLine(
     if (c & Masks.card) {
       // Add the cards that are touching to the +ve until an empty square.
       line.push(c);
+      ((c & Masks.isWildcard) === 0) && shadowLine.push(c);
     }
     ++ptr;
   } while (c & Masks.card);
@@ -852,6 +872,7 @@ function buildParallelLine(
     if (c & Masks.card) {
       // Add the cards that are touching to the -ve until an empty square.
       line.unshift(c);
+      ((c & Masks.isWildcard) === 0) && shadowLine.unshift(c);
     }
     ++backup;
   } while (c & Masks.card);
@@ -866,6 +887,7 @@ function buildParallelLine(
   return {
     line,
     backup,
+    shadowLine,
   };
 }
 
@@ -920,7 +942,7 @@ function scan(
           while (LOOP-- > 0) {
             scoreVerify(
               board,
-              br.line,
+              br,
               permHand,
               // The parallel line may actual start back a few spots in the -ve dir.
               _x - br.backup * parallel.x,
@@ -937,7 +959,7 @@ function scan(
         // Now check the perpendiculars to this parallel line.
         const outcome = scoreVerify(
           board,
-          br.line,
+          br,
           permHand,
           // The parallel line may actual start back a few spots in the -ve dir.
           _x - br.backup * parallel.x,
