@@ -144,7 +144,7 @@ export function reclaimWildcard(
   if (wc.played) {
     const seen: Array<number[]> = getWildcardDeps(board, wc.loc);
     hand.some((card, i) => {
-      if (card & Masks.wildcard & ~Masks.card) {
+      if (card & Masks.isWildcard) {
         return false;
       } else if (approveWildcardSwap(wc.card, card, seen)) {
         board.removeWildcardFromBoard(wc, card);
@@ -380,30 +380,18 @@ export function findContour(board: BoardObject): Point[] {
 
 /**
  * Seems a little ridiculous to build a new line just to remove wildcards.
+ * TODO: Is there a way to encode wildcards so that they can be used in
+ * TODO: baseScore()?
  * 
  * @param line Input line, possibly with wildcards
- * @returns Score of line without wilcards
+ * @returns Score of line without wilcards, zero if bad line.
  */
 // Note: this added 20% more time (990us to 1120us). Dammmit.
 function wildScore(line: number[]): number {
-  // Note: Putting the length check up here is ~5% faster for some reason,
-  //       compared to having a `default` case for non {2,3,4} values.
   if (line.length > 4 || line.length < 2) {
-    // All lines must be between 2 and 4 cards to count toward the score.
     return 0;
   }
-  // We can ignore wildcards: if the hand without wildcards is valid, then
-  // return just the baseScore of that smaller hand subset.
-  const newLine: number[] = [];
-  // TODO: I think we can do this with .map()...
-
-  line.forEach((card) => {
-    if ((card & Masks.wildcard & ~Masks.card) !== 0) {
-      // do nothing
-    } else {
-      newLine.push(card);
-    }
-  });
+  const newLine = line.filter(x => (x & Masks.isWildcard) === 0);
   return baseScore(newLine);
 }
 
@@ -669,7 +657,7 @@ function scoreVerify(
   const debug = false; // (x===-2) && (y===-2);
   debug && console.log("PARALLEL", preLine.map(name).join('-->'));
   for (let i = 0; i < preLine.length; ++i) {
-    areWePlayingAWildcard ||= (preLine[i] & Masks.wildcard & ~Masks.card) !== 0;
+    areWePlayingAWildcard ||= (preLine[i] & Masks.isWildcard) !== 0;
     const _x = x + i * parallel.x;
     const _y = y + i * parallel.y;
     const wildLines: Array<LineDescriptor> = [];

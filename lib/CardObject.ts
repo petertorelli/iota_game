@@ -83,6 +83,7 @@ export enum Masks {
   wildcard     = 0xc000_0000,
   wildcard_one = 0xd000_0000,
   wildcard_two = 0xe000_0000,
+  isWildcard  = wildcard & ~card,
 }
 
 export function color(card: number) {
