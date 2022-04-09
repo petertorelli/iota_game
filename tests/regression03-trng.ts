@@ -1,7 +1,3 @@
-/**
- * This is a checksum regression.
- */
-
 import crypto from 'crypto';
 import _ from 'lodash';
 import { sprintf } from 'sprintf-js';
@@ -15,10 +11,11 @@ let nPlys = 0;
 let msec = 0;
 let check = '';
 const scores: number[] = [];
-const game = new GameObject(1234);
+const game = new GameObject();
 
-turnOnBetterRandom(false);
+turnOnBetterRandom(true);
 
+// for (let i=0; i<100_000; ++i) {
 for (let i = 0; i < 1000; ++i) {
   const res = game.playOneGame();
 

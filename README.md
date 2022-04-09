@@ -54,4 +54,3 @@ NodeJS: ~25 msec per game (0.960 msec per ply)
 # Screenshot
 
 ![image](https://user-images.githubusercontent.com/8249735/158516125-fb3ffbc9-922c-47ae-a908-d35cd1ca698c.png)
-

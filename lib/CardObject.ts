@@ -23,37 +23,88 @@
 // 0xc0 is now the wildcard. It should contain aliases that indicate what
 // role it plays in both contexts, so that it may be recalled later.
 
-export function isCard(card: number) {
-  // TODO: Wildcards.
-  return card >= 0x80 && card <= 0xc0; // <= instead of < for wildcards
+// How about one-hot?
+
+/*
+    C                        SHP  COL  SCR
+32b'0000-0000-0000-0000.0000-0000-0000-0000 Card.NONE
+32b'0100 .... .... .... .... .... .... .... Card.Dead
+
+   0x0         = none
+   0x4000_0000 = dead
+ < 0x8000_0000 = not a card
+>= 0x8000_0000 = a card
+
+32b'0000-0000-0000-0000-0111-0000-0000-0000 scoreBin
+32b'0000-0000-0000-0000.0000-0000-0000-0000 Card.NONE
+    1                      1           0001 1 pt
+    1                     10           0010 2 pts
+    1                     11           0100 3 pts
+    1                    100           1000 4 pts
+    1                             0001-.... RED
+    1                             0010-.... GREEN
+    1                             0100-.... BLUE
+    1                             1000-.... YELLOW
+    1                        0001-.... .... SQUARE
+    1                        0010-.... .... CIRCLE
+    1                        0100-.... .... CROSS
+    1                        1000-.... .... TRIANGLE
+32b'1101 .... .... .... .... .... .... .... WILDCARD1
+32b'1110 .... .... .... .... .... .... .... WILDCARD2
+32b'1... .... .... .... .... .... .... .... card
+*/
+
+export enum Masks {
+  none = 0,
+
+  // We add in the actual score as binary to make score extraction easier
+  pt1 = 0x01 | (0x1 << 12),
+  pt2 = 0x02 | (0x2 << 12),
+  pt3 = 0x04 | (0x3 << 12),
+  pt4 = 0x08 | (0x4 << 12),
+  score = 0xf,
+  scoreBin = 0x7 << 12,
+  
+  red    = 0x10,
+  green  = 0x20,
+  blue   = 0x40,
+  yellow = 0x80,
+  color  = 0xf0,
+
+  square   = 0x100,
+  circle   = 0x200,
+  cross    = 0x400,
+  triangle = 0x800,
+  shape    = 0xf00,
+
+  dead = 0x4000_0000,
+  card = 0x8000_0000,
+
+  wildcard     = 0xc000_0000,
+  wildcard_one = 0xd000_0000,
+  wildcard_two = 0xe000_0000,
+  isWildcard  = wildcard & ~card,
 }
-
-export enum Card {
-  None = 0,
-  Dead = 1, // This is a placeholder for board squares that cannot be played
-  // TODO: None is useful, but do we need EVERY card to be enum'd?
-  Wild = 0xc0,
-}
-
-
 
 export function color(card: number) {
   switch (card) {
-    case Card.None:
+    case Masks.none:
       return 'none';
-    case Card.Dead:
+    case Masks.dead:
       return 'dead';
-    case Card.Wild:
-      return 'wild';
+    case Masks.wildcard_one:
+      return 'wild1';
+    case Masks.wildcard_two:
+      return 'wild2';
     default:
-      switch ((card >> 4) & 0x3) {
-        case 0:
+      switch (card & Masks.color) {
+        case Masks.blue:
           return 'blue';
-        case 1:
+        case Masks.red:
           return 'red';
-        case 2:
+        case Masks.green:
           return 'green';
-        case 3:
+        case Masks.yellow:
           return 'yellow';
         default:
           return 'color?';
@@ -63,84 +114,83 @@ export function color(card: number) {
 
 export function htmlColor(card: number) {
   switch (card) {
-    case Card.None:
+    case Masks.none:
       return 'black';
-    case Card.Dead:
+    case Masks.dead:
       return 'black';
-    case Card.Wild:
+    case Masks.wildcard_one:
+    case Masks.wildcard_two:
       return 'magenta';
     default:
-      switch ((card >> 4) & 0x3) {
-        case 0:
-          return 'dodgerblue';
-        case 1:
-          return 'red';
-        case 2:
-          return 'seagreen';
-        case 3:
-          return 'gold';
-        default:
-          return 'gray';
-      }
+    switch (card & Masks.color) {
+      case Masks.blue:
+        return 'dodgerblue';
+      case Masks.red:
+        return 'red';
+      case Masks.green:
+        return 'seagreen';
+      case Masks.yellow:
+        return 'gold';
+      default:
+        return 'gray';
+    }
   }
 }
 
 export function shape(card: number) {
   switch (card) {
-    case Card.None:
+    case Masks.none:
       return 'O';
-    case Card.Dead:
+    case Masks.dead:
       return 'X';
-    case Card.Wild:
+    case Masks.wildcard_one:
       return 'W';
+      case Masks.wildcard_two:
+      return 'w';
     default:
-      switch ((card >> 2) & 0x3) {
-        case 0:
-          return 'square';
-        case 1:
-          return 'circle';
-        case 2:
-          return 'cross';
-        case 3:
-          return 'triangle';
-        default:
-          return 'shape?';
-      }
+    switch (card & Masks.shape) {
+      case Masks.square:
+        return 'square';
+      case Masks.triangle:
+        return 'triangle';
+      case Masks.cross:
+        return 'cross';
+      case Masks.circle:
+        return 'circle';
+      default:
+        return 'shape?';
+    }
   }
 }
 
 export function htmlShape(card: number) {
   switch (card) {
-    case Card.None:
+    case Masks.none:
       return 'O';
-    case Card.Dead:
+    case Masks.dead:
       return '&times;';
-    case Card.Wild:
+    case Masks.wildcard_one:
       return 'W';
+      case Masks.wildcard_two:
+      return 'w';
     default:
-      switch ((card >> 2) & 0x3) {
-        case 0:
-          return '&#x25a0;';
-        case 1:
-          return '&#x25cf;';
-        case 2:
-          return '&#x271a;';
-        case 3:
-          return '&#x25b2';
-        default:
-          return '?';
-      }
+    switch (card & Masks.shape) {
+      case Masks.square:
+        return '&#x25a0;';
+      case Masks.triangle:
+        return '&#x25b2';
+      case Masks.cross:
+        return '&#x271a;';
+      case Masks.circle:
+        return '&#x25cf;';
+      default:
+        return '?';
+    }
   }
 }
 
 export function score(card: number) {
-  if (card === Card.Wild) {
-    return 0;
-  }
-  if (isCard(card)) {
-    return (card & 0x3) + 1;
-  }
-  return 0;
+  return (card & Masks.scoreBin) >> 12;
 }
 
 export function name(card: number) {

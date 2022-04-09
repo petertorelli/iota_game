@@ -1,7 +1,7 @@
+import crypto from 'crypto';
 import { sprintf } from 'sprintf-js';
 import _ from 'lodash';
 import { GameObject } from './lib/GameObject';
-import crypto from 'crypto';
 
 let p1wins = 0;
 let p2wins = 0;
@@ -10,12 +10,22 @@ let nPlys = 0;
 let msec = 0;
 let check = '';
 const scores: number[] = [];
-const game = new GameObject(1234);
+const game = new GameObject(1);
 
-// for (let i=0; i<100_000; ++i) {
-for (let i=0; i<20; ++i) {
+// Seeds are useless with this on
+// turnOnBetterRandom(true);
 
-  const res = game.playOneGame();
+const n = 600;
+console.log("Playing", n, "games without PRNG.");
+for (let i = 0; i < n; ++i) {
+  let res;
+  try {
+    res = game.playOneGame();
+  } catch (error) {
+    console.log('Game failed with seed:', game.deck.seed);
+    console.error(error);
+    process.exit();
+  }
 
   const area = res.w * res.h;
   const aspect = res.w / res.h;
@@ -27,37 +37,41 @@ for (let i=0; i<20; ++i) {
   } else {
     ++ties;
   }
-  const p1 = (p1wins / (i+1)) * 100;
-  const p2 = (p2wins / (i+1)) * 100;
-  const ti = (ties   / (i+1)) * 100;
-  console.log(sprintf("%5d %3d %3d %3d %2d %2d %4d %5.3f %6.2f %6.2f %6.2f %9d [%3d] %5.1f",
-    i+1,
-    res.p1score,
-    res.p2score,
-    res.nply,
-    res.w,
-    res.h,
-    area,
-    aspect,
-    p1,
-    p2,
-    ti,
-    res.seed,
-    res.nDead,
-    res.playTime,
+  const p1 = (p1wins / (i + 1)) * 100;
+  const p2 = (p2wins / (i + 1)) * 100;
+  const ti = (ties / (i + 1)) * 100;
+  /*
+  console.log(
+    sprintf(
+      '%5d %3d %3d %3d %2d %2d %4d %5.3f %6.2f %6.2f %6.2f %12d %3d %5.1f',
+      i + 1,
+      res.p1score,
+      res.p2score,
+      res.nply,
+      res.w,
+      res.h,
+      area,
+      aspect,
+      p1,
+      p2,
+      ti,
+      res.seed,
+      res.nDead,
+      res.playTime
     )
   );
+  */
   if (res.nply !== 100) {
     nPlys += res.nply;
     msec += res.playTime;
     scores.push(res.p1score);
     scores.push(res.p2score);
   } else {
-    console.log("Skip deadlock in performance result");
+    console.log('Skip deadlock in performance result');
   }
   check += `${res.p1score}${res.p2score}${res.nply}${res.w}${res.h}`;
 }
 
-console.log(sprintf("Average score: %.1f", _.mean(scores)));
-console.log(sprintf("msec per ply: %.3f", msec / nPlys));
+console.log(sprintf('Average score: %.1f', _.mean(scores)));
+console.log(sprintf('msec per ply: %.3f', msec / nPlys));
 console.log('Checksum:', crypto.createHash('md5').update(check).digest('hex'));

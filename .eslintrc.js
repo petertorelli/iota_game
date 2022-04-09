@@ -12,6 +12,7 @@ module.exports = {
   plugins: [],
   // add your custom rules here
   rules: {
-    semi: "always",
+    semi: ['error', 'always'],
+    'no-console': 0,
   },
-}
+};

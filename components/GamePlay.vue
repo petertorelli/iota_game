@@ -1,11 +1,41 @@
 <!-- Please remove this file from your project -->
 <template lang="pug">
 mixin sidebar
-  .m-4.p-4.w-64.text-sm
+  .text-sm
     h1 Results
     h2 Game log
     .h-48.overflow-y-scroll.border
       .font-mono.text-xs(v-for='res in results') {{ res }}
+    h2 Debug Settings (see Dev Console)
+    table.w-full
+      tr
+        td Game
+        td.text-right
+          input(type='checkbox' @change='game.debug = !game.debug')
+      tr
+        td Board
+        td.text-right
+          input(type='checkbox' @change='game.board.debug = !game.board.debug')
+      tr
+        td Player 1
+        td.text-right
+          input(type='checkbox' @change='game.player1.debug = !game.player1.debug')
+      tr
+        td Player 2
+        td.text-right
+          input(type='checkbox' @change='game.player2.debug = !game.player2.debug')
+      tr
+        td Algorithms
+        td.text-right
+          input(type='checkbox' @change='toggleAlgDebug()')
+      tr
+        td Algorithm X
+        td.text-right
+          input.border(type='number' v-model='algX' @change='setDebugXY(algX, algY)')
+      tr
+        td Algorithm Y
+        td.text-right
+          input.border(type='number' v-model='algY' @change='setDebugXY(algX, algY)')
     h2 Settings
     table.w-full
       tr
@@ -13,14 +43,17 @@ mixin sidebar
         td.text-right {{ game.deck.seed }}
       tr
         td
-          input(type='number' v-model='userSeed').w-24.border.rounded
+          input(type='number' v-model='userSeed').w-40.border.rounded
         td.text-right
           button(@click='reset(userSeed)').px-1.py-1.text-xs.rounded.bg-gray-500.text-white Set Seed
       tr
         td Current turn:
         td.text-right {{ game.ply }}
     h2 Interesting Seeds
-    p 1668437305 is a high score
+    p 151785470 is a very high score
+    p 133207245 seems to be missing dead cards
+    p 1598795824 fails 2xW check
+    p 727689717 starts with a wildcard
     h2 Game state
       textarea.w-full.border(v-model='compressedGame' rows=10)
       button(@click='exportGame()').mr-2.px-2.py-1.rounded.font-bold.bg-gray-500.text-white Export
@@ -62,22 +95,24 @@ mixin players
       .w-24(:style='{ color: game.ply & 1 ? "black" : "dodgerblue" }') {{ game.player1.name }}
       .w-8.text-right.mr-4 {{ game.player1.score }}
       card-image(v-for='card of cachePlayer1Hand' :card='card' :key='card')
+    small (Wildcard swaps {{ game.player1.wildcardSwaps }})
     .flex.flex-row.items-center.h-12
       .w-24(:style='{ color: game.ply & 1 ? "dodgerblue" : "black" }') {{ game.player2.name }}
       .w-8.text-right.mr-4 {{ game.player2.score }}
       card-image(v-for='card of cachePlayer2Hand' :card='card' :key='card')
+    small (Wildcard swaps {{ game.player2.wildcardSwaps }})
 
 mixin controls
   .mb-4
-    button.btn.btn-blue.mr-4(@click='turn()'
+    button.btn.btn-blue.mb-1.mr-2(@click='turn()'
       ) Play One Turn
-    button.btn.btn-blue.mr-4(@click='reset()'
+    button.btn.btn-blue.mb-1.mr-2(@click='reset()'
       ) Reset
-    button.btn.btn-blue.mr-4(@click='autoPlay(1)'
+    button.btn.btn-blue.mb-1.mr-2(@click='autoPlay(1)'
       ) Autoplay Once
-    button.btn.btn-blue.mr-4(@click='autoPlay()'
+    button.btn.btn-blue.mb-1.mr-2(@click='autoPlay()'
       ) Autoplay Forever
-    button.btn.btn-blue.mr-4(@click='stopAutoPlay()'
+    button.btn.btn-blue.mb-1(@click='stopAutoPlay()'
       ) stop
 
 mixin board
@@ -100,24 +135,23 @@ mixin deck
     .flex.flex-row.flex-wrap
       card-image(v-for='card of cacheDeck' :card='card' :key='card')
 
-.flex.flex-row
-  +sidebar
+//- Main!
+.m-4.flex.flex-row
+  .w-80.mr-4
+    +sidebar
   .flex.flex-col
-    .mt-8.mb-4.error-message(v-if='error') {{ error }}
-    h1.mt-8 Iota Auto-Player
+    h1 Iota Auto-Player
     p Based on the game "IOTA" by Gamewrite (c) www.gamewrite.com
-    p This app plays the game by itself, without wildcards. It's a fun study in 1-ply gameplay.
+    p This app plays the game by itself. It's a fun study in 1-ply gameplay.
     p It is extremely slow on Safari for some reason, recommend Chrome or Firefox.
     +players
-    .mb-4
-      div(v-if='game.cannotProceed')
-        div(v-if='game.player1.score === game.player2.score')
-          b Tie!
-        div(v-else)
-          b Winner is player # {{ game.player1.score > game.player2.score ? 1 : 2 }}
+    .mb-4(v-if='game.cannotProceed')
+      div(v-if='game.player1.score === game.player2.score')
+        b Tie!
       div(v-else)
-        p Choose an option:
+        b Winner is player # {{ game.player1.score > game.player2.score ? 1 : 2 }}
     +controls
+    .mb-4.error-message(v-if='error') <button @click="error=''">&times;</button> {{ error }}
     +board
     +deck
 </template>
@@ -127,6 +161,7 @@ import _ from 'lodash';
 import Vue from 'vue';
 import { DoneReason, GameObject } from '../lib/GameObject';
 import { BOARD_DIM, BOARD_HALF } from '../lib/BoardObject';
+import { toggleDebug } from '../lib/AnalysisFunctions';
 
 export default Vue.extend({
   name: 'GamePlay',
@@ -139,7 +174,7 @@ export default Vue.extend({
        * I stop trying to update the DOM after EVERY turn during autoplay, it
        * might ... do something? I dunno. Just a thought.
        */
-      userSeed: null as number | null,
+      userSeed: 133207245 as number | null,
       cacheBoard: [] as Array<number | null>,
       cacheRangeX: [] as number[],
       cacheRangeY: [] as number[],
@@ -165,13 +200,25 @@ export default Vue.extend({
       results: [] as string[],
       ms: [] as number[],
       error: '',
-      compressedGame: '789ced9ccd8adb3014855fa5682d83f52f67db07e82cba0b593819978149ede24c991942debd574ee319dd9a42c70563387c24cab1aea57bae2467e7b3d877757f2f3667f1543f36add86ccfe2456c4a295ee9fb220755a829a97259dc7499cb424f45e7c163a7c9273253bd3a1f98c9c230cdfb595e6caec2326d98d64c8fc359166f59bccdb3bdca31da4d499b4b9717f83694ca25b7ad26a34d1e3d4eecf3897d36f16fe973f95602375d1295c7977938db558563da326df22ab0cc592e2c15d6abf3a1587dc78943eefa2ac34dc629197359e5d5bea5c1b6103b477f0f66b57553c165165b66a163d9ab6b65ca3c63c5fa2b6e6827c57edfbda427c7cfe321356fc1a992e2d8dfaeba7144f14c2dc9076aa89eb787cfb6940000000000000000000000000000000000000000eb43392d95d78be731c7811fbe835466e95c66b8b04aaae8692d2cfd262f52854857c2e2997dc88d71e4843c546572e24945f265d4e299fdbb93b4af2afac4e4c4929340adb1832feab3a98fce505cd319529e769a1dce4d54c9894b27e8ba3a2a901b476eab35ad968a94713083175a9b40eba46965e2d2797dd80fe54ef9dbb42ed5e2d9ccf061693759b3781eb33c785a89e017cf63a60b43a7c3ad7d25c84358e77fe2e821a48f5d3c8f992ecceacf4348ff0f6ef13c66ba88e954afdd050000000000000000000000000000000000fc177617297e1cebd7a657e955510f759b5e06a57494ca5aa97cdc49d1d6df1bb1117743d8a72f6d23a4381dba9e2e6a6dc701f4fb012c0de0cb3f6efefadcbdbbd9f9e1e6f41a302fc5a16edbeee9aeef0e4d43637cab8fa7468abea94f5dfb39ef2ba5b86f0e8f69c26bbba5994e439788553436e84a89cbe5178160bb29' as string,
+      algX: undefined,
+      algY: undefined,
+      compressedGame:
+        '789ced9ccf6ae33010c65f65d1590169248fa45cf701b6b07b2b393889f70fcddac569494bc9bbaf9cd692e56661c96143e1e30789c6335266468a4f1f7a11ebaeeeb762f9221eeabba615cbdb17f124964a8ae7f87994276ba14fe64297f6cc3df32ee8cd56a5b9a0f3f638bd5c9b0a6b96c76ca62a4d539af6ac39665195269ff59ad23b9aae0c76e50fb9a2025f3afd1967d988b2d6d10ac5bc70c637ebbe293b688e2b290e7ad8f75db719be261be78f52dcefeae7269e8beff56edf44fb40656c6e6e0a7de81f87c8f5ba7b1a821e77695d4a39885d3f3e4d698a434c2b86fc8c8d1de6bf1ec85b25010000000000000000000000000000000000000000b8840569eb2c7360ff3676c684b9572b9bbdce5e3debcbaa74cad3582507b2a92665d42c522b9fbcd6308fe3a0941b57a894bf765d97f581d9691a2bf23654522b17b7557bb2a938ed38859366695ce5556093fac2ec1d4d570d3499c21fb737e98cb8b8f5219d11caff814ac71351ce8bb1dee51313d21aca69be38a7ebf5c155ca4dad78367245fe4c7c3c40557e9bf88ff78ef84b1fbc6573f55c000000000000000000000000000000000000000000f82facc63bb2fad37d5b3feb76b8de2ac9a25412110572218beac824e994d77625455bff6ec452dc9c96faf4a56d8414fb4dd7c787da04290ebf76db4ddd6fbf1eeafbfde9e2af6db37efc91eff07a4d82de27e183d649db53a53173309cd54ee67d12df0edd240972ff94c4705599916253b76df770d3779b265d342645dfd4fbaefd5cfa66ab0cd6e66e28e3f5fb36c9cd5c2a236876b9af9c7a69c865191a6581a7f259fea782a3dcfb1c1fc8e82cec0b3926e8894892b39c527b258df5815985acb2ac749eaa55eeb0b53aa9e9bc0921ed02a989ea9427ebd88902d5528a894139354a631f921acd29a37935efeafed46c6d0c2947b63a1eff00556dd96b' as string,
     };
   },
   mounted() {
     this.reset();
   },
   methods: {
+    setDebugXY(
+      x: number | undefined = undefined,
+      y: number | undefined = undefined
+    ) {
+      toggleDebug(x, y);
+    },
+    toggleAlgDebug() {
+      toggleDebug();
+    },
     exportGame() {
       this.compressedGame = this.game.exportGame();
     },
@@ -191,6 +238,13 @@ export default Vue.extend({
       for (let i = 0; i < 97 * 97; ++i) {
         this.cacheBoard[i] = this.game.board.board[i];
       }
+      try {
+        this.game.checkGame();
+      } catch (error) {
+        this.error = error as string;
+        console.error(this.game.deck.seed);
+        console.error(error);
+      }
     },
     turn() {
       try {
@@ -198,10 +252,12 @@ export default Vue.extend({
         this.update();
       } catch (error) {
         this.error = error as string;
+        console.error(this.game.deck.seed);
         console.error(error);
       }
     },
     reset(seed: number | undefined = undefined) {
+      this.error = '';
       this.game.init(seed);
       this.update();
     },
@@ -211,6 +267,11 @@ export default Vue.extend({
         pct = (n / d) * 100;
       }
       return pct.toFixed(prec);
+    },
+    stopAutoPlay() {
+      clearInterval(this.autoPlayTimer);
+      this.autoPlayTimer = 0;
+      this.update();
     },
     async autoPlay(n: number | undefined) {
       // Don't start autoPlay'ing again if already in progress!
@@ -226,6 +287,7 @@ export default Vue.extend({
           } catch (error) {
             this.stopAutoPlay();
             this.error = error as string;
+            console.error(this.game.deck.seed);
             console.error(error);
           }
           if (gameRes === undefined) {
@@ -260,8 +322,8 @@ export default Vue.extend({
           this.meanMs = _.mean(this.ms);
           const res =
             `${this.game.player1.score}-${this.game.player2.score} ` +
-            `${this.game.ply} ${winner} ${this.game.deck.seed} ` +
-            `${msec} ms`;
+            `${this.game.ply} ${winner} ` +
+            `${msec.toString().padStart(4, '.')} ms ${this.game.deck.seed} `;
           this.results.unshift(res);
 
           // this.update();
@@ -275,15 +337,10 @@ export default Vue.extend({
             this.stopAutoPlay();
             this.update();
           }
-        }
+        };
         this.autoPlayTimer = window.setInterval(intervalPlayLauncher, 150);
         resolve();
       });
-    },
-    stopAutoPlay() {
-      clearInterval(this.autoPlayTimer);
-      this.autoPlayTimer = 0;
-      this.update();
     },
   },
 });
@@ -328,10 +385,12 @@ textarea {
   width: 30px;
   height: 30px;
   margin: 3px;
+  user-select: none;
+  @apply rounded;
 }
 
 .card {
-  @apply base-card rounded;
+  @apply base-card;
   border: 1px solid #ccc;
 }
 
@@ -340,7 +399,15 @@ textarea {
   border: 1px solid white;
 }
 
+.base-card:hover {
+  background: #aaa;
+}
+
 td {
   padding: 0;
+}
+
+tr:hover {
+  background: #eee;
 }
 </style>

@@ -1,6 +1,6 @@
-import BoardObject from './BoardObject';
+import { BoardObject } from './BoardObject';
 import DeckObject from './DeckObject';
-import { Card, name } from './CardObject';
+import { Masks, name } from './CardObject';
 import type { Point } from './BoardObject';
 import { rand } from './RandomGenerator';
 import * as Algs from './AnalysisFunctions';
@@ -9,6 +9,8 @@ export default class PlayerObject {
   public hand: number[] = [];
   public name: string = 'Player Name';
   public score = 0;
+  public wildcardSwaps = 0;
+  public debug: boolean = false;
   constructor(name: string) {
     this.init(name);
   }
@@ -17,6 +19,7 @@ export default class PlayerObject {
     this.hand = [];
     this.name = name;
     this.score = 0;
+    this.wildcardSwaps = 0;
   }
 
   // TODO: When to do this strategically?
@@ -25,7 +28,6 @@ export default class PlayerObject {
     const r: number = rand();
     const n: number = this.hand.length;
     let nSwap = Math.max(1, Math.floor(r * n));
-
     if (nSwap > deck.deck.length) {
       nSwap = deck.deck.length;
     }
@@ -37,7 +39,7 @@ export default class PlayerObject {
 
   /**
    * Draw cards from a deck if there are any.
-   * 
+   *
    * @param nCards Number of cards to draw.
    * @param deck Deck to draw them from.
    */
@@ -52,7 +54,7 @@ export default class PlayerObject {
 
   /**
    * Given a best play outcome, actually put the cards on the board.
-   * 
+   *
    * @param board BoardObject (it will be modified)
    * @param bestPlay An Outcome the player chose to play.
    * @returns How many cards were played from the player's hand.
@@ -76,14 +78,29 @@ export default class PlayerObject {
       const y = bestPlay.y + i * unitVector.y;
       const at = board.at(x, y);
       // Sanity check, doesn't cost a lot.
-      if (at !== c && at !== Card.None) {
-        throw new Error(`Cannot play a card on a card! [${x}, ${y}] ${name(c)} on ${name(at)}`);
+      if (at !== c && at !== Masks.none) {
+        throw new Error(
+          `Cannot play a card on a card! [${x}, ${y}] ${name(c)} on ${name(at)}`
+        );
       }
-      board.put(x, y, c);
+      // Remember: if the card is already on the board, don't `put()` it!
+      if (at !== c) {
+        this.debug && console.log(`${this.name} puts ${name(c)} at ${x}, ${y}`);
+        board.put(x, y, c);
+      }
       ++i;
-    }
+    };
     bestPlay.line.forEach(playThisCard);
     return nDraw;
+  }
+
+  private reclaimWildcards(board: BoardObject) {
+    if (Algs.reclaimWildcard(board, board.w1, this.hand)) {
+      this.wildcardSwaps++;
+    }
+    if (Algs.reclaimWildcard(board, board.w2, this.hand)) {
+      this.wildcardSwaps++;
+    }
   }
 
   /**
@@ -94,10 +111,13 @@ export default class PlayerObject {
    * @param board A BoardObject, it will change with dead cards and plays
    */
   public playYourHand(deck: DeckObject, board: BoardObject) {
-    // Now create a list of all best plays for each contour spot
+    // TODO: What kind of strategy is associated with reclaiming a wildcard?
+    this.reclaimWildcards(board);
+    // Create a list of all best plays for each contour spot
     const results: Algs.Outcome[] = [];
     // Name the anon function to make profiling easier
     const considerSpot = (spot: Point) => {
+      this.debug && console.log(`${this.name} looks at ${spot.x}, ${spot.y}`);
       const r = Algs.considerThisSpot(board, spot, this.hand);
       if (r !== undefined) {
         results.push(r);
@@ -108,7 +128,8 @@ export default class PlayerObject {
       this.swapHand(deck);
     } else {
       const bestPlay = Algs.pickBestPlay(results);
-      let ndraw = this.layEmDown(board, bestPlay);
+      this.debug && console.log(`${this.name} plays`, bestPlay);
+      const ndraw = this.layEmDown(board, bestPlay);
       if (deck.deck.length === 0 && this.hand.length === 0) {
         this.score += bestPlay.score * 2;
         // Game over.

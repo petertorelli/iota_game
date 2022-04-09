@@ -1,16 +1,28 @@
 import zlib from 'zlib';
-
-import { Card } from './CardObject';
+import { Masks } from './CardObject';
 import DeckObject from './DeckObject';
-import BoardObject from './BoardObject';
+import { BoardObject } from './BoardObject';
 import PlayerObject from './PlayerObject';
+import { sanityCheckBoard } from './SanityCheckBoard';
 
 export function portableMsecTimer() {
   if (process.hrtime) {
-    return Number(process.hrtime.bigint()) / 1e6;
+    // TODO: Does this save time, defering conversion? Probably not.
+    // return Number(process.hrtime.bigint()) / 1e6;
+    return process.hrtime.bigint();
   } else {
     return window.performance.now();
   }
+}
+
+function timeDiff(t1: number | bigint, t0: number | bigint): number {
+  if (typeof t1 === "bigint") {
+    t1 = Number(t1) / 1e6;
+  }
+  if (typeof t0 === "bigint") {
+    t0 = Number(t0) / 1e6;
+  }
+  return t1 - t0;
 }
 
 export enum DoneReason {
@@ -45,6 +57,7 @@ export class GameObject {
   public ply = 0;
   public cannotProceed: boolean = false;
   public reasonCannotProceed: DoneReason = DoneReason.None;
+  public debug: boolean = false;
   constructor(seed: number | undefined = undefined) {
     this.deck = new DeckObject(seed);
     this.init();
@@ -98,6 +111,10 @@ export class GameObject {
     }
   }
 
+  public checkGame() {
+    sanityCheckBoard(this.board);
+  }
+
   public playOneGame(seed: number | undefined = undefined): GameResults {
     // Finish playing the current game, unless it is done, in which case init.
     if (this.cannotProceed) {
@@ -113,7 +130,7 @@ export class GameObject {
       p1score: this.player1.score,
       p2score: this.player2.score,
       tie: this.player1.score === this.player2.score,
-      playTime: t1 - t0,
+      playTime: timeDiff(t1, t0),
       // TODO: cannotProceed is redundant with reasonCannotProceed
       done: this.cannotProceed,
       reason: this.reasonCannotProceed,
@@ -122,7 +139,7 @@ export class GameObject {
       nply: this.ply,
       seed: this.deck.seed,
       nDead: this.board.board.reduce((acc, item) => {
-        return (acc += item === Card.Dead ? 1 : 0);
+        return acc + (item === Masks.dead ? 1 : 0);
       }, 0),
     };
   }
@@ -142,12 +159,20 @@ export class GameObject {
     this.board.bbox = json.board.bbox;
     this.board.board = json.board.board;
     this.board.taken = json.board.taken;
+    this.board.w1.loc = json.board.w1.loc;
+    this.board.w1.played = json.board.w1.played;
+    this.board.w1.card = json.board.w1.card;
+    this.board.w2.loc = json.board.w2.loc;
+    this.board.w2.played = json.board.w2.played;
+    this.board.w2.card = json.board.w2.card;
     this.player1.hand = json.player1.hand;
     this.player1.name = json.player1.name;
     this.player1.score = json.player1.score;
+    this.player1.wildcardSwaps = json.player1.wildcardSwaps;
     this.player2.hand = json.player2.hand;
     this.player2.name = json.player2.name;
     this.player2.score = json.player2.score;
+    this.player2.wildcardSwaps = json.player2.wildcardSwaps;
     this.ply = json.ply;
   }
 }

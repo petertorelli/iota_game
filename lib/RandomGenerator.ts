@@ -25,11 +25,11 @@ export function turnOnBetterRandom(on: Boolean) {
   if (on) {
     randfunc = () => {
       return Math.random();
-    }
+    };
   } else {
     randfunc = () => {
       return globalPrng.next().value;
-    }
+    };
   }
 }
 

@@ -1,9 +1,12 @@
 import { sprintf } from 'sprintf-js';
 import _ from 'lodash';
 import { GameObject } from '../lib/GameObject';
+import { turnOnBetterRandom } from '../lib/RandomGenerator';
 
 const gamePlyOutcomes: Array<string[]> = [];
-const game = new GameObject(1234);
+turnOnBetterRandom(true);
+
+const game = new GameObject();
 for (let i = 0; i < 1000; ++i) {
   let outcome;
   const plyOutcomes: string[] = [];

@@ -1,6 +1,5 @@
 import _ from 'lodash';
-import { Card } from './CardObject';
-
+import { Masks } from './CardObject';
 /*
 The largest possible board is derived from the most number of plays in any
 one direction:
@@ -31,11 +30,30 @@ type BoundingBox = {
   h: number;
 };
 
+// It is easier to cache the wildcards than seek them out
+export class WildcardObject {
+  public loc: Point = { x: 0, y: 0 };
+  public played: boolean = false;
+  public card: number;
+
+  public constructor(card: number) {
+    this.card = card;
+  }
+
+  public cache(x: number, y: number) {
+    this.played = true;
+    this.loc.x = x;
+    this.loc.y = y;
+  }
+}
+
 export const BOARD_DIM = 97; // After 1Million games 25 is the largest width/height
 export const BOARD_HALF = (BOARD_DIM - 1) / 2;
-export default class BoardObject {
+export class BoardObject {
   public board: number[];
   public taken: Point[] = [];
+  public w1: WildcardObject = new WildcardObject(Masks.wildcard_one);
+  public w2: WildcardObject = new WildcardObject(Masks.wildcard_two);
   public bbox: BoundingBox = {
     ulc: { x: 0, y: 0 },
     lrc: { x: 0, y: 0 },
@@ -43,44 +61,45 @@ export default class BoardObject {
     h: 0,
   };
 
-  constructor(initBoard: BoardObject | undefined = undefined) {
-    this.board = Array(BOARD_DIM * BOARD_DIM).fill(Card.None);
-    this.init(initBoard);
+  constructor() {
+    this.board = Array(BOARD_DIM * BOARD_DIM).fill(Masks.none);
+    this.init();
   }
 
-  public init(initBoard: BoardObject | undefined = undefined) {
-    if (initBoard !== undefined) {
-      this.bbox = JSON.parse(JSON.stringify(initBoard.bbox));
-      this.board = [...initBoard.board];
-      this.taken = [...initBoard.taken];
-    } else {
-      this.bbox = { ulc: { x: 0, y: 0 }, lrc: { x: 0, y: 0 }, w: 0, h: 0 };
-      this.board.fill(Card.None);
-      this.taken = [];
-    }
+  public init() {
+    this.bbox = { ulc: { x: 0, y: 0 }, lrc: { x: 0, y: 0 }, w: 0, h: 0 };
+    this.board.fill(Masks.none);
+    this.taken = [];
+    this.w1.played = false;
+    this.w2.played = false;
   }
 
   public atP(p: Point): number {
-    const x = p.x + BOARD_HALF;
-    const y = p.y + BOARD_HALF;
-    if (x > BOARD_DIM || x < 0 || y > BOARD_DIM || y < 0) {
-      return Card.None;
-    }
-    const card = this.board[x + y * BOARD_DIM];
-    return card === null ? Card.None : card;
+    return this.at(p.x, p.y);
   }
 
-  // TODO: Doing the [] lookup directly is a 10~15% perf increase over this!
+  // TODO: Doing the [] lookup directly is a 10~15% perf increase over this!!!
   public at(_x: number, _y: number): number {
     const x = _x + BOARD_HALF;
     const y = _y + BOARD_HALF;
     if (x > BOARD_DIM || x < 0 || y > BOARD_DIM || y < 0) {
-      return Card.None;
+      return Masks.none;
     }
     const card = this.board[x + y * BOARD_DIM];
-    return card === null ? Card.None : card;
+    return card === null ? Masks.none : card;
   }
 
+  public removeWildcardFromBoard(w: WildcardObject, card: number) {
+    const x = w.loc.x + BOARD_HALF;
+    const y = w.loc.y + BOARD_HALF;
+    if (x > BOARD_DIM || x < 0 || y > BOARD_DIM || y < 0) {
+      throw new Error('Attempted to replace a wildcard out of bounds');
+    }
+    this.board[x + y * BOARD_DIM] = card;
+    w.played = false;
+  }
+
+  // TODO: Should add a check to make sure not putting a card on a card?
   public put(_x: number, _y: number, card: number): boolean {
     const x = _x + BOARD_HALF;
     const y = _y + BOARD_HALF;
@@ -90,6 +109,11 @@ export default class BoardObject {
     this.board[x + y * BOARD_DIM] = card;
     this.taken.push({ x: _x, y: _y });
     this.setBbox();
+    if (card === Masks.wildcard_one) {
+      this.w1.cache(_x, _y);
+    } else if (card === Masks.wildcard_two) {
+      this.w2.cache(_x, _y);
+    }
     return true;
   }
 
