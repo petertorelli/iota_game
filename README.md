@@ -1,6 +1,6 @@
 # About
 
-This program auto-plays the game "Iota" by GameWrite in a SPA using some really simple DFS single-ply lookahead.
+This program auto-plays the game "Iota", copywrite by GameWrite, in a SPA using some really simple DFS single-ply lookahead.
 
 GUI options:
 
@@ -8,10 +8,10 @@ GUI options:
 2. Reset - Reset the board, reshuffle, and deal
 3. Autoplay Once - Causes the engine to finish the game
 4. Autoplay Forever - Play until clicking "Stop"
-5. Set seed - The game uses a PRNG and reports the seed at each game; a seed can be set with this option
+5. Set seed - If not using Math.random(), a PRNG sets a seed which can then be used to restart the same game. Great for debug, but the PRNG will bias toward one player after a thousand games or so by as much as 10%.
 6. Export/Import - The game state can be exported as a hex string, or re-imported via cut-and-paste into this area.
 
-Each time a game finishes, the scores, board side, and # of turns are reported on the left-hand side. Note that it does not render while autoplaying as it becomes progressively slower.
+Each time a game finishes, the scores, board side, and # of turns are reported on the left-hand side. Note that it does not render while autoplaying as it becomes progressively slower for reasons I don't quite get (because how many times do you create & destory millions of VueJS components?).
 
 # Running
 
@@ -53,4 +53,4 @@ NodeJS: ~25 msec per game (0.960 msec per ply)
 
 # Screenshot
 
-![image](https://user-images.githubusercontent.com/8249735/158516125-fb3ffbc9-922c-47ae-a908-d35cd1ca698c.png)
+![Screen Shot 2022-05-30 at 4 15 16 PM](https://user-images.githubusercontent.com/8249735/171067988-f74b6bb8-b48e-4fd2-96ff-6a946fb84503.png)
