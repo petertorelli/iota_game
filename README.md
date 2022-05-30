@@ -15,6 +15,8 @@ Each time a game finishes, the scores, board side, and # of turns are reported o
 
 # Running
 
+You can play it live [here](https://repete.io/iota/)!
+
 ## Browser
 
 It's a NuxtJS app, so:
