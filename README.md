@@ -44,10 +44,10 @@ The file `main.ts` is just for experimenting. The two regressions have their own
 
 On my 2019 MacBook Pro (Intel Core i9) I get the following performance:
 
-Firefox: ~70 msec per game
-Chrome: ~40 msec per game
-Safari: ~1000 msec per game
-NodeJS: ~25 msec per game (0.960 msec per ply)
+* Firefox: ~70 msec per game
+* Chrome: ~40 msec per game
+* Safari: ~1000 msec per game
+* NodeJS: ~25 msec per game (0.960 msec per ply)
 
 # Problems
 
